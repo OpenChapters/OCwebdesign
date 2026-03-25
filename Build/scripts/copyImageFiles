@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Wrapper installed at /usr/local/bin/copyImageFiles in the worker Docker image.
+# The arara rule invokes:  bash -i -c 'copyImageFiles'
+# arara runs with CWD = the temp build workspace (where main.tex lives).
+#
+# The Python scripts are installed at /opt/ocbuild/Build/scripts/ in the image
+# (set via OCBUILD_SCRIPTS_DIR to override).
+SCRIPTS_DIR="${OCBUILD_SCRIPTS_DIR:-/opt/ocbuild/Build/scripts}"
+exec python3 "${SCRIPTS_DIR}/collect_images.py" --workdir "$(pwd)"

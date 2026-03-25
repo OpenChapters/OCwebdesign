@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+staticfiles/
+
+# Environment (secrets — never commit)
+.env
+.env.prod
+.env.pro.example
+
+# Generated PDFs
+media/pdfs/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# macOS
+.DS_Store
+
+# Claude Code
+.claude/
+CLAUDE.md
+cresume
+
+# Personal notes
+log.md
+deploy.txt

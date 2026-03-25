@@ -1,0 +1,20 @@
+!config
+#
+# Copyright 2017-2025, M De Graef/Carnegie Mellon University
+#
+# yaml arara rules file for the copyImageFiles directive
+#
+# 09/25/2025: new routine
+#
+#
+identifier: copyImageFiles
+name: copyImageFiles
+authors:
+- Marc De Graef
+commands:
+- name: copyImageFiles
+  command: >
+    @{
+      return getCommand('bash', '-i', '-c', 'copyImageFiles')
+    }
+arguments: []

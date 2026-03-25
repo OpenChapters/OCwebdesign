@@ -1,0 +1,22 @@
+!config
+#
+# Copyright 2017-2022, M De Graef/Carnegie Mellon University
+#
+# yaml arara rules file for the mergemainbibfiles directive
+#
+# 12/01/2017: 1.0 MDG initial version
+# 01/02/2018: 1.1 updated to arara 4.0
+# 12/30/2021: 2.0 updated to arara 6.0
+#
+#
+identifier: mergemainbibfiles
+name: mergemainbibfiles
+authors:
+- Marc De Graef
+commands:
+- name: mergemainbibfiles
+  command: >
+    @{
+      return getCommand('bash', '-i', '-c', 'mergemainbibfiles')
+    }
+arguments: []

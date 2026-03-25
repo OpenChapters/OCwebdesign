@@ -1,0 +1,50 @@
+# LaTeX packages
+
+The following LaTeX packages are used in the OpenChapter project:
+
+* \usepackage{upquote}
+* \usepackage{tcolorbox}
+* \usepackage{comfortaa}
+* \usepackage{adforn}
+* \usepackage{forest}
+* \usepackage{tabularx}
+* \usepackage{geometry}
+* \usepackage{graphicx}
+* \usepackage{epsfig}
+* \usepackage{tikz}
+* \usepackage{bm}
+* \usepackage{floatflt}
+* \usepackage{placeins}
+* \usepackage{babel}
+* \usepackage{enumitem}
+* \usepackage{booktabs}
+* \usepackage{xcolor}
+* \usepackage{url} 
+* \usepackage{multirow,array}
+* \usepackage{arydshln}
+* \usepackage{avant}
+* \usepackage{mathtools}
+* \usepackage{microtype}
+* \usepackage{inputenc}
+* \usepackage{fontenc}
+* \usepackage{biblatex}
+* \usepackage{calc}
+* \usepackage{makeidx}
+* \usepackage{titletoc}
+* \usepackage{tocloft}
+* \usepackage{fancyhdr}
+* \usepackage{amsmath,amsfonts,amssymb,amsthm}
+* \usepackage{etoolbox}
+* \usepackage{hyperref}
+* \usepackage{url}
+* \usepackage{bookmark}
+* \usepackage{csquotes}
+* \usepackage{arara}
+* \usepackage{booktabs}
+* \usepackage{gitinfo2}
+* \usepackage{wrapfig}
+* \usepackage{fancybox}
+* \usepackage{multicol}
+* \usepackage{mytodonotes}
+* \usepackage{SIunits}
+* \usepackage{upquote}

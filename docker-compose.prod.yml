@@ -1,0 +1,56 @@
+services:
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile.prod
+    command: gunicorn ocweb.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
+    volumes:
+      - media_pdfs:/app/media/pdfs
+    env_file: .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker/Dockerfile
+    command: celery -A ocweb worker -l info --concurrency 2
+    volumes:
+      - media_pdfs:/app/media/pdfs
+    env_file: .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    env_file: .env.prod
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  postgres_data_prod:
+  media_pdfs:

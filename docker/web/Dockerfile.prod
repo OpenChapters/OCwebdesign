@@ -1,0 +1,45 @@
+# ---------------------------------------------------------------------------
+# OpenChapters — production web image (multi-stage)
+#
+# Stage 1: Build React frontend with Vite
+# Stage 2: Django + gunicorn + collectstatic
+#
+# Build context: repo root (OCwebdesign/)
+# ---------------------------------------------------------------------------
+
+# ── Stage 1: Frontend build ──────────────────────────────────────────────────
+FROM node:20-alpine AS frontend
+
+WORKDIR /build
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install
+COPY frontend/ .
+RUN npm run build
+
+# ── Stage 2: Django application ──────────────────────────────────────────────
+FROM python:3.12-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      libpq-dev \
+      gcc \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements/ requirements/
+RUN pip install --no-cache-dir -r requirements/prod.txt
+
+COPY . .
+
+# Copy built frontend into the image (served by nginx, not Django)
+COPY --from=frontend /build/dist /app/frontend/dist
+
+# Collect Django static files (admin CSS etc.) for whitenoise
+ENV DJANGO_SETTINGS_MODULE=ocweb.settings.prod
+RUN SECRET_KEY=build-only \
+    DATABASE_URL=sqlite:///tmp/build.db \
+    python manage.py collectstatic --noinput
+
+EXPOSE 8000
+CMD ["gunicorn", "ocweb.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]

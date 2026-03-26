@@ -21,6 +21,10 @@ import ChaptersAdminPage from './admin/pages/ChaptersPage';
 import ChapterAdminDetailPage from './admin/pages/ChapterDetailPage';
 import BuildsAdminPage from './admin/pages/BuildsPage';
 import BuildAdminDetailPage from './admin/pages/BuildDetailPage';
+import SystemPage from './admin/pages/SystemPage';
+import SettingsPage from './admin/pages/SettingsPage';
+import AuditLogPage from './admin/pages/AuditLogPage';
+import AnalyticsPage from './admin/pages/AnalyticsPage';
 import PlaceholderPage from './admin/pages/PlaceholderPage';
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -95,9 +99,10 @@ export default function App() {
           <Route path="chapters/:id" element={<ChapterAdminDetailPage />} />
           <Route path="builds" element={<BuildsAdminPage />} />
           <Route path="builds/:id" element={<BuildAdminDetailPage />} />
-          <Route path="system" element={<PlaceholderPage title="System Monitoring" />} />
-          <Route path="settings" element={<PlaceholderPage title="Site Settings" />} />
-          <Route path="audit" element={<PlaceholderPage title="Audit Log" />} />
+          <Route path="system" element={<SystemPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="audit" element={<AuditLogPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
         </Route>
       </Route>
 

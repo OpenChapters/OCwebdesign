@@ -1,6 +1,10 @@
 from django.urls import path
 
 from .views import (
+    AdminAnalyticsBuildsView,
+    AdminAnalyticsChaptersView,
+    AdminAnalyticsUsersView,
+    AdminAuditLogView,
     AdminBuildCancelView,
     AdminBuildDetailView,
     AdminBuildDownloadView,
@@ -9,10 +13,13 @@ from .views import (
     AdminChapterDetailView,
     AdminChapterListView,
     AdminChapterSyncView,
+    AdminSettingsView,
     AdminUserBooksView,
     AdminUserDetailView,
     AdminUserListView,
     DashboardView,
+    SystemGitHubView,
+    SystemHealthView,
     WorkersView,
 )
 
@@ -36,4 +43,19 @@ urlpatterns = [
     path("builds/<int:pk>/cancel/", AdminBuildCancelView.as_view(), name="admin-build-cancel"),
     path("builds/<int:pk>/retry/", AdminBuildRetryView.as_view(), name="admin-build-retry"),
     path("builds/<int:pk>/download/", AdminBuildDownloadView.as_view(), name="admin-build-download"),
+
+    # System
+    path("system/health/", SystemHealthView.as_view(), name="admin-system-health"),
+    path("system/github/", SystemGitHubView.as_view(), name="admin-system-github"),
+
+    # Settings
+    path("settings/", AdminSettingsView.as_view(), name="admin-settings"),
+
+    # Audit log
+    path("audit/", AdminAuditLogView.as_view(), name="admin-audit-log"),
+
+    # Analytics
+    path("analytics/builds/", AdminAnalyticsBuildsView.as_view(), name="admin-analytics-builds"),
+    path("analytics/chapters/", AdminAnalyticsChaptersView.as_view(), name="admin-analytics-chapters"),
+    path("analytics/users/", AdminAnalyticsUsersView.as_view(), name="admin-analytics-users"),
 ]

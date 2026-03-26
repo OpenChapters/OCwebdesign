@@ -60,6 +60,53 @@ export interface UserBook {
   updated_at: string;
 }
 
+// ── Audit Log ────────────────────────────────────────────────────────────────
+
+export interface AuditLogEntry {
+  id: number;
+  timestamp: string;
+  user_email: string | null;
+  action: string;
+  target_type: string;
+  target_id: number | null;
+  detail: Record<string, any>;
+  ip_address: string | null;
+}
+
+// ── System ───────────────────────────────────────────────────────────────────
+
+export interface HealthCheck {
+  status: 'ok' | 'warning' | 'error';
+  detail?: string;
+  [key: string]: any;
+}
+
+export interface SystemHealth {
+  overall: 'ok' | 'warning' | 'error';
+  checks: Record<string, HealthCheck>;
+}
+
+export interface GitHubStatus {
+  status: string;
+  detail?: string;
+  rate_limit?: number;
+  remaining?: number;
+  reset_at?: string;
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+
+export interface SiteSettings {
+  site_name: string;
+  welcome_message: string;
+  announcement_banner: string;
+  registration_enabled: boolean;
+  build_enabled: boolean;
+  max_chapters_per_book: number;
+  max_concurrent_builds: number;
+  pdf_retention_days: number;
+}
+
 // ── Builds ───────────────────────────────────────────────────────────────────
 
 export interface AdminBuild {
@@ -149,6 +196,38 @@ export const adminApi = {
       a.remove();
       window.URL.revokeObjectURL(url);
     }),
+
+  // System
+  systemHealth: () =>
+    client.get<SystemHealth>('/admin/system/health/').then((r) => r.data),
+  systemGitHub: () =>
+    client.get<GitHubStatus>('/admin/system/github/').then((r) => r.data),
+
+  // Settings
+  settingsGet: () =>
+    client.get<SiteSettings>('/admin/settings/').then((r) => r.data),
+  settingsUpdate: (data: Partial<SiteSettings>) =>
+    client.patch<{ detail: string; settings: SiteSettings }>('/admin/settings/', data).then((r) => r.data),
+
+  // Audit log
+  auditLog: (params?: { action?: string; target_type?: string; user?: string; page?: number }) =>
+    client.get('/admin/audit/', { params }).then((r) => r.data as {
+      count: number; page: number; page_size: number; results: AuditLogEntry[];
+    }),
+
+  // Analytics
+  analyticsBuilds: (days = 30) =>
+    client.get<{ date: string; total: number; success: number; failed: number }[]>(
+      '/admin/analytics/builds/', { params: { days } }
+    ).then((r) => r.data),
+  analyticsChapters: () =>
+    client.get<{ title: string; chabbr: string; count: number }[]>(
+      '/admin/analytics/chapters/'
+    ).then((r) => r.data),
+  analyticsUsers: (days = 90) =>
+    client.get<{ date: string; count: number }[]>(
+      '/admin/analytics/users/', { params: { days } }
+    ).then((r) => r.data),
 
   // Chapters
   chapterList: (params?: { search?: string; page?: number }) =>

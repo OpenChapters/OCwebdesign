@@ -14,6 +14,8 @@ from rest_framework.views import APIView
 
 from catalog.models import Chapter
 
+from .models import AuditEntry, SiteSetting
+
 from .permissions import IsStaffUser
 from .serializers import (
     AdminChapterSerializer,
@@ -141,6 +143,10 @@ class AdminUserListView(generics.ListCreateAPIView):
             qs = qs.filter(email__icontains=search)
         return qs
 
+    def perform_create(self, serializer):
+        user = serializer.save()
+        AuditEntry.log(self.request, "user.create", "User", user.id, {"email": user.email})
+
 
 class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     """GET/PATCH/DELETE /api/admin/users/<id>/"""
@@ -149,6 +155,13 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminUserDetailSerializer
     queryset = User.objects.all()
 
+    def perform_update(self, serializer):
+        user = self.get_object()
+        changes = {k: {"old": getattr(user, k), "new": v} for k, v in serializer.validated_data.items() if getattr(user, k) != v}
+        serializer.save()
+        if changes:
+            AuditEntry.log(self.request, "user.update", "User", user.id, changes)
+
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()
         if user.id == request.user.id:
@@ -156,6 +169,7 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
                 {"detail": "You cannot delete your own account from the admin panel."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        AuditEntry.log(request, "user.delete", "User", user.id, {"email": user.email})
         return super().destroy(request, *args, **kwargs)
 
 
@@ -208,6 +222,13 @@ class AdminChapterDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsStaffUser]
     serializer_class = AdminChapterSerializer
     queryset = Chapter.objects.all()
+
+    def perform_update(self, serializer):
+        ch = self.get_object()
+        changes = {k: {"old": getattr(ch, k), "new": v} for k, v in serializer.validated_data.items() if getattr(ch, k) != v}
+        serializer.save()
+        if changes:
+            AuditEntry.log(self.request, "chapter.update", "Chapter", ch.id, changes)
 
 
 class AdminChapterSyncView(APIView):
@@ -333,6 +354,7 @@ class AdminBuildCancelView(APIView):
         job.finished_at = timezone.now()
         job.save(update_fields=["error_message", "finished_at"])
 
+        AuditEntry.log(request, "build.cancel", "BuildJob", job.id, {"book": job.book.title})
         return Response({"detail": "Build cancelled."})
 
 
@@ -354,6 +376,7 @@ class AdminBuildRetryView(APIView):
         job.book.status = Book.Status.QUEUED
         job.book.save(update_fields=["status"])
         build_book.delay(job.book.id)
+        AuditEntry.log(request, "build.retry", "BuildJob", job.id, {"book": job.book.title})
         return Response({"detail": "Build re-queued."})
 
 
@@ -373,3 +396,303 @@ class AdminBuildDownloadView(APIView):
         filename = f"{job.book.title}.pdf".replace("/", "-")
         return FileResponse(open(pdf, "rb"), content_type="application/pdf",
                             as_attachment=True, filename=filename)
+
+
+# ── System Monitoring ─────────────────────────────────────────────────────────
+
+class SystemHealthView(APIView):
+    """GET /api/admin/system/health/ — health checks for all services."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        checks = {}
+
+        # PostgreSQL
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+            checks["postgresql"] = {"status": "ok"}
+        except Exception as e:
+            checks["postgresql"] = {"status": "error", "detail": str(e)}
+
+        # RabbitMQ (via Celery ping)
+        try:
+            from ocweb.celery import app as celery_app
+            ping = celery_app.control.inspect(timeout=3).ping()
+            if ping:
+                checks["rabbitmq"] = {"status": "ok"}
+            else:
+                checks["rabbitmq"] = {"status": "error", "detail": "No workers responded"}
+        except Exception as e:
+            checks["rabbitmq"] = {"status": "error", "detail": str(e)}
+
+        # Celery workers
+        try:
+            from ocweb.celery import app as celery_app
+            inspect = celery_app.control.inspect(timeout=3)
+            active = inspect.active() or {}
+            reserved = inspect.reserved() or {}
+            worker_count = len(active)
+            active_tasks = sum(len(t) for t in active.values())
+            queued_tasks = sum(len(t) for t in reserved.values())
+            checks["celery"] = {
+                "status": "ok" if worker_count > 0 else "warning",
+                "workers": worker_count,
+                "active_tasks": active_tasks,
+                "queued_tasks": queued_tasks,
+            }
+        except Exception as e:
+            checks["celery"] = {"status": "error", "detail": str(e)}
+
+        # Disk space
+        try:
+            usage = shutil.disk_usage("/")
+            free_gb = round(usage.free / (1024 ** 3), 1)
+            total_gb = round(usage.total / (1024 ** 3), 1)
+            used_pct = round((usage.used / usage.total) * 100, 1)
+            checks["disk"] = {
+                "status": "ok" if used_pct < 90 else "warning",
+                "free_gb": free_gb,
+                "total_gb": total_gb,
+                "used_percent": used_pct,
+            }
+        except Exception as e:
+            checks["disk"] = {"status": "error", "detail": str(e)}
+
+        # PDF storage
+        pdf_dir = Path(str(settings.BUILD_OUTPUT_DIR))
+        pdf_count = 0
+        pdf_size_bytes = 0
+        oldest = None
+        newest = None
+        if pdf_dir.is_dir():
+            for f in pdf_dir.glob("*.pdf"):
+                pdf_count += 1
+                st = f.stat()
+                pdf_size_bytes += st.st_size
+                mtime = st.st_mtime
+                if oldest is None or mtime < oldest:
+                    oldest = mtime
+                if newest is None or mtime > newest:
+                    newest = mtime
+        checks["pdf_storage"] = {
+            "status": "ok",
+            "count": pdf_count,
+            "size_mb": round(pdf_size_bytes / (1024 * 1024), 1),
+            "oldest": timezone.datetime.fromtimestamp(oldest).isoformat() if oldest else None,
+            "newest": timezone.datetime.fromtimestamp(newest).isoformat() if newest else None,
+        }
+
+        # Overall status
+        statuses = [c.get("status", "ok") for c in checks.values() if isinstance(c, dict) and "status" in c]
+        if "error" in statuses:
+            overall = "error"
+        elif "warning" in statuses:
+            overall = "warning"
+        else:
+            overall = "ok"
+
+        return Response({"overall": overall, "checks": checks})
+
+
+class SystemGitHubView(APIView):
+    """GET /api/admin/system/github/ — GitHub token status and rate limit."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        import httpx
+
+        token = getattr(settings, "GITHUB_TOKEN", "")
+        if not token:
+            return Response({
+                "status": "not_configured",
+                "detail": "GITHUB_TOKEN is not set.",
+            })
+
+        try:
+            resp = httpx.get(
+                "https://api.github.com/rate_limit",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10,
+            )
+            if resp.status_code == 401:
+                return Response({
+                    "status": "invalid",
+                    "detail": "Token is invalid or expired.",
+                })
+            data = resp.json()
+            core = data.get("resources", {}).get("core", {})
+            return Response({
+                "status": "ok",
+                "rate_limit": core.get("limit", 0),
+                "remaining": core.get("remaining", 0),
+                "reset_at": timezone.datetime.fromtimestamp(
+                    core.get("reset", 0)
+                ).isoformat() if core.get("reset") else None,
+            })
+        except Exception as e:
+            return Response({
+                "status": "error",
+                "detail": str(e),
+            })
+
+
+# ── Site Settings ─────────────────────────────────────────────────────────────
+
+class AdminSettingsView(APIView):
+    """GET /api/admin/settings/ — list all settings.
+    PATCH /api/admin/settings/ — update one or more settings."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        return Response(SiteSetting.get_all())
+
+    def patch(self, request):
+        updated = []
+        for key, value in request.data.items():
+            if key not in SiteSetting.DEFAULTS:
+                continue
+            obj, _ = SiteSetting.objects.update_or_create(
+                key=key,
+                defaults={"value": value, "updated_by": request.user},
+            )
+            updated.append(key)
+        if updated:
+            AuditEntry.log(request, "settings.update", "SiteSetting", detail={"keys": updated})
+        return Response({"detail": f"Updated: {', '.join(updated)}", "settings": SiteSetting.get_all()})
+
+
+class PublicSettingsView(APIView):
+    """GET /api/settings/public/ — public settings (no auth)."""
+
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request):
+        all_settings = SiteSetting.get_all()
+        return Response({
+            "site_name": all_settings.get("site_name", "OpenChapters"),
+            "announcement_banner": all_settings.get("announcement_banner", ""),
+            "registration_enabled": all_settings.get("registration_enabled", True),
+        })
+
+
+# ── Audit Log ─────────────────────────────────────────────────────────────────
+
+class AdminAuditLogView(APIView):
+    """GET /api/admin/audit/ — paginated audit log with filters."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        qs = AuditEntry.objects.select_related("user").order_by("-timestamp")
+
+        # Filters
+        action = request.query_params.get("action", "").strip()
+        if action:
+            qs = qs.filter(action__icontains=action)
+        target_type = request.query_params.get("target_type", "").strip()
+        if target_type:
+            qs = qs.filter(target_type=target_type)
+        user_email = request.query_params.get("user", "").strip()
+        if user_email:
+            qs = qs.filter(user__email__icontains=user_email)
+
+        page = int(request.query_params.get("page", 1))
+        page_size = 30
+        total = qs.count()
+        offset = (page - 1) * page_size
+        entries = qs[offset:offset + page_size]
+
+        results = [
+            {
+                "id": e.id,
+                "timestamp": e.timestamp,
+                "user_email": e.user.email if e.user else None,
+                "action": e.action,
+                "target_type": e.target_type,
+                "target_id": e.target_id,
+                "detail": e.detail,
+                "ip_address": e.ip_address,
+            }
+            for e in entries
+        ]
+
+        return Response({
+            "count": total,
+            "page": page,
+            "page_size": page_size,
+            "results": results,
+        })
+
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+class AdminAnalyticsBuildsView(APIView):
+    """GET /api/admin/analytics/builds/ — build counts by day for the last 30 days."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        from books.models import BuildJob
+        from django.db.models.functions import TruncDate
+
+        days = int(request.query_params.get("days", 30))
+        since = timezone.now() - timedelta(days=days)
+
+        qs = (
+            BuildJob.objects.filter(started_at__gte=since)
+            .annotate(date=TruncDate("started_at"))
+            .values("date")
+            .annotate(
+                total=Count("id"),
+                success=Count("id", filter=Q(error_message="")),
+                failed=Count("id", filter=~Q(error_message="")),
+            )
+            .order_by("date")
+        )
+        return Response(list(qs))
+
+
+class AdminAnalyticsChaptersView(APIView):
+    """GET /api/admin/analytics/chapters/ — most popular chapters by inclusion count."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        from books.models import BookChapter
+
+        qs = (
+            BookChapter.objects.values("chapter__title", "chapter__chabbr")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:20]
+        )
+        return Response([
+            {"title": r["chapter__title"], "chabbr": r["chapter__chabbr"], "count": r["count"]}
+            for r in qs
+        ])
+
+
+class AdminAnalyticsUsersView(APIView):
+    """GET /api/admin/analytics/users/ — registration trend for the last 90 days."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        from django.db.models.functions import TruncDate
+
+        days = int(request.query_params.get("days", 90))
+        since = timezone.now() - timedelta(days=days)
+
+        qs = (
+            User.objects.filter(date_joined__gte=since)
+            .annotate(date=TruncDate("date_joined"))
+            .values("date")
+            .annotate(count=Count("id"))
+            .order_by("date")
+        )
+        return Response(list(qs))

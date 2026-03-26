@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "users",
     "catalog",
     "books",
+    "admin_api",
 ]
 
 AUTH_USER_MODEL = "users.User"

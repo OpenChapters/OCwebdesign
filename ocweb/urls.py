@@ -81,6 +81,9 @@ urlpatterns = [
     # ── Admin API ──────────────────────────────────────────────────────────────
     path("api/admin/", include("admin_api.urls")),
 
+    # ── Public settings (no auth) ────────────────────────────────────────────
+    path("api/settings/public/", __import__("admin_api.views", fromlist=["PublicSettingsView"]).PublicSettingsView.as_view(), name="public-settings"),
+
     # ── Signed PDF download (from email links, no auth required) ────────────
     path("api/dl/<str:token>/", DownloadPDFByTokenView.as_view(), name="download-pdf-token"),
 

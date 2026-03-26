@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/admin-panel/system', label: 'System' },
   { to: '/admin-panel/settings', label: 'Settings' },
   { to: '/admin-panel/audit', label: 'Audit Log' },
+  { to: '/admin-panel/analytics', label: 'Analytics' },
 ];
 
 function SidebarLink({ to, label, end }: { to: string; label: string; end?: boolean }) {

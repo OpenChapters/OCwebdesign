@@ -11,10 +11,13 @@ services:
     ports:
       - "5432:5432"
 
-  redis:
-    image: redis:7-alpine
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ocweb
+      RABBITMQ_DEFAULT_PASS: ocweb
     ports:
-      - "6379:6379"
+      - "5672:5672"
 
   web:
     build:
@@ -31,7 +34,7 @@ services:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.dev
     depends_on:
       - db
-      - redis
+      - rabbitmq
 
   worker:
     build:
@@ -50,7 +53,7 @@ services:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.dev
     depends_on:
       - db
-      - redis
+      - rabbitmq
 
   frontend:
     image: node:20-alpine

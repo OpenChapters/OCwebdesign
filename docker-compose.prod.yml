@@ -22,7 +22,7 @@ services:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
     depends_on:
       - db
-      - redis
+      - rabbitmq
     restart: unless-stopped
 
   worker:
@@ -37,7 +37,7 @@ services:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
     depends_on:
       - db
-      - redis
+      - rabbitmq
     restart: unless-stopped
 
   db:
@@ -47,8 +47,9 @@ services:
     env_file: .env.prod
     restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    env_file: .env.prod
     restart: unless-stopped
 
 volumes:

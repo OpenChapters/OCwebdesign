@@ -12,13 +12,15 @@ This guide covers deploying the OpenChapters web platform to a production server
 4. [Configuration](#configuration)
 5. [Building and Starting](#building-and-starting)
 6. [Database Initialization](#database-initialization)
-7. [SSL with Let's Encrypt](#ssl-with-lets-encrypt)
-8. [Domain and DNS](#domain-and-dns)
-9. [Updating the Application](#updating-the-application)
-10. [Database Backups](#database-backups)
-11. [Monitoring and Logs](#monitoring-and-logs)
-12. [Troubleshooting](#troubleshooting)
-13. [Security Checklist](#security-checklist)
+7. [SendGrid Email Delivery](#sendgrid-email-delivery)
+8. [Cloudflare Turnstile (Bot Protection)](#cloudflare-turnstile-bot-protection)
+9. [SSL with Let's Encrypt](#ssl-with-lets-encrypt)
+10. [Domain and DNS](#domain-and-dns)
+11. [Updating the Application](#updating-the-application)
+12. [Database Backups](#database-backups)
+13. [Monitoring and Logs](#monitoring-and-logs)
+14. [Troubleshooting](#troubleshooting)
+15. [Security Checklist](#security-checklist)
 
 ---
 
@@ -128,15 +130,24 @@ POSTGRES_DB=ocweb
 POSTGRES_USER=ocweb
 POSTGRES_PASSWORD=<db_password>
 
-# Celery
-CELERY_BROKER_URL=redis://redis:6379/0
-CELERY_RESULT_BACKEND=redis://redis:6379/0
+# Celery / RabbitMQ
+CELERY_BROKER_URL=amqp://ocweb:<rabbitmq_password>@rabbitmq:5672//
+CELERY_RESULT_BACKEND=rpc://
+RABBITMQ_DEFAULT_USER=ocweb
+RABBITMQ_DEFAULT_PASS=<rabbitmq_password>
 
 # GitHub
 GITHUB_TOKEN=ghp_<your_classic_pat>
 
-# SendGrid (optional, for email delivery)
-SENDGRID_API_KEY=
+# SendGrid (email delivery of PDF download links)
+SENDGRID_API_KEY=SG.<your_sendgrid_api_key>
+FROM_EMAIL=noreply@yourdomain.com
+SITE_URL=https://yourdomain.com
+PDF_LINK_EXPIRY_DAYS=7
+
+# Cloudflare Turnstile (bot protection on registration)
+TURNSTILE_SITE_KEY=<your_turnstile_site_key>
+TURNSTILE_SECRET_KEY=<your_turnstile_secret_key>
 ```
 
 **Important:**
@@ -176,12 +187,12 @@ docker compose -f docker-compose.prod.yml ps
 All services should show `running`:
 
 ```
-NAME                  STATUS
-ocwebdesign-nginx-1   Up
-ocwebdesign-web-1     Up
-ocwebdesign-worker-1  Up
-ocwebdesign-db-1      Up
-ocwebdesign-redis-1   Up
+NAME                     STATUS
+ocwebdesign-nginx-1      Up
+ocwebdesign-web-1        Up
+ocwebdesign-worker-1     Up
+ocwebdesign-db-1         Up
+ocwebdesign-rabbitmq-1   Up
 ```
 
 ## Database Initialization
@@ -212,7 +223,7 @@ The chapter catalog is automatically synced nightly at 03:00 UTC via Celery Beat
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
     depends_on:
       - db
-      - redis
+      - rabbitmq
     restart: unless-stopped
 ```
 
@@ -221,6 +232,138 @@ Or run the sync manually as needed:
 ```bash
 docker compose -f docker-compose.prod.yml exec web python manage.py sync_chapters
 ```
+
+## SendGrid Email Delivery
+
+When a user's book build completes, OpenChapters sends them an email with a signed download link for the PDF. This requires a [SendGrid](https://sendgrid.com/) account.
+
+### 1. Create a SendGrid Account
+
+1. Sign up at https://signup.sendgrid.com/
+2. The free tier allows 100 emails/day, which is sufficient for most deployments.
+
+### 2. Create an API Key
+
+1. In the SendGrid dashboard, go to **Settings → API Keys**
+2. Click **Create API Key**
+3. Give it a name (e.g., "OpenChapters")
+4. Select **Restricted Access** and enable only **Mail Send → Full Access**
+5. Copy the key (starts with `SG.`)
+
+### 3. Configure Domain Authentication
+
+For reliable email delivery (avoiding spam folders), configure domain authentication:
+
+1. In SendGrid, go to **Settings → Sender Authentication → Domain Authentication**
+2. Follow the wizard to add DNS records (CNAME entries) for your domain
+3. This proves to email providers that you're authorized to send from `@yourdomain.com`
+
+Without domain authentication, emails may be rejected or marked as spam by recipients' email providers.
+
+### 4. Update `.env.prod`
+
+```env
+SENDGRID_API_KEY=SG.<your_api_key>
+FROM_EMAIL=noreply@yourdomain.com
+SITE_URL=https://yourdomain.com
+PDF_LINK_EXPIRY_DAYS=7
+```
+
+| Variable | Description |
+|---|---|
+| `SENDGRID_API_KEY` | Your SendGrid API key. Leave blank to disable email (download links are logged instead). |
+| `FROM_EMAIL` | The sender address shown in emails. Must match your authenticated domain. |
+| `SITE_URL` | The public URL of your site (used to build download links in emails). |
+| `PDF_LINK_EXPIRY_DAYS` | How many days the signed download link in the email remains valid (default: 7). |
+
+### 5. Restart Services
+
+```bash
+docker compose -f docker-compose.prod.yml restart web worker
+```
+
+### How It Works
+
+1. When a build completes, the `deliver_pdf` Celery task runs automatically
+2. It generates a **signed, time-limited download URL** using Django's `TimestampSigner`
+3. It sends an HTML + plain-text email via SendGrid with:
+   - A "Download PDF" button linking to the signed URL
+   - A link to the user's Library page
+4. The download link works without login — the signed token proves it was issued by the server
+5. After `PDF_LINK_EXPIRY_DAYS`, the link stops working; the user can still download from their Library while logged in
+
+### Verifying Email Delivery
+
+After configuring SendGrid, trigger a test build and check:
+
+```bash
+# Check worker logs for email delivery status
+docker compose -f docker-compose.prod.yml logs worker --tail 20 | grep deliver_pdf
+```
+
+You should see: `deliver_pdf: email sent to user@example.com (status 202)`
+
+If SendGrid is not configured, you'll see: `deliver_pdf: SENDGRID_API_KEY not set; would email ...` with the download URL logged for manual testing.
+
+## Cloudflare Turnstile (Bot Protection)
+
+The registration page uses [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/) to prevent automated bot signups. In development, test keys are used that always pass. For production, you need real keys.
+
+### 1. Create a Cloudflare Account
+
+1. Sign up at https://dash.cloudflare.com/sign-up (free)
+2. You do **not** need to use Cloudflare for DNS or CDN — Turnstile works independently
+
+### 2. Add a Turnstile Widget
+
+1. In the Cloudflare dashboard, go to **Turnstile** (left sidebar)
+2. Click **Add Site**
+3. Enter your site name and domain (e.g., `yourdomain.com`)
+4. Choose widget mode:
+   - **Managed** (recommended) — Cloudflare decides whether to show a challenge
+   - **Non-interactive** — invisible to most users
+   - **Invisible** — fully invisible, no widget shown
+5. Copy the **Site Key** and **Secret Key**
+
+### 3. Update `.env.prod`
+
+```env
+TURNSTILE_SITE_KEY=0x4AAAAAAAXXXXXXXXXXXXXXXX
+TURNSTILE_SECRET_KEY=0x4AAAAAAAXXXXXXXXXXXXXXXX
+```
+
+| Variable | Description |
+|---|---|
+| `TURNSTILE_SITE_KEY` | Public key embedded in the frontend widget. |
+| `TURNSTILE_SECRET_KEY` | Secret key used by Django to verify the token with Cloudflare's API. |
+
+### 4. Restart Services
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --force-recreate web
+```
+
+The nginx image also needs rebuilding since the frontend bundles the Turnstile widget code:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d nginx
+```
+
+### How It Works
+
+1. The registration page loads the Turnstile widget from Cloudflare's CDN
+2. The widget runs a browser challenge (usually invisible) and produces a token
+3. When the user submits the form, the token is sent alongside email + password
+4. Django's `RegisterSerializer` verifies the token by calling Cloudflare's `siteverify` API
+5. If verification fails, registration is rejected with "CAPTCHA verification failed"
+
+### Development Mode
+
+In development, test keys are used by default:
+- Site key: `1x00000000000000000000AA` (always passes)
+- Secret key: `1x0000000000000000000000000000000AA` (always passes)
+
+These are [Cloudflare's official test keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) and require no Cloudflare account.
 
 ## SSL with Let's Encrypt
 
@@ -450,12 +593,17 @@ Before going live, verify:
 
 - [ ] `DEBUG=False` in `.env.prod`
 - [ ] `SECRET_KEY` is a unique, random string (not the example value)
-- [ ] `POSTGRES_PASSWORD` is strong and random
+- [ ] `POSTGRES_PASSWORD` is strong and random (hex characters only)
+- [ ] `RABBITMQ_DEFAULT_PASS` is strong and random
 - [ ] `.env.prod` is **not** committed to version control
 - [ ] `ALLOWED_HOSTS` lists only your domain(s)
 - [ ] `CSRF_TRUSTED_ORIGINS` matches your domain(s) with `https://` prefix
+- [ ] `SITE_URL` is set to your production HTTPS URL
 - [ ] SSL is configured (HTTPS only)
 - [ ] GitHub token has minimal required permissions
+- [ ] SendGrid API key is configured and domain authentication is complete
+- [ ] `FROM_EMAIL` matches the authenticated SendGrid domain
+- [ ] Cloudflare Turnstile keys are set (not the test keys)
 - [ ] Database backups are configured
 - [ ] Firewall allows only ports 80, 443, and SSH (22)
 - [ ] Docker images are rebuilt from the latest code (`--build` flag)

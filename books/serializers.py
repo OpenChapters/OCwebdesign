@@ -33,7 +33,6 @@ class BuildJobSerializer(serializers.ModelSerializer):
             "celery_task_id",
             "started_at",
             "finished_at",
-            "pdf_path",
             "error_message",
         ]
         read_only_fields = fields

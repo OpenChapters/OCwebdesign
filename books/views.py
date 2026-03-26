@@ -1,6 +1,10 @@
+from pathlib import Path
+
+from django.db import transaction
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -128,8 +132,16 @@ class PartChapterReorderView(APIView):
         ids = request.data.get("order", [])
         if not isinstance(ids, list):
             return Response({"detail": "'order' must be a list."}, status=status.HTTP_400_BAD_REQUEST)
-        for position, bc_pk in enumerate(ids):
-            BookChapter.objects.filter(pk=bc_pk, part=part).update(order=position)
+        with transaction.atomic():
+            # First shift all orders to high values to avoid unique constraint
+            # violations during intermediate updates.
+            offset = 10000
+            for bc_pk in ids:
+                BookChapter.objects.filter(pk=bc_pk, part=part).update(order=offset)
+                offset += 1
+            # Now set the final 0-based positions.
+            for position, bc_pk in enumerate(ids):
+                BookChapter.objects.filter(pk=bc_pk, part=part).update(order=position)
         return Response({"detail": "Reordered."})
 
 
@@ -168,6 +180,74 @@ class BuildStatusView(APIView):
 
 
 # ── Library ───────────────────────────────────────────────────────────────────
+
+class DownloadPDFView(APIView):
+    """GET /api/books/<book_pk>/download/ — serve the built PDF file."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, book_pk):
+        book = get_object_or_404(
+            Book.objects.select_related("build_job"),
+            pk=book_pk,
+            user=request.user,
+        )
+        if book.status != Book.Status.COMPLETE or not hasattr(book, "build_job"):
+            return Response({"detail": "No completed build."}, status=status.HTTP_404_NOT_FOUND)
+
+        pdf = Path(book.build_job.pdf_path)
+        if not pdf.is_file():
+            return Response({"detail": "PDF file not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        filename = f"{book.title}.pdf".replace("/", "-")
+        return FileResponse(
+            open(pdf, "rb"),
+            content_type="application/pdf",
+            as_attachment=True,
+            filename=filename,
+        )
+
+
+class DownloadPDFByTokenView(APIView):
+    """
+    GET /api/dl/<token>/ — download a PDF using a signed, time-limited token.
+
+    Used in email delivery links. No JWT authentication required; the
+    signed token proves the link was issued by the server.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token):
+        from .signing import verify_download_token
+
+        book_id = verify_download_token(token)
+        if book_id is None:
+            return Response(
+                {"detail": "Download link is invalid or has expired."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        book = get_object_or_404(
+            Book.objects.select_related("build_job"),
+            pk=book_id,
+        )
+        if book.status != Book.Status.COMPLETE or not hasattr(book, "build_job"):
+            return Response({"detail": "No completed build."}, status=status.HTTP_404_NOT_FOUND)
+
+        pdf = Path(book.build_job.pdf_path)
+        if not pdf.is_file():
+            return Response({"detail": "PDF file not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        filename = f"{book.title}.pdf".replace("/", "-")
+        return FileResponse(
+            open(pdf, "rb"),
+            content_type="application/pdf",
+            as_attachment=True,
+            filename=filename,
+        )
+
 
 class LibraryView(generics.ListAPIView):
     """GET /api/library/ — completed books for the authenticated user."""

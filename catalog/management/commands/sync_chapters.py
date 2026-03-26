@@ -16,8 +16,13 @@ Called nightly by the ``catalog.tasks.sync_chapters_task`` Celery task.
 """
 
 import logging
+import re
 
 from django.core.management.base import BaseCommand
+
+# Patterns to validate chapter metadata used in subprocess calls.
+_SAFE_PATH = re.compile(r"^[a-zA-Z0-9_/.+-]+$")
+_SAFE_REPO = re.compile(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")
 
 from catalog.github_client import (
     DEFAULT_CHAPTERS_REPO,
@@ -96,9 +101,23 @@ class Command(BaseCommand):
                 skipped += 1
                 continue
 
+            # Validate fields that flow into subprocess calls or file paths.
+            entry_file = chapter_data.get("entry_file", "")
+            if entry_file and not _SAFE_PATH.match(entry_file):
+                self.stderr.write(
+                    self.style.WARNING(f"  [{dirname}] unsafe entry_file: {entry_file!r}, skipping")
+                )
+                errors += 1
+                continue
+            if ".." in chapter_subdir or not _SAFE_PATH.match(chapter_subdir):
+                self.stderr.write(
+                    self.style.WARNING(f"  [{dirname}] unsafe chapter_subdir: {chapter_subdir!r}, skipping")
+                )
+                errors += 1
+                continue
+
             # entry_file in chapter.json is relative to the chapter directory;
             # store the full path from the repo root in latex_entry_file.
-            entry_file = chapter_data.get("entry_file", "")
             latex_entry_file = f"{chapter_subdir}/{entry_file}" if entry_file else ""
 
             # Build raw URL for the cover image (may not exist yet)

@@ -90,18 +90,27 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",
+        "user": "1000/hour",
+        "auth": "10/hour",
+    },
 }
 
 from datetime import timedelta  # noqa: E402
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
 
 # ── Celery ────────────────────────────────────────────────────────────────────
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://redis:6379/0")
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://redis:6379/0")
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="amqp://ocweb:ocweb@rabbitmq:5672//")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="rpc://")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -110,6 +119,17 @@ CELERY_TIMEZONE = TIME_ZONE
 # ── External services ─────────────────────────────────────────────────────────
 GITHUB_TOKEN = env("GITHUB_TOKEN", default="")
 SENDGRID_API_KEY = env("SENDGRID_API_KEY", default="")
+
+# Cloudflare Turnstile (bot protection on registration)
+# Test keys: always pass in dev. Replace with real keys for production.
+# https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+TURNSTILE_SITE_KEY = env("TURNSTILE_SITE_KEY", default="1x00000000000000000000AA")
+TURNSTILE_SECRET_KEY = env("TURNSTILE_SECRET_KEY", default="1x0000000000000000000000000000000AA")
+
+# Email delivery
+FROM_EMAIL = env("FROM_EMAIL", default="noreply@openchapters.org")
+SITE_URL = env("SITE_URL", default="http://localhost:5173")
+PDF_LINK_EXPIRY_DAYS = env.int("PDF_LINK_EXPIRY_DAYS", default=7)
 
 # ── Celery Beat schedule ──────────────────────────────────────────────────────
 CELERY_BEAT_SCHEDULE = {

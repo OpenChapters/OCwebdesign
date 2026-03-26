@@ -6,8 +6,12 @@ export const authApi = {
     return data as { access: string; refresh: string };
   },
 
-  register: async (email: string, password: string) => {
-    const { data } = await axios.post('/api/auth/register/', { email, password });
+  register: async (email: string, password: string, turnstileToken: string) => {
+    const { data } = await axios.post('/api/auth/register/', {
+      email,
+      password,
+      turnstile_token: turnstileToken,
+    });
     return data;
   },
 };

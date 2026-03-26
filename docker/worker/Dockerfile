@@ -87,4 +87,7 @@ ENV OCBUILD_SCRIPTS_DIR=/opt/ocbuild/Build/scripts
 # Temp build workspaces are created under /tmp by the build_book task;
 # arara is invoked via subprocess with an explicit path to main.tex.
 ENV DJANGO_SETTINGS_MODULE=ocweb.settings.dev
+
+# texlive user (UID 1000) already exists in the base image
+USER texlive
 WORKDIR /app

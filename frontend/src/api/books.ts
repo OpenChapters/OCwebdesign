@@ -42,6 +42,22 @@ export const booksApi = {
   getBuildStatus: (bookId: number) =>
     client.get(`/books/${bookId}/build/status/`).then((r) => r.data),
 
+  // Download
+  downloadPDF: (bookId: number) =>
+    client.get(`/books/${bookId}/download/`, { responseType: 'blob' }).then((r) => {
+      const disposition = r.headers['content-disposition'] || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : `book_${bookId}.pdf`;
+      const url = window.URL.createObjectURL(r.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    }),
+
   // Library
   library: () =>
     client.get('/library/').then((r) => (Array.isArray(r.data) ? r.data : r.data.results ?? []) as BookListItem[]),

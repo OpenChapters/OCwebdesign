@@ -25,7 +25,6 @@ export default function Navbar() {
         >
           Browse
         </NavLink>
-
         {isAuthenticated && (
           <>
             <NavLink
@@ -46,6 +45,14 @@ export default function Navbar() {
             </NavLink>
           </>
         )}
+        <NavLink
+          to="/about"
+          className={({ isActive }) =>
+            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+          }
+        >
+          About
+        </NavLink>
       </div>
 
       <div className="flex items-center gap-3">

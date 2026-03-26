@@ -9,6 +9,7 @@ import MyBooksPage from './pages/MyBooksPage';
 import BookEditorPage from './pages/BookEditorPage';
 import BuildStatusPage from './pages/BuildStatusPage';
 import LibraryPage from './pages/LibraryPage';
+import AboutPage from './pages/AboutPage';
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -71,6 +72,16 @@ export default function App() {
           }
         />
       </Route>
+
+      {/* Public: About */}
+      <Route
+        path="/about"
+        element={
+          <Layout>
+            <AboutPage />
+          </Layout>
+        }
+      />
 
       {/* Default: browse chapters */}
       <Route path="/" element={<Navigate to="/chapters" replace />} />

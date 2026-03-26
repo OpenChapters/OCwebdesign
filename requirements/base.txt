@@ -1,7 +1,8 @@
 Django==5.1.*
 psycopg[binary]==3.*
-celery[redis]==5.*
+celery[amqp]==5.*
 django-environ==0.*
 httpx==0.*
 djangorestframework==3.*
 djangorestframework-simplejwt==5.*
+sendgrid==6.*

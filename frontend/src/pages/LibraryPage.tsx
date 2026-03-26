@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { booksApi } from '../api/books';
 
@@ -6,6 +7,14 @@ export default function LibraryPage() {
     queryKey: ['library'],
     queryFn: booksApi.library,
   });
+
+  async function handleDownload(bookId: number) {
+    try {
+      await booksApi.downloadPDF(bookId);
+    } catch {
+      alert('Download failed.');
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
@@ -35,14 +44,18 @@ export default function LibraryPage() {
             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
               complete
             </span>
-            <a
-              href={`/api/books/${book.id}/build/status/`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-blue-600 hover:underline"
+            <Link
+              to={`/books/${book.id}/status`}
+              className="text-xs text-gray-500 hover:text-gray-700"
             >
-              View status / PDF path
-            </a>
+              Build info
+            </Link>
+            <button
+              onClick={() => handleDownload(book.id)}
+              className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
+            >
+              Download PDF
+            </button>
           </div>
         ))}
       </div>

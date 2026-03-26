@@ -274,11 +274,14 @@ def build_book(self, book_id: int) -> None:
 @shared_task(name="books.deliver_pdf")
 def deliver_pdf(book_id: int) -> None:
     """
-    Send the user an email with a link to their completed PDF.
+    Send the user an email with a signed download link for their completed PDF.
 
-    Placeholder — SendGrid integration to be implemented in Phase 5/7.
+    Uses SendGrid if SENDGRID_API_KEY is configured; otherwise logs only.
+    The download link is signed with Django's SECRET_KEY and expires after
+    PDF_LINK_EXPIRY_DAYS (default 7 days).
     """
     from books.models import Book
+    from books.signing import make_download_token
 
     try:
         book = Book.objects.select_related("user", "build_job").get(id=book_id)
@@ -286,9 +289,64 @@ def deliver_pdf(book_id: int) -> None:
         logger.error("deliver_pdf: Book %d not found", book_id)
         return
 
-    pdf_path = getattr(book, "build_job", None) and book.build_job.pdf_path
-    logger.info(
-        "deliver_pdf: would email %s with PDF %s (SendGrid not yet configured)",
-        book.user.email,
-        pdf_path,
+    if book.status != Book.Status.COMPLETE:
+        logger.warning("deliver_pdf: Book %d is not complete (status=%s)", book_id, book.status)
+        return
+
+    # Build the signed download URL
+    token = make_download_token(book.id)
+    site_url = getattr(settings, "SITE_URL", "http://localhost:5173").rstrip("/")
+    download_url = f"{site_url}/api/dl/{token}/"
+    expiry_days = getattr(settings, "PDF_LINK_EXPIRY_DAYS", 7)
+
+    api_key = getattr(settings, "SENDGRID_API_KEY", "")
+    if not api_key:
+        logger.info(
+            "deliver_pdf: SENDGRID_API_KEY not set; would email %s download link %s",
+            book.user.email,
+            download_url,
+        )
+        return
+
+    from_email = getattr(settings, "FROM_EMAIL", "noreply@openchapters.org")
+
+    import sendgrid
+    from sendgrid.helpers.mail import Content, Email, Mail, To
+
+    sg = sendgrid.SendGridAPIClient(api_key=api_key)
+    mail = Mail(
+        from_email=Email(from_email, "OpenChapters"),
+        to_emails=To(book.user.email),
+        subject=f"Your book is ready: {book.title}",
+        plain_text_content=Content(
+            "text/plain",
+            f"Hi,\n\n"
+            f'Your book "{book.title}" has been typeset and is ready for download.\n\n'
+            f"Download your PDF:\n{download_url}\n\n"
+            f"This link expires in {expiry_days} days.\n\n"
+            f"— OpenChapters",
+        ),
     )
+    mail.add_content(
+        Content(
+            "text/html",
+            f"<p>Hi,</p>"
+            f'<p>Your book <strong>{book.title}</strong> has been typeset and is ready for download.</p>'
+            f'<p><a href="{download_url}" style="display:inline-block;padding:12px 24px;'
+            f"background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;"
+            f'font-weight:600;">Download PDF</a></p>'
+            f"<p><small>This link expires in {expiry_days} days. "
+            f"You can also download from your <a href=\"{site_url}/library\">Library</a>.</small></p>"
+            f"<p>— OpenChapters</p>",
+        ),
+    )
+
+    try:
+        response = sg.client.mail.send.post(request_body=mail.get())
+        logger.info(
+            "deliver_pdf: email sent to %s (status %s)",
+            book.user.email,
+            response.status_code,
+        )
+    except Exception as exc:
+        logger.error("deliver_pdf: SendGrid error for book %d: %s", book_id, exc)

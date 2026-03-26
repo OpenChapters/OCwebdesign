@@ -34,7 +34,7 @@ export default function BookEditorPage() {
   const [building, setBuilding] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -57,8 +57,8 @@ export default function BookEditorPage() {
     }
   }, [book?.id, book?.title]);
 
-  function refresh() {
-    queryClient.invalidateQueries({ queryKey: ['book', bookId] });
+  async function refresh() {
+    await queryClient.resetQueries({ queryKey: ['book', bookId] });
   }
 
   // ── DnD: cross-part and within-part ─────────────────────────────────────
@@ -94,7 +94,7 @@ export default function BookEditorPage() {
       const newOrder = arrayMove(sourcePart.chapters, oldIndex, overIndex).map((c) => c.id);
       try {
         await booksApi.reorderChapters(bookId, sourcePart.id, newOrder);
-        refresh();
+        await queryClient.refetchQueries({ queryKey: ['book', bookId] });
       } catch (e) {
         console.error('Reorder failed', e);
       }
@@ -204,27 +204,45 @@ export default function BookEditorPage() {
     }
   }
 
+  const FOUNDATIONAL_PART_TITLE = 'Foundational Material';
+
+  async function getOrCreateFoundationalPart(): Promise<number> {
+    // Check if a "Foundational Material" part already exists
+    const existing = book?.parts.find((p) => p.title === FOUNDATIONAL_PART_TITLE);
+    if (existing) return existing.id;
+    // Create it as the last part
+    const order = book?.parts.length ?? 0;
+    const part = await booksApi.addPart(bookId, { title: FOUNDATIONAL_PART_TITLE, order });
+    return part.id;
+  }
+
   async function addSuggestedChapter(chapterId: number) {
-    const firstPart = book?.parts[0];
-    if (!firstPart) return;
     try {
-      await booksApi.addChapter(bookId, firstPart.id, { chapter_id: chapterId, order: firstPart.chapters.length });
+      const partId = await getOrCreateFoundationalPart();
+      // Refresh to get the latest part state (may have just been created)
+      const freshBook = await booksApi.detail(bookId);
+      const part = freshBook.parts.find((p) => p.id === partId);
+      const maxOrder = part ? part.chapters.reduce((m, c) => Math.max(m, c.order), -1) : -1;
+      await booksApi.addChapter(bookId, partId, { chapter_id: chapterId, order: maxOrder + 1 });
       setSuggestions((prev) => prev.filter((c) => c.id !== chapterId));
       refresh();
     } catch { /* skip duplicates */ }
   }
 
   async function addAllSuggestions() {
-    const firstPart = book?.parts[0];
-    if (!firstPart) return;
-    let order = firstPart.chapters.length;
-    for (const ch of suggestions) {
-      try {
-        await booksApi.addChapter(bookId, firstPart.id, { chapter_id: ch.id, order: order++ });
-      } catch { /* skip */ }
-    }
-    setSuggestions([]);
-    refresh();
+    try {
+      const partId = await getOrCreateFoundationalPart();
+      const freshBook = await booksApi.detail(bookId);
+      const part = freshBook.parts.find((p) => p.id === partId);
+      let order = part ? part.chapters.reduce((m, c) => Math.max(m, c.order), -1) + 1 : 0;
+      for (const ch of suggestions) {
+        try {
+          await booksApi.addChapter(bookId, partId, { chapter_id: ch.id, order: order++ });
+        } catch { /* skip duplicates */ }
+      }
+      setSuggestions([]);
+      refresh();
+    } catch { /* skip */ }
   }
 
   // ── Build ───────────────────────────────────────────────────────────────

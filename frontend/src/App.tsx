@@ -11,6 +11,18 @@ import BuildStatusPage from './pages/BuildStatusPage';
 import LibraryPage from './pages/LibraryPage';
 import AboutPage from './pages/AboutPage';
 
+// Admin
+import AdminRoute from './admin/AdminRoute';
+import AdminLayout from './admin/AdminLayout';
+import DashboardPage from './admin/pages/DashboardPage';
+import UsersPage from './admin/pages/UsersPage';
+import UserDetailPage from './admin/pages/UserDetailPage';
+import ChaptersAdminPage from './admin/pages/ChaptersPage';
+import ChapterAdminDetailPage from './admin/pages/ChapterDetailPage';
+import BuildsAdminPage from './admin/pages/BuildsPage';
+import BuildAdminDetailPage from './admin/pages/BuildDetailPage';
+import PlaceholderPage from './admin/pages/PlaceholderPage';
+
 function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -71,6 +83,22 @@ export default function App() {
             </Layout>
           }
         />
+      </Route>
+
+      {/* Admin panel (staff only) */}
+      <Route element={<AdminRoute />}>
+        <Route path="/admin-panel" element={<AdminLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="users/:id" element={<UserDetailPage />} />
+          <Route path="chapters" element={<ChaptersAdminPage />} />
+          <Route path="chapters/:id" element={<ChapterAdminDetailPage />} />
+          <Route path="builds" element={<BuildsAdminPage />} />
+          <Route path="builds/:id" element={<BuildAdminDetailPage />} />
+          <Route path="system" element={<PlaceholderPage title="System Monitoring" />} />
+          <Route path="settings" element={<PlaceholderPage title="Site Settings" />} />
+          <Route path="audit" element={<PlaceholderPage title="Audit Log" />} />
+        </Route>
       </Route>
 
       {/* Public: About */}

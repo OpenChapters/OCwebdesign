@@ -3,7 +3,9 @@ from pathlib import Path
 from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import include, path
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
+
+from users.token import CustomTokenObtainPairView
 
 from books.views import (
     BookDetailView,
@@ -36,7 +38,7 @@ urlpatterns = [
     # ── Auth ──────────────────────────────────────────────────────────────────
     path("api/auth/register/", RegisterView.as_view(), name="auth-register"),
     path("api/auth/turnstile/", TurnstileConfigView.as_view(), name="auth-turnstile"),
-    path("api/auth/login/", TokenObtainPairView.as_view(), name="auth-login"),
+    path("api/auth/login/", CustomTokenObtainPairView.as_view(), name="auth-login"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="auth-token-refresh"),
 
     # ── Catalog ───────────────────────────────────────────────────────────────
@@ -75,6 +77,9 @@ urlpatterns = [
 
     # ── Library ───────────────────────────────────────────────────────────────
     path("api/library/", LibraryView.as_view(), name="library"),
+
+    # ── Admin API ──────────────────────────────────────────────────────────────
+    path("api/admin/", include("admin_api.urls")),
 
     # ── Signed PDF download (from email links, no auth required) ────────────
     path("api/dl/<str:token>/", DownloadPDFByTokenView.as_view(), name="download-pdf-token"),

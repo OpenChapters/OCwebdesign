@@ -2,7 +2,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Navbar() {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, isStaff, logout } = useAuth();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -56,6 +56,14 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-3">
+        {isStaff && (
+          <Link
+            to="/admin-panel"
+            className="text-xs bg-gray-800 text-white px-2.5 py-1 rounded hover:bg-gray-900"
+          >
+            Admin
+          </Link>
+        )}
         {isAuthenticated ? (
           <button
             onClick={handleLogout}

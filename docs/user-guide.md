@@ -7,20 +7,24 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
 ## Table of Contents
 
 1. [Creating an Account](#creating-an-account)
-2. [Browsing Chapters](#browsing-chapters)
-3. [Chapter Details](#chapter-details)
-4. [Creating a Book](#creating-a-book)
-5. [The Book Editor](#the-book-editor)
+2. [Signing In](#signing-in)
+3. [Browsing Chapters](#browsing-chapters)
+4. [Chapter Details](#chapter-details)
+5. [Creating a Book](#creating-a-book)
+6. [The Book Editor](#the-book-editor)
    - [Adding Parts](#adding-parts)
    - [Adding Chapters](#adding-chapters)
    - [Reordering Chapters](#reordering-chapters)
+   - [Reordering Parts](#reordering-parts)
    - [Moving Chapters Between Parts](#moving-chapters-between-parts)
    - [Removing Chapters and Parts](#removing-chapters-and-parts)
    - [Auto-Include Foundational Chapters](#auto-include-foundational-chapters)
-6. [Building Your Book](#building-your-book)
-7. [Build Status](#build-status)
-8. [Your Library](#your-library)
-9. [Managing Your Books](#managing-your-books)
+7. [Building Your Book](#building-your-book)
+8. [Build Status](#build-status)
+9. [Your Library](#your-library)
+10. [Managing Your Books](#managing-your-books)
+11. [Your Profile](#your-profile)
+12. [Resetting Your Password](#resetting-your-password)
 
 ---
 
@@ -28,10 +32,21 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
 
 1. Click **Register** in the top-right corner of the navigation bar.
 2. Enter your email address and choose a password (minimum 8 characters).
-3. Click **Create account**.
-4. You will be redirected to the sign-in page. Enter your credentials to log in.
+3. Complete the CAPTCHA verification (Cloudflare Turnstile).
+4. Click **Create account**.
+5. You will be redirected to the sign-in page. Enter your credentials to log in.
 
-Your email address is your login identifier and will be used for PDF delivery notifications in the future.
+Your email address is your login identifier and will be used for PDF delivery notifications.
+
+## Signing In
+
+1. Click **Sign in** in the navigation bar.
+2. Enter your email and password.
+3. Click **Sign in**.
+
+If you forget your password, click **Forgot password?** on the sign-in page. See [Resetting Your Password](#resetting-your-password) for details.
+
+Your session stays active for up to 7 days. The access token refreshes automatically in the background — you don't need to sign in again unless you've been inactive for a full week.
 
 ## Browsing Chapters
 
@@ -128,6 +143,15 @@ Drag and drop chapters within a part to change their order:
 
 The new order is saved automatically.
 
+### Reordering Parts
+
+To change the order of parts in your book:
+
+1. Click the **▲** (up) or **▼** (down) arrow on the part header.
+2. The part swaps position with its neighbor.
+
+The first part disables the up arrow and the last part disables the down arrow.
+
 ### Moving Chapters Between Parts
 
 You can drag a chapter from one part to another:
@@ -155,7 +179,7 @@ You can:
 - Click **Add all** to include all suggested chapters at once
 - Click **Dismiss** to hide the banner (the book will still build, but cross-references to missing chapters will be unresolved)
 
-Foundational chapters are added to the first part of your book. You can move them to a different part afterward.
+Foundational chapters are added to a dedicated **Foundational Material** part, which is automatically created at the end of your book. You can reorder chapters within this part, drag chapters to other parts, or move the part itself using the up/down arrows.
 
 ## Building Your Book
 
@@ -185,7 +209,9 @@ The Build Status page shows the current state of your build:
 
 The page polls automatically every 3 seconds while the build is in progress.
 
-If the build **succeeds**, the PDF file path is displayed. If it **fails**, the error message from the LaTeX log is shown to help diagnose the issue.
+The page also shows the **book title** so you know which build you're monitoring.
+
+If the build **succeeds**, a **Download PDF** button appears. If SendGrid email is configured, you will also receive an email with a download link that remains valid for 7 days. If the build **fails**, the error message from the LaTeX log is shown to help diagnose the issue.
 
 ## Your Library
 
@@ -193,7 +219,8 @@ Click **Library** in the navigation bar to see all your completed books. Each en
 
 - Book title
 - Completion date
-- A link to view the build status and PDF location
+- A **Build info** link to view the build status
+- A **Download PDF** button to download the book directly
 
 ## Managing Your Books
 
@@ -212,3 +239,46 @@ From this page you can:
 - Click a book title to open it in the Book Editor
 - Click **Status** on building/queued books to view progress
 - Click **Delete** to remove a book permanently
+
+## Your Profile
+
+Click **Profile** in the top-right corner of the navigation bar to view and manage your account.
+
+The profile page shows:
+- Your email address
+- Account creation date
+- Last login date
+- Staff role (if applicable)
+
+### Changing Your Password
+
+1. On the profile page, click **Change password**.
+2. Enter your current password.
+3. Enter your new password (minimum 8 characters) and confirm it.
+4. Click **Update password**.
+
+### Deleting Your Account
+
+At the bottom of the profile page is a **Danger zone** section:
+
+1. Click **Delete my account**.
+2. Confirm twice (this action is permanent).
+3. Your account and all associated data (books, builds) will be permanently removed.
+4. You will be signed out and redirected to the home page.
+
+## Resetting Your Password
+
+If you forget your password:
+
+1. On the sign-in page, click **Forgot password?**
+2. Enter your email address and click **Send reset link**.
+3. Check your email for a message from OpenChapters with a reset link.
+4. Click the link in the email (or paste it into your browser).
+5. Enter your new password and confirm it.
+6. Click **Reset password**.
+7. You will be redirected to the sign-in page.
+
+**Notes:**
+- Reset links expire after 3 days.
+- If you don't receive the email, check your spam folder.
+- In development mode (no SendGrid configured), the reset link is logged to the server console instead of being emailed.

@@ -11,12 +11,15 @@ The OpenChapters API is a RESTful JSON API built with Django REST Framework. All
 3. [Error Responses](#error-responses)
 4. [Endpoints](#endpoints)
    - [Auth](#auth)
+   - [Password Reset](#password-reset)
+   - [Profile](#profile)
    - [Chapters](#chapters)
    - [Books](#books)
    - [Parts](#parts)
    - [Book Chapters](#book-chapters)
    - [Build](#build)
    - [Library](#library)
+   - [Cover Images](#cover-images)
 
 ---
 
@@ -58,7 +61,7 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
 
 | Token | Lifetime |
 |---|---|
-| Access token | 1 hour |
+| Access token | 5 hours |
 | Refresh token | 7 days |
 
 ### Refreshing Tokens
@@ -176,6 +179,111 @@ POST /api/auth/token/refresh/
 ```
 
 See [Refreshing Tokens](#refreshing-tokens) above.
+
+---
+
+### Password Reset
+
+#### Request Reset Link
+
+```
+POST /api/auth/forgot-password/
+```
+
+**Request body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "detail": "If that email exists, a reset link has been sent."
+}
+```
+
+Always returns success regardless of whether the email exists (prevents email enumeration). The reset link is sent via SendGrid in production, or logged to the server console in development.
+
+#### Reset Password
+
+```
+POST /api/auth/reset-password/
+```
+
+**Request body:**
+```json
+{
+  "uid": "MQ",
+  "token": "d61ugv-1ff323a90a10fc...",
+  "password": "newpassword123"
+}
+```
+
+- `uid` and `token` are from the reset link URL: `/reset-password/<uid>/<token>`
+- Tokens expire after 3 days (Django's `PASSWORD_RESET_TIMEOUT`)
+
+**Response (200):**
+```json
+{
+  "detail": "Password has been reset. You can now sign in."
+}
+```
+
+---
+
+### Profile
+
+#### Get Profile
+
+```
+GET /api/auth/profile/
+```
+
+Returns the current user's account information. Requires authentication.
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "is_staff": false,
+  "date_joined": "2026-03-25T15:50:00Z",
+  "last_login": "2026-03-26T10:30:00Z"
+}
+```
+
+#### Delete Account
+
+```
+DELETE /api/auth/profile/
+```
+
+Permanently deletes the authenticated user's account and all associated data.
+
+**Response:** `204 No Content`
+
+#### Change Password
+
+```
+POST /api/auth/change-password/
+```
+
+**Request body:**
+```json
+{
+  "current_password": "oldpassword",
+  "new_password": "newpassword123"
+}
+```
+
+**Response (200):**
+```json
+{
+  "detail": "Password changed."
+}
+```
 
 ---
 
@@ -426,6 +534,28 @@ Deletes the part and all its chapter assignments.
 
 **Response:** `204 No Content`
 
+#### Reorder Parts
+
+```
+PATCH /api/books/<book_id>/parts/reorder/
+```
+
+**Request body:**
+```json
+{
+  "order": [3, 1, 2]
+}
+```
+
+The `order` array contains Part IDs in the desired sequence. Each part's `order` field is set to its index (0-based).
+
+**Response (200):**
+```json
+{
+  "detail": "Parts reordered."
+}
+```
+
 ---
 
 ### Book Chapters
@@ -588,6 +718,48 @@ Returns only books with status `complete` for the authenticated user.
   ]
 }
 ```
+
+---
+
+### Cover Images
+
+#### Get Chapter Cover
+
+```
+GET /api/chapters/<id>/cover/
+```
+
+Returns the chapter's cover image as a PNG. The image is fetched from GitHub on first request and cached locally on the server. No authentication required.
+
+**Response:** `200 OK` with `Content-Type: image/png` and `Cache-Control: public, max-age=86400`.
+
+Returns `404` if the chapter has no cover image, or `502` if the GitHub fetch fails.
+
+---
+
+### PDF Download
+
+#### Download PDF (Authenticated)
+
+```
+GET /api/books/<book_id>/download/
+```
+
+Downloads the completed PDF for the authenticated user's book.
+
+**Response:** PDF file with `Content-Disposition: attachment; filename="Book Title.pdf"`.
+
+#### Download PDF (Signed Link)
+
+```
+GET /api/dl/<token>/
+```
+
+Downloads a PDF using a signed, time-limited token from an email delivery link. No authentication required — the signed token proves the link was issued by the server.
+
+Tokens expire after `PDF_LINK_EXPIRY_DAYS` (default 7 days).
+
+**Response:** PDF file, or `403` if the token is invalid/expired.
 
 ---
 

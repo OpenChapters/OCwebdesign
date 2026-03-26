@@ -43,7 +43,7 @@ Chapters and figures live in the [OpenChapters/OpenChapters](https://github.com/
 |---|---|
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, @dnd-kit, React Query |
 | Backend | Django 5.1, Django REST Framework, SimpleJWT |
-| Task queue | Celery 5 + Redis |
+| Task queue | Celery 5 + RabbitMQ |
 | Database | PostgreSQL 16 |
 | Typesetting | TeX Live 2025+, arara 7, biber |
 | Dev environment | Docker Compose |
@@ -135,7 +135,7 @@ The frontend is available at **http://localhost:5173** and the Django admin at *
 | `web` | 8000 | Django API (runserver) |
 | `worker` | — | Celery worker (LaTeX builds) |
 | `db` | 5432 | PostgreSQL |
-| `redis` | 6379 | Redis (Celery broker) |
+| `rabbitmq` | 5672 | RabbitMQ (Celery broker) |
 
 ### Useful Commands
 
@@ -184,11 +184,17 @@ For SSL, place a reverse proxy (e.g., Caddy or nginx with Let's Encrypt) in fron
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/auth/register/` | No | Create account |
-| `POST` | `/api/auth/login/` | No | Obtain JWT tokens |
+| `POST` | `/api/auth/register/` | No | Create account (with Turnstile CAPTCHA) |
+| `POST` | `/api/auth/login/` | No | Obtain JWT tokens (includes `is_staff`) |
 | `POST` | `/api/auth/token/refresh/` | No | Refresh access token |
+| `POST` | `/api/auth/forgot-password/` | No | Request password reset email |
+| `POST` | `/api/auth/reset-password/` | No | Set new password with reset token |
+| `POST` | `/api/auth/change-password/` | Yes | Change password (current + new) |
+| `GET` | `/api/auth/profile/` | Yes | Current user info |
+| `DELETE` | `/api/auth/profile/` | Yes | Delete own account |
 | `GET` | `/api/chapters/` | No | List published chapters |
 | `GET` | `/api/chapters/<id>/` | No | Chapter detail |
+| `GET` | `/api/chapters/<id>/cover/` | No | Chapter cover image (proxied + cached) |
 | `GET` | `/api/books/` | Yes | List user's books |
 | `POST` | `/api/books/` | Yes | Create a book |
 | `GET` | `/api/books/<id>/` | Yes | Book detail (with parts and chapters) |
@@ -197,11 +203,14 @@ For SSL, place a reverse proxy (e.g., Caddy or nginx with Let's Encrypt) in fron
 | `POST` | `/api/books/<id>/parts/` | Yes | Add a part |
 | `PATCH` | `/api/books/<id>/parts/<pid>/` | Yes | Rename a part |
 | `DELETE` | `/api/books/<id>/parts/<pid>/` | Yes | Delete a part |
+| `PATCH` | `/api/books/<id>/parts/reorder/` | Yes | Reorder parts |
 | `POST` | `/api/books/<id>/parts/<pid>/chapters/` | Yes | Add chapter to part |
 | `DELETE` | `/api/books/<id>/parts/<pid>/chapters/<cid>/` | Yes | Remove chapter |
 | `PATCH` | `/api/books/<id>/parts/<pid>/chapters/reorder/` | Yes | Reorder chapters |
 | `POST` | `/api/books/<id>/build/` | Yes | Start PDF build |
 | `GET` | `/api/books/<id>/build/status/` | Yes | Poll build status |
+| `GET` | `/api/books/<id>/download/` | Yes | Download PDF |
+| `GET` | `/api/dl/<token>/` | No | Download PDF via signed email link |
 | `GET` | `/api/library/` | Yes | Completed books |
 
 ## Chapter Metadata

@@ -65,12 +65,17 @@ export default function Navbar() {
           </Link>
         )}
         {isAuthenticated ? (
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-600 hover:text-gray-900"
-          >
-            Sign out
-          </button>
+          <>
+            <Link to="/profile" className="text-sm text-gray-600 hover:text-gray-900">
+              Profile
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              Sign out
+            </button>
+          </>
         ) : (
           <>
             <Link to="/login" className="text-sm text-gray-600 hover:text-gray-900">

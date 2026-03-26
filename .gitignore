@@ -15,8 +15,9 @@ staticfiles/
 .env.prod
 .env.pro.example
 
-# Generated PDFs
+# Generated PDFs and cached images
 media/pdfs/
+media/covers/
 
 # Frontend
 frontend/node_modules/

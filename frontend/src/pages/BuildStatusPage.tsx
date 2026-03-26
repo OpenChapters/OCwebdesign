@@ -1,10 +1,17 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { booksApi } from '../api/books';
+import { useToast } from '../components/Toast';
 
 export default function BuildStatusPage() {
+  const toast = useToast();
   const { id } = useParams<{ id: string }>();
   const bookId = parseInt(id!);
+
+  const { data: bookData } = useQuery({
+    queryKey: ['book', bookId],
+    queryFn: () => booksApi.detail(bookId),
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['build-status', bookId],
@@ -15,6 +22,7 @@ export default function BuildStatusPage() {
     },
   });
 
+  const bookTitle = bookData?.title ?? '';
   const status: string = data?.status ?? 'unknown';
   const job = data?.build_job;
 
@@ -35,7 +43,8 @@ export default function BuildStatusPage() {
         </Link>
       </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Build Status</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Build Status</h1>
+      {bookTitle && <p className="text-sm text-gray-500 mb-2">{bookTitle}</p>}
 
       {isLoading ? (
         <div className="text-gray-500 py-8">Loading…</div>
@@ -68,7 +77,7 @@ export default function BuildStatusPage() {
                   <p className="text-sm font-medium text-green-800 flex-1">PDF ready</p>
                   <button
                     onClick={async () => {
-                      try { await booksApi.downloadPDF(bookId); } catch { alert('Download failed.'); }
+                      try { await booksApi.downloadPDF(bookId); } catch { toast('Download failed.', 'error'); }
                     }}
                     className="bg-green-700 text-white text-sm px-4 py-2 rounded hover:bg-green-800"
                   >

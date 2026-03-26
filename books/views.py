@@ -83,6 +83,30 @@ class PartDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class PartReorderView(APIView):
+    """
+    PATCH /api/books/<book_pk>/parts/reorder/
+
+    Body: {"order": [<part_id>, <part_id>, ...]}
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, book_pk):
+        book = get_object_or_404(Book, pk=book_pk, user=request.user)
+        ids = request.data.get("order", [])
+        if not isinstance(ids, list):
+            return Response({"detail": "'order' must be a list."}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            offset = 10000
+            for part_pk in ids:
+                BookPart.objects.filter(pk=part_pk, book=book).update(order=offset)
+                offset += 1
+            for position, part_pk in enumerate(ids):
+                BookPart.objects.filter(pk=part_pk, book=book).update(order=position)
+        return Response({"detail": "Parts reordered."})
+
+
 # ── Chapters within a part ────────────────────────────────────────────────────
 
 class PartChapterListCreateView(APIView):

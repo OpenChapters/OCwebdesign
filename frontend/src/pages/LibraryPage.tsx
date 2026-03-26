@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { booksApi } from '../api/books';
+import { useToast } from '../components/Toast';
 
 export default function LibraryPage() {
+  const toast = useToast();
   const { data: books = [], isLoading } = useQuery({
     queryKey: ['library'],
     queryFn: booksApi.library,
@@ -12,7 +14,7 @@ export default function LibraryPage() {
     try {
       await booksApi.downloadPDF(bookId);
     } catch {
-      alert('Download failed.');
+      toast('Download failed.', 'error');
     }
   }
 

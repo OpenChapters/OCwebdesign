@@ -15,14 +15,22 @@ from books.views import (
     DownloadPDFByTokenView,
     DownloadPDFView,
     LibraryView,
+    PartReorderView,
     PartChapterDetailView,
     PartChapterListCreateView,
     PartChapterReorderView,
     PartDetailView,
     PartListCreateView,
 )
-from catalog.views import ChapterDetailView, ChapterListView
-from users.views import RegisterView, TurnstileConfigView
+from catalog.views import ChapterCoverView, ChapterDetailView, ChapterListView
+from users.views import (
+    ChangePasswordView,
+    ForgotPasswordView,
+    ProfileView,
+    RegisterView,
+    ResetPasswordView,
+    TurnstileConfigView,
+)
 
 def about_md(request):
     """Serve docs/About.md as plain text for the frontend to render."""
@@ -40,10 +48,15 @@ urlpatterns = [
     path("api/auth/turnstile/", TurnstileConfigView.as_view(), name="auth-turnstile"),
     path("api/auth/login/", CustomTokenObtainPairView.as_view(), name="auth-login"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="auth-token-refresh"),
+    path("api/auth/forgot-password/", ForgotPasswordView.as_view(), name="auth-forgot-password"),
+    path("api/auth/reset-password/", ResetPasswordView.as_view(), name="auth-reset-password"),
+    path("api/auth/change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
+    path("api/auth/profile/", ProfileView.as_view(), name="auth-profile"),
 
     # ── Catalog ───────────────────────────────────────────────────────────────
     path("api/chapters/", ChapterListView.as_view(), name="chapter-list"),
     path("api/chapters/<int:pk>/", ChapterDetailView.as_view(), name="chapter-detail"),
+    path("api/chapters/<int:pk>/cover/", ChapterCoverView.as_view(), name="chapter-cover"),
 
     # ── Books ─────────────────────────────────────────────────────────────────
     path("api/books/", BookListCreateView.as_view(), name="book-list"),
@@ -52,6 +65,7 @@ urlpatterns = [
     # Parts
     path("api/books/<int:book_pk>/parts/", PartListCreateView.as_view(), name="part-list"),
     path("api/books/<int:book_pk>/parts/<int:part_pk>/", PartDetailView.as_view(), name="part-detail"),
+    path("api/books/<int:book_pk>/parts/reorder/", PartReorderView.as_view(), name="part-reorder"),
 
     # Chapters within a part
     path(

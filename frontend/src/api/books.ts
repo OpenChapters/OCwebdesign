@@ -25,6 +25,9 @@ export const booksApi = {
   deletePart: (bookId: number, partId: number) =>
     client.delete(`/books/${bookId}/parts/${partId}/`),
 
+  reorderParts: (bookId: number, order: number[]) =>
+    client.patch(`/books/${bookId}/parts/reorder/`, { order }),
+
   // Chapters within parts
   addChapter: (bookId: number, partId: number, data: { chapter_id: number; order: number }) =>
     client.post(`/books/${bookId}/parts/${partId}/chapters/`, data).then((r) => r.data),

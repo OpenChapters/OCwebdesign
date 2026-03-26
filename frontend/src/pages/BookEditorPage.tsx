@@ -16,8 +16,10 @@ import { chaptersApi } from '../api/chapters';
 import ChapterCard from '../components/ChapterCard';
 import SortableChapterList from '../components/SortableChapterList';
 import type { BookPart, Chapter } from '../types';
+import { useToast } from '../components/Toast';
 
 export default function BookEditorPage() {
+  const toast = useToast();
   const { id } = useParams<{ id: string }>();
   const bookId = parseInt(id!);
   const navigate = useNavigate();
@@ -164,6 +166,26 @@ export default function BookEditorPage() {
     refresh();
   }
 
+  async function movePartUp(partId: number) {
+    if (!book) return;
+    const idx = book.parts.findIndex((p) => p.id === partId);
+    if (idx <= 0) return;
+    const newOrder = book.parts.map((p) => p.id);
+    [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+    await booksApi.reorderParts(bookId, newOrder);
+    refresh();
+  }
+
+  async function movePartDown(partId: number) {
+    if (!book) return;
+    const idx = book.parts.findIndex((p) => p.id === partId);
+    if (idx < 0 || idx >= book.parts.length - 1) return;
+    const newOrder = book.parts.map((p) => p.id);
+    [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+    await booksApi.reorderParts(bookId, newOrder);
+    refresh();
+  }
+
   // ── Adding chapters ─────────────────────────────────────────────────────
 
   function computeMissingSuggestions(addedIds: Set<number>) {
@@ -187,7 +209,7 @@ export default function BookEditorPage() {
 
   async function addChapter(chapterId: number) {
     if (!activePart) {
-      alert('Please select a part first (click a part name on the right).');
+      toast('Please select a part first (click a part name on the right).', 'info');
       return;
     }
     const part = book?.parts.find((p) => p.id === activePart);
@@ -200,7 +222,7 @@ export default function BookEditorPage() {
       refresh();
     } catch (err: any) {
       const msg = err?.response?.data?.non_field_errors?.[0] ?? 'Could not add chapter.';
-      alert(msg);
+      toast(msg, 'error');
     }
   }
 
@@ -254,7 +276,7 @@ export default function BookEditorPage() {
       await booksApi.triggerBuild(bookId);
       navigate(`/books/${bookId}/status`);
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? 'Build failed to start.');
+      toast(err?.response?.data?.detail ?? 'Build failed to start.', 'error');
       setBuilding(false);
     }
   }
@@ -403,6 +425,12 @@ export default function BookEditorPage() {
                           {part.title}
                           {activePart === part.id && <span className="ml-2 text-xs text-blue-500 font-normal">(active)</span>}
                         </span>
+                        <button onClick={(e) => { e.stopPropagation(); movePartUp(part.id); }}
+                          disabled={book.parts.indexOf(part) === 0}
+                          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-20" title="Move up">▲</button>
+                        <button onClick={(e) => { e.stopPropagation(); movePartDown(part.id); }}
+                          disabled={book.parts.indexOf(part) === book.parts.length - 1}
+                          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-20" title="Move down">▼</button>
                         <button onClick={(e) => { e.stopPropagation(); setEditingPartId(part.id); setEditingPartTitle(part.title); }}
                           className="text-xs text-gray-400 hover:text-gray-600" title="Rename part">✎</button>
                         <button onClick={(e) => { e.stopPropagation(); deletePart(part.id); }}

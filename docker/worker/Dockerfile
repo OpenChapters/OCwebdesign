@@ -77,7 +77,10 @@ RUN install -m 0755 Build/scripts/copyImageFiles  /usr/local/bin/copyImageFiles 
 # the CWD (which is the per-request temp workspace, not this directory).
 # arara 6+ config format; tested against TeX Live 2024 (arara 7.x).
 RUN printf '!config\npaths:\n  - /opt/ocbuild/arara-rules\n' \
-      > /root/.araraconfig.yaml
+      > /root/.araraconfig.yaml \
+ && printf '!config\npaths:\n  - /opt/ocbuild/arara-rules\n' \
+      > /home/texlive/.araraconfig.yaml \
+ && chown texlive:texlive /home/texlive/.araraconfig.yaml
 
 # ── Environment ───────────────────────────────────────────────────────────────
 # OCBUILD_SCRIPTS_DIR is read by the wrapper shell scripts installed above.

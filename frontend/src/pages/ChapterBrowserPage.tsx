@@ -6,8 +6,10 @@ import { booksApi } from '../api/books';
 import { useAuth } from '../contexts/AuthContext';
 import ChapterCard from '../components/ChapterCard';
 import type { Chapter, BookListItem } from '../types';
+import { useToast } from '../components/Toast';
 
 export default function ChapterBrowserPage() {
+  const toast = useToast();
   const [search, setSearch] = useState('');
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -86,7 +88,7 @@ export default function ChapterBrowserPage() {
       setPickerChapterId(null);
       navigate(`/books/${bookId}`);
     } catch {
-      alert('Could not add chapter. It may already be in this book.');
+      toast('Could not add chapter. It may already be in this book.', 'error');
     } finally {
       setAdding(false);
     }
@@ -106,7 +108,7 @@ export default function ChapterBrowserPage() {
       setPickerChapterId(null);
       navigate(`/books/${book.id}`);
     } catch {
-      alert('Could not create book.');
+      toast('Could not create book.', 'error');
     } finally {
       setAdding(false);
     }

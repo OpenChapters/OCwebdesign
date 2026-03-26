@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Chapter } from '../types';
 
@@ -17,6 +18,9 @@ export default function ChapterCard({
   onAddToBook,
 }: Props) {
   const navigate = useNavigate();
+  const [imgStatus, setImgStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const coverUrl = chapter.cover_image_url ? `/api/chapters/${chapter.id}/cover/` : '';
+  const hasUrl = !!coverUrl;
 
   return (
     <div className="relative group flex flex-col">
@@ -33,21 +37,24 @@ export default function ChapterCard({
       )}
 
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
-        {chapter.cover_image_url ? (
-          <img
-            src={chapter.cover_image_url}
-            alt={chapter.title}
-            className="w-full h-28 object-cover rounded-t-lg"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-            }}
-          />
-        ) : null}
-        <div
-          className={`w-full h-28 bg-gradient-to-br from-blue-50 to-blue-100 rounded-t-lg flex items-center justify-center ${chapter.cover_image_url ? 'hidden' : ''}`}
-        >
-          <span className="text-4xl">📖</span>
+        <div className="relative w-full h-28 rounded-t-lg overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100">
+          {hasUrl && imgStatus !== 'error' && (
+            <img
+              src={coverUrl}
+              alt={chapter.title}
+              loading="eager"
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                imgStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
+              }`}
+              onLoad={() => setImgStatus('loaded')}
+              onError={() => setImgStatus('error')}
+            />
+          )}
+          {(imgStatus !== 'loaded' || !hasUrl) && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-4xl">📖</span>
+            </div>
+          )}
         </div>
 
         <div className="p-3 flex flex-col flex-1 gap-1">

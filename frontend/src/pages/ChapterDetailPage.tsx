@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { chaptersApi } from '../api/chapters';
 import { booksApi } from '../api/books';
 import { useAuth } from '../contexts/AuthContext';
 import type { BookListItem } from '../types';
+import { useToast } from '../components/Toast';
 
 export default function ChapterDetailPage() {
+  const toast = useToast();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -27,6 +29,7 @@ export default function ChapterDetailPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     if (openAddOnLoad && isAuthenticated && chapter) setShowAdd(true);
@@ -55,7 +58,7 @@ export default function ChapterDetailPage() {
       }
       navigate(`/books/${bookId}`);
     } catch {
-      alert('Could not add chapter. It may already be in this book.');
+      toast('Could not add chapter. It may already be in this book.', 'error');
     } finally {
       setAdding(false);
       setShowAdd(false);
@@ -75,7 +78,7 @@ export default function ChapterDetailPage() {
       });
       navigate(`/books/${book.id}`);
     } catch {
-      alert('Could not create book.');
+      toast('Could not create book.', 'error');
     } finally {
       setAdding(false);
     }
@@ -95,14 +98,12 @@ export default function ChapterDetailPage() {
       </Link>
 
       <div className="mt-6 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        {chapter.cover_image_url ? (
+        {chapter.cover_image_url && !imgFailed ? (
           <img
-            src={chapter.cover_image_url}
+            src={`/api/chapters/${chapter.id}/cover/`}
             alt={chapter.title}
             className="w-full h-48 object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
+            onError={() => setImgFailed(true)}
           />
         ) : (
           <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">

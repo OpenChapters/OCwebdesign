@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ChapterCard from '../components/ChapterCard';
 import type { Chapter, BookListItem } from '../types';
 import { useToast } from '../components/Toast';
+import { SkeletonCardGrid } from '../components/Skeleton';
 
 export default function ChapterBrowserPage() {
   const toast = useToast();
@@ -211,21 +212,26 @@ export default function ChapterBrowserPage() {
         />
       </div>
 
-      {isLoading && (
-        <div className="text-center text-gray-500 py-16">Loading chapters…</div>
-      )}
+      {isLoading && <SkeletonCardGrid count={10} />}
 
       {error && (
         <div className="text-center text-red-600 py-16">Failed to load chapters.</div>
       )}
 
       {!isLoading && filtered.length === 0 && (
-        <div className="text-center text-gray-400 py-16">No chapters found.</div>
+        <div className="text-center py-16">
+          <p className="text-4xl mb-3">🔍</p>
+          <p className="text-lg font-semibold text-gray-700 mb-1">No chapters found</p>
+          <p className="text-sm text-gray-400">Try a different search term or clear the search box.</p>
+        </div>
       )}
 
       {topical.length > 0 && (
         <section className="mb-10">
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">Topical Chapters</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">
+            Topical Chapters
+            <span className="ml-2 text-sm font-normal text-gray-400">({topical.length})</span>
+          </h2>
           <p className="text-sm text-gray-500 mb-4">
             Specialized topics in materials science and engineering.
           </p>
@@ -235,7 +241,10 @@ export default function ChapterBrowserPage() {
 
       {foundational.length > 0 && (
         <section>
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">Foundational Chapters</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">
+            Foundational Chapters
+            <span className="ml-2 text-sm font-normal text-gray-400">({foundational.length})</span>
+          </h2>
           <p className="text-sm text-gray-500 mb-4">
             Core mathematical and scientific background.
           </p>

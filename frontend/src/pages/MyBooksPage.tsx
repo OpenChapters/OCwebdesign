@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { booksApi } from '../api/books';
+import { SkeletonTable } from '../components/Skeleton';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
@@ -84,11 +85,19 @@ export default function MyBooksPage() {
         </form>
       )}
 
-      {isLoading && <div className="text-gray-500 py-8 text-center">Loading…</div>}
+      {isLoading && <SkeletonTable rows={3} cols={4} />}
 
       {!isLoading && books.length === 0 && (
-        <div className="text-center text-gray-400 py-16">
-          No books yet. Create one to get started.
+        <div className="text-center py-16">
+          <p className="text-4xl mb-3">📚</p>
+          <p className="text-lg font-semibold text-gray-700 mb-1">No books yet</p>
+          <p className="text-sm text-gray-400 mb-4">Create your first book to start assembling chapters into a custom textbook.</p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700"
+          >
+            + Create your first book
+          </button>
         </div>
       )}
 

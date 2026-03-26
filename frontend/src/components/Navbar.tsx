@@ -12,7 +12,8 @@ export default function Navbar() {
 
   return (
     <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-6">
-      <Link to="/" className="font-bold text-blue-700 text-lg tracking-tight">
+      <Link to="/" className="flex items-center gap-2 font-bold text-blue-700 text-lg tracking-tight">
+        <img src="/favicon.png" alt="" className="w-6 h-6" />
         OpenChapters
       </Link>
 

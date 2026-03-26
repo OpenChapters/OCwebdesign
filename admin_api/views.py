@@ -576,6 +576,7 @@ class PublicSettingsView(APIView):
         all_settings = SiteSetting.get_all()
         return Response({
             "site_name": all_settings.get("site_name", "OpenChapters"),
+            "welcome_message": all_settings.get("welcome_message", ""),
             "announcement_banner": all_settings.get("announcement_banner", ""),
             "registration_enabled": all_settings.get("registration_enabled", True),
         })

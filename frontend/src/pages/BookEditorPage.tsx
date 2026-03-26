@@ -34,6 +34,7 @@ export default function BookEditorPage() {
   const [chapterSearch, setChapterSearch] = useState('');
   const [suggestions, setSuggestions] = useState<Chapter[]>([]);
   const [building, setBuilding] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -269,14 +270,46 @@ export default function BookEditorPage() {
 
   // ── Build ───────────────────────────────────────────────────────────────
 
+  const [buildStatus, setBuildStatus] = useState<string | null>(null);
+
+  // Poll build status when a build is active
+  const { data: buildData } = useQuery({
+    queryKey: ['build-poll', bookId],
+    queryFn: () => booksApi.getBuildStatus(bookId),
+    enabled: buildStatus === 'queued' || buildStatus === 'building',
+    refetchInterval: 3000,
+  });
+
+  // Update buildStatus from polling data
+  useEffect(() => {
+    if (buildData?.status) {
+      setBuildStatus(buildData.status);
+      if (buildData.status === 'complete') {
+        toast('Build complete! Your PDF is ready.', 'success');
+        refresh();
+      } else if (buildData.status === 'failed') {
+        toast('Build failed. Check the build status page for details.', 'error');
+      }
+    }
+  }, [buildData?.status]);
+
+  // Also pick up status from the book query
+  useEffect(() => {
+    if (book && (book.status === 'queued' || book.status === 'building')) {
+      setBuildStatus(book.status);
+    }
+  }, [book?.status]);
+
   async function triggerBuild() {
     if (!confirm('Start building this book? This may take a few minutes.')) return;
     setBuilding(true);
     try {
       await booksApi.triggerBuild(bookId);
-      navigate(`/books/${bookId}/status`);
+      setBuildStatus('queued');
+      toast('Build queued.', 'info');
     } catch (err: any) {
       toast(err?.response?.data?.detail ?? 'Build failed to start.', 'error');
+    } finally {
       setBuilding(false);
     }
   }
@@ -328,10 +361,69 @@ export default function BookEditorPage() {
           )}
         </div>
         <span className="text-sm text-gray-500">{chapterCount} chapters</span>
-        <button onClick={triggerBuild} disabled={!canBuild || building} className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-40">
+
+        {/* Build status indicator */}
+        {buildStatus === 'queued' && (
+          <span className="text-xs bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-full font-medium animate-pulse">
+            Queued…
+          </span>
+        )}
+        {buildStatus === 'building' && (
+          <span className="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full font-medium animate-pulse">
+            Building…
+          </span>
+        )}
+        {buildStatus === 'complete' && (
+          <Link to={`/books/${bookId}/status`} className="text-xs bg-green-100 text-green-800 px-3 py-1.5 rounded-full font-medium hover:bg-green-200">
+            PDF Ready — View
+          </Link>
+        )}
+        {buildStatus === 'failed' && (
+          <Link to={`/books/${bookId}/status`} className="text-xs bg-red-100 text-red-800 px-3 py-1.5 rounded-full font-medium hover:bg-red-200">
+            Build Failed — View
+          </Link>
+        )}
+
+        <button
+          onClick={() => setShowPreview(!showPreview)}
+          className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50"
+        >
+          {showPreview ? 'Hide Preview' : 'Preview TOC'}
+        </button>
+        <button onClick={triggerBuild} disabled={!canBuild || building || buildStatus === 'queued' || buildStatus === 'building'} className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-40">
           {building ? 'Starting…' : 'Build PDF'}
         </button>
       </div>
+
+      {/* TOC Preview panel */}
+      {showPreview && (
+        <div className="bg-white border-b border-gray-200 px-6 py-4 max-h-64 overflow-y-auto">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Book Preview</p>
+          <div className="text-sm">
+            <p className="font-bold text-gray-900 mb-2">{book.title}</p>
+            {book.parts.length === 0 ? (
+              <p className="text-gray-400 italic">No parts added yet.</p>
+            ) : (
+              book.parts.map((part, pi) => (
+                <div key={part.id} className="mb-2">
+                  <p className="font-semibold text-gray-700">
+                    Part {pi + 1}: {part.title}
+                  </p>
+                  {part.chapters.length === 0 ? (
+                    <p className="text-gray-400 italic text-xs ml-4">No chapters</p>
+                  ) : (
+                    <ol className="ml-4 text-gray-600 list-decimal list-inside">
+                      {part.chapters.map((bc) => (
+                        <li key={bc.id}>{bc.chapter_detail.title}</li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">

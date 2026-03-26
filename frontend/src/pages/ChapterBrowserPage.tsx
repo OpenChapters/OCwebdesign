@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import { chaptersApi } from '../api/chapters';
 import { booksApi } from '../api/books';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +19,12 @@ export default function ChapterBrowserPage() {
   const [pickerChapterId, setPickerChapterId] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+
+  const { data: publicSettings } = useQuery({
+    queryKey: ['public-settings'],
+    queryFn: () => axios.get('/api/settings/public/').then((r) => r.data),
+    staleTime: 60_000,
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['chapters'],
@@ -44,7 +51,10 @@ export default function ChapterBrowserPage() {
   }, [pickerChapterId]);
 
   const chapters = data?.results ?? [];
-  const draftBooks = books.filter((b: BookListItem) => b.status === 'draft');
+  const lastBookId = parseInt(localStorage.getItem('last_book_id') ?? '0');
+  const draftBooks = books
+    .filter((b: BookListItem) => b.status === 'draft')
+    .sort((a: BookListItem, b: BookListItem) => (a.id === lastBookId ? -1 : b.id === lastBookId ? 1 : 0));
 
   const filtered = search.trim()
     ? chapters.filter(
@@ -85,6 +95,7 @@ export default function ChapterBrowserPage() {
           order: firstPart.chapters.length,
         });
       }
+      localStorage.setItem('last_book_id', String(bookId));
       setPickerChapterId(null);
       navigate(`/books/${bookId}`);
     } catch {
@@ -105,6 +116,7 @@ export default function ChapterBrowserPage() {
         chapter_id: pickerChapterId,
         order: 0,
       });
+      localStorage.setItem('last_book_id', String(book.id));
       setPickerChapterId(null);
       navigate(`/books/${book.id}`);
     } catch {
@@ -142,6 +154,9 @@ export default function ChapterBrowserPage() {
                         className="w-full text-left text-sm text-gray-800 hover:bg-gray-50 rounded px-2 py-1.5 disabled:opacity-50 truncate"
                       >
                         {b.title}
+                        {b.id === lastBookId && (
+                          <span className="ml-1 text-xs text-blue-500">(last used)</span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -161,8 +176,25 @@ export default function ChapterBrowserPage() {
     );
   }
 
+  const welcomeMessage = publicSettings?.welcome_message || '';
+  const announcementBanner = publicSettings?.announcement_banner || '';
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
+      {/* Announcement banner */}
+      {announcementBanner && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+          {announcementBanner}
+        </div>
+      )}
+
+      {/* Welcome banner */}
+      {welcomeMessage && (
+        <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl px-6 py-5">
+          <p className="text-gray-700 leading-relaxed">{welcomeMessage}</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Chapter Browser</h1>

@@ -6,3 +6,4 @@ httpx==0.*
 djangorestframework==3.*
 djangorestframework-simplejwt==5.*
 sendgrid==6.*
+Pillow==11.*

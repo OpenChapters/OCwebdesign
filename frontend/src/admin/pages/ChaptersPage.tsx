@@ -6,6 +6,7 @@ import { adminApi } from '../api';
 export default function ChaptersPage() {
   const [search, setSearch] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [updatingThumbs, setUpdatingThumbs] = useState(false);
   const [syncOutput, setSyncOutput] = useState('');
   const queryClient = useQueryClient();
 
@@ -31,6 +32,24 @@ export default function ChaptersPage() {
     }
   }
 
+  async function handleUpdateThumbnails() {
+    if (!confirm('Check for updated header images and regenerate thumbnails?')) return;
+    setUpdatingThumbs(true);
+    setSyncOutput('');
+    try {
+      const result = await adminApi.chapterUpdateThumbnails();
+      const lines = [result.detail];
+      if (result.updated.length > 0) lines.push(`Updated: ${result.updated.join(', ')}`);
+      if (result.errors.length > 0) lines.push(`Errors: ${result.errors.join('; ')}`);
+      if (result.skipped.length > 0) lines.push(`Skipped: ${result.skipped.length} chapter(s)`);
+      setSyncOutput(lines.join('\n'));
+    } catch (err: any) {
+      setSyncOutput(err?.response?.data?.detail || 'Thumbnail update failed.');
+    } finally {
+      setUpdatingThumbs(false);
+    }
+  }
+
   return (
     <div className="p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
@@ -43,6 +62,13 @@ export default function ChaptersPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          <button
+            onClick={handleUpdateThumbnails}
+            disabled={updatingThumbs}
+            className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            {updatingThumbs ? 'Updating…' : 'Update Thumbnails'}
+          </button>
           <button
             onClick={handleSync}
             disabled={syncing}

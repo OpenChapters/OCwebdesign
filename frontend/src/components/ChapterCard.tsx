@@ -19,7 +19,8 @@ export default function ChapterCard({
 }: Props) {
   const navigate = useNavigate();
   const [imgStatus, setImgStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
-  const coverUrl = chapter.cover_image_url ? `/api/chapters/${chapter.id}/cover/` : '';
+  const cacheBust = chapter.cached_at ? `?v=${new Date(chapter.cached_at).getTime()}` : '';
+  const coverUrl = chapter.cover_image_url ? `/api/chapters/${chapter.id}/cover/${cacheBust}` : '';
   const hasUrl = !!coverUrl;
 
   return (

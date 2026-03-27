@@ -27,11 +27,13 @@ services:
     volumes:
       - .:/app
       - ./media/pdfs:/app/media/pdfs
+      - ../OpenChapters:/monorepo
     ports:
       - "8000:8000"
     env_file: .env
     environment:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.dev
+      - OPENCHAPTERS_MONOREPO_PATH=/monorepo
     depends_on:
       - db
       - rabbitmq

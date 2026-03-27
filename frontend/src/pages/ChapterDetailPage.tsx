@@ -100,7 +100,7 @@ export default function ChapterDetailPage() {
       <div className="mt-6 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         {chapter.cover_image_url && !imgFailed ? (
           <img
-            src={`/api/chapters/${chapter.id}/cover/`}
+            src={`/api/chapters/${chapter.id}/cover/?v=${new Date(chapter.cached_at).getTime()}`}
             alt={chapter.title}
             className="w-full h-48 object-cover"
             onError={() => setImgFailed(true)}

@@ -238,4 +238,8 @@ export const adminApi = {
     client.patch<AdminChapter>(`/admin/chapters/${id}/`, data).then((r) => r.data),
   chapterSync: () =>
     client.post<{ detail: string; output: string }>('/admin/chapters/sync/').then((r) => r.data),
+  chapterUpdateThumbnails: () =>
+    client.post<{ detail: string; updated: string[]; skipped: string[]; errors: string[] }>(
+      '/admin/chapters/update-thumbnails/'
+    ).then((r) => r.data),
 };

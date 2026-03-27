@@ -149,3 +149,7 @@ BUILD_SCRIPTS_DIR = BASE_DIR / "Build" / "scripts"
 # Local directory where generated PDFs are stored in dev.
 # In production this will be replaced by S3 upload logic in build_book.
 BUILD_OUTPUT_DIR = env.path("BUILD_OUTPUT_DIR", default=str(BASE_DIR / "media" / "pdfs"))
+
+# Path to a local clone of the OpenChapters monorepo.
+# When set, "Update Thumbnails" also writes cover.png to the monorepo.
+OPENCHAPTERS_MONOREPO_PATH = env("OPENCHAPTERS_MONOREPO_PATH", default="")

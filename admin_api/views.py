@@ -1,7 +1,11 @@
+import logging
 import shutil
+import tempfile
 from datetime import timedelta
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
+import httpx
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -11,6 +15,8 @@ from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 from catalog.models import Chapter
 
@@ -248,6 +254,156 @@ class AdminChapterSyncView(APIView):
                 {"detail": f"Sync failed: {e}", "output": out.getvalue()},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class AdminChapterUpdateThumbnailsView(APIView):
+    """POST /api/admin/chapters/update-thumbnails/ — regenerate cover.png
+    from header images for chapters whose header is newer than the cover.
+
+    Updates both the local server cache (media/covers/) and the monorepo
+    cover.png files if OPENCHAPTERS_MONOREPO_PATH is set."""
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        from catalog.github_client import raw_file_url
+
+        cover_cache_dir = Path(settings.BASE_DIR) / "media" / "covers"
+        cover_cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Optional: path to local monorepo clone for writing cover.png files
+        monorepo_path = getattr(settings, "OPENCHAPTERS_MONOREPO_PATH", "")
+
+        token = getattr(settings, "GITHUB_TOKEN", "")
+        headers = {}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        updated = []
+        skipped = []
+        errors = []
+
+        for ch in Chapter.objects.filter(published=True):
+            if not ch.chabbr:
+                skipped.append(f"{ch.title}: no chabbr")
+                continue
+
+            header_filename = f"{ch.chabbr}header.pdf"
+            header_url = raw_file_url(
+                ch.github_repo, "master", f"{ch.chapter_subdir}/pdf/{header_filename}"
+            )
+
+            # Check if header image is newer than cached cover
+            cached_cover = cover_cache_dir / f"{ch.id}.png"
+
+            try:
+                # Get Last-Modified of the header image from GitHub
+                head_resp = httpx.head(header_url, headers=headers, timeout=10, follow_redirects=True)
+                if head_resp.status_code != 200:
+                    skipped.append(f"{ch.title}: no header image on GitHub")
+                    continue
+
+                header_modified = head_resp.headers.get("Last-Modified")
+                if not header_modified:
+                    pass  # Can't compare; regenerate to be safe
+                elif cached_cover.exists():
+                    try:
+                        header_dt = parsedate_to_datetime(header_modified)
+                        cover_mtime = cached_cover.stat().st_mtime
+                        if header_dt.timestamp() <= cover_mtime:
+                            skipped.append(f"{ch.title}: cover is up to date")
+                            continue
+                    except Exception:
+                        pass
+
+                # Fetch header PDF and crop to cover
+                header_resp_full = httpx.get(header_url, headers=headers, timeout=15, follow_redirects=True)
+                if header_resp_full.status_code != 200:
+                    errors.append(f"{ch.title}: could not fetch header image")
+                    continue
+
+                try:
+                    cover_bytes = self._crop_header_to_cover(header_resp_full.content)
+                except Exception as e:
+                    errors.append(f"{ch.title}: crop failed: {e}")
+                    continue
+
+                # Write to server cache
+                cached_cover.write_bytes(cover_bytes)
+
+                # Write to monorepo if path is configured
+                if monorepo_path:
+                    monorepo_cover = Path(monorepo_path) / ch.chapter_subdir / "cover.png"
+                    if monorepo_cover.parent.is_dir():
+                        monorepo_cover.write_bytes(cover_bytes)
+
+                # Touch cached_at so frontend cache-busting picks up the change
+                ch.save(update_fields=["cached_at"])
+
+                updated.append(ch.title)
+
+            except Exception as e:
+                errors.append(f"{ch.title}: {e}")
+
+        return Response({
+            "detail": f"Updated {len(updated)} thumbnail(s).",
+            "updated": updated,
+            "skipped": skipped,
+            "errors": errors,
+            "monorepo": bool(monorepo_path),
+        })
+
+    @staticmethod
+    def _crop_header_to_cover(pdf_bytes: bytes) -> bytes:
+        """Convert a header PDF to a 400x300 PNG cover image."""
+        import io
+        import subprocess
+        from PIL import Image
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_pdf:
+            tmp_pdf.write(pdf_bytes)
+            tmp_pdf_path = tmp_pdf.name
+
+        tmp_png_prefix = tmp_pdf_path.replace(".pdf", "")
+        try:
+            # pdftoppm (poppler-utils, available in Docker)
+            try:
+                subprocess.run(
+                    ["pdftoppm", "-png", "-r", "150", "-singlefile",
+                     tmp_pdf_path, tmp_png_prefix],
+                    capture_output=True, check=True, timeout=10,
+                )
+                tmp_png_path = tmp_png_prefix + ".png"
+            except FileNotFoundError:
+                # Fallback: sips (macOS)
+                tmp_png_path = tmp_pdf_path.replace(".pdf", ".png")
+                subprocess.run(
+                    ["sips", "-s", "format", "png", tmp_pdf_path, "--out", tmp_png_path],
+                    capture_output=True, check=True, timeout=10,
+                )
+
+            img = Image.open(tmp_png_path)
+            w, h = img.size
+            target_ratio = 400 / 300
+            current_ratio = w / h
+            if current_ratio > target_ratio:
+                new_w = int(h * target_ratio)
+                left = (w - new_w) // 2
+                crop = img.crop((left, 0, left + new_w, h))
+            else:
+                new_h = int(w / target_ratio)
+                top = (h - new_h) // 2
+                crop = img.crop((0, top, w, top + new_h))
+            cover = crop.resize((400, 300), Image.LANCZOS)
+            if cover.mode != "RGB":
+                cover = cover.convert("RGB")
+
+            buf = io.BytesIO()
+            cover.save(buf, "PNG")
+            return buf.getvalue()
+        finally:
+            Path(tmp_pdf_path).unlink(missing_ok=True)
+            Path(tmp_png_prefix + ".png").unlink(missing_ok=True)
 
 
 # ── Build Management ──────────────────────────────────────────────────────────

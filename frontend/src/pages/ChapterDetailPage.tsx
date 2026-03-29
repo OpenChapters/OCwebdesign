@@ -30,6 +30,8 @@ export default function ChapterDetailPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const [showNewBookInput, setShowNewBookInput] = useState(false);
+  const [newBookTitle, setNewBookTitle] = useState('');
 
   useEffect(() => {
     if (openAddOnLoad && isAuthenticated && chapter) setShowAdd(true);
@@ -65,11 +67,11 @@ export default function ChapterDetailPage() {
     }
   }
 
-  async function createBookAndAdd() {
-    if (!chapter) return;
+  async function createBookAndAdd(title: string) {
+    if (!chapter || !title.trim()) return;
     setAdding(true);
     try {
-      const book = await booksApi.create('Untitled Book');
+      const book = await booksApi.create(title.trim());
       await booksApi.addPart(book.id, { title: 'Part I', order: 0 });
       const updated = await booksApi.detail(book.id);
       await booksApi.addChapter(book.id, updated.parts[0].id, {
@@ -199,13 +201,36 @@ export default function ChapterDetailPage() {
                         ))}
                       </div>
                     )}
-                    <button
-                      onClick={createBookAndAdd}
-                      disabled={adding}
-                      className="w-full text-sm text-blue-600 hover:bg-blue-50 rounded px-2 py-1.5 text-left font-medium disabled:opacity-50"
-                    >
-                      + Create new book
-                    </button>
+                    {showNewBookInput ? (
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); createBookAndAdd(newBookTitle); }}
+                        className="flex gap-1"
+                      >
+                        <input
+                          type="text"
+                          placeholder="Book title"
+                          value={newBookTitle}
+                          onChange={(e) => setNewBookTitle(e.target.value)}
+                          autoFocus
+                          required
+                          className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="submit"
+                          disabled={adding || !newBookTitle.trim()}
+                          className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {adding ? '…' : 'Create'}
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => setShowNewBookInput(true)}
+                        className="w-full text-sm text-blue-600 hover:bg-blue-50 rounded px-2 py-1.5 text-left font-medium"
+                      >
+                        + Create new book
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

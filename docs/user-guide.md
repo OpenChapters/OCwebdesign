@@ -31,12 +31,13 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
 ## Creating an Account
 
 1. Click **Register** in the top-right corner of the navigation bar.
-2. Enter your email address and choose a password (minimum 8 characters).
-3. Complete the CAPTCHA verification (Cloudflare Turnstile).
-4. Click **Create account**.
-5. You will be redirected to the sign-in page. Enter your credentials to log in.
+2. Enter your **full name** (used on book cover pages).
+3. Enter your **email address** and choose a **password** (minimum 8 characters).
+4. Complete the CAPTCHA verification (Cloudflare Turnstile).
+5. Click **Create account**.
+6. You will be redirected to the sign-in page. Enter your credentials to log in.
 
-Your email address is your login identifier and will be used for PDF delivery notifications.
+Your email address is your login identifier and will be used for PDF delivery notifications. Your full name appears on the cover page of books you build.
 
 ## Signing In
 
@@ -94,7 +95,7 @@ When you add a chapter from the detail page, it is placed in the first part of t
 There are two ways to create a new book:
 
 ### From the Chapter Browser
-Click **+ Add to Book** on any chapter card, then choose **+ Create new book**. A new book titled "Untitled Book" is created with the selected chapter already added.
+Click **+ Add to Book** on any chapter card, then choose **+ Create new book**. You will be prompted to enter a book title, then the book is created with the selected chapter already added.
 
 ### From My Books
 1. Click **My Books** in the navigation bar.
@@ -112,6 +113,37 @@ The Book Editor is a split-panel interface for assembling your book:
 ### Editing the Book Title
 
 Click the book title at the top of the page (next to the pencil icon) to edit it. Press Enter or click **Save** to confirm.
+
+### Cover Page Image
+
+Below the "Book Structure" header, you'll find the **Cover Page Image** section:
+
+- By default, a standard OpenChapters cover design is used.
+- Click **Upload PDF** to upload a custom cover page image (PDF format, max 50MB).
+- The PDF should be A4-size with two color images (298 points / ~105mm tall each) spanning the full page width, separated by a white background.
+- Click **Replace** to change the uploaded image, or **Remove** to revert to the default.
+- Uploaded cover images are archived with your account and persist across book rebuilds.
+
+### DOI
+
+An optional **DOI** field is available below the cover image section. Type a DOI identifier (e.g., `10.1234/openchapters.2026`) and click away to save. Leave blank if not applicable.
+
+### TOC Preview
+
+Click **Preview TOC** in the header bar to see a compact preview of your book's structure:
+- Shows the book title, each part with its number, and the chapters within each part.
+- Useful for verifying the structure before building.
+- Click **Hide Preview** to close.
+
+### Build Status Indicator
+
+After triggering a build, a **status badge** appears in the header bar:
+- **Yellow (Queued)** — waiting to start
+- **Blue (Building)** — typesetting in progress
+- **Green (PDF Ready — View)** — click to go to the download page
+- **Red (Build Failed — View)** — click to see the error
+
+The editor stays open during the build, and you receive a toast notification when it completes or fails.
 
 ### Adding Parts
 
@@ -245,6 +277,7 @@ From this page you can:
 Click **Profile** in the top-right corner of the navigation bar to view and manage your account.
 
 The profile page shows:
+- Your full name (click **Edit** to change it)
 - Your email address
 - Account creation date
 - Last login date

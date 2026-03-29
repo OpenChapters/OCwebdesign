@@ -150,6 +150,7 @@ Create a new user account.
 ```json
 {
   "email": "user@example.com",
+  "full_name": "Jane Smith",
   "password": "minimum8chars"
 }
 ```
@@ -248,11 +249,27 @@ Returns the current user's account information. Requires authentication.
 {
   "id": 1,
   "email": "user@example.com",
+  "full_name": "Jane Smith",
   "is_staff": false,
   "date_joined": "2026-03-25T15:50:00Z",
   "last_login": "2026-03-26T10:30:00Z"
 }
 ```
+
+#### Update Profile
+
+```
+PATCH /api/auth/profile/
+```
+
+**Request body:**
+```json
+{
+  "full_name": "Jane A. Smith"
+}
+```
+
+**Response (200):** Updated profile object.
 
 #### Delete Account
 
@@ -465,11 +482,14 @@ PATCH /api/books/<id>/
 **Request body:**
 ```json
 {
-  "title": "New Title"
+  "title": "New Title",
+  "doi": "10.1234/openchapters.2026"
 }
 ```
 
-**Response (200):** Updated book object.
+Both fields are optional in a PATCH request.
+
+**Response (200):** Updated book object (includes `has_cover_image` boolean).
 
 #### Delete Book
 
@@ -478,6 +498,41 @@ DELETE /api/books/<id>/
 ```
 
 **Response:** `204 No Content`
+
+#### Upload Cover Image
+
+```
+POST /api/books/<book_id>/cover/
+Content-Type: multipart/form-data
+```
+
+Upload a custom cover page PDF. Must be `.pdf`, max 50MB. Replaces any existing cover.
+
+**Form field:** `cover_image` — the PDF file.
+
+**Response (200):**
+```json
+{
+  "detail": "Cover image uploaded.",
+  "has_cover_image": true
+}
+```
+
+#### Remove Cover Image
+
+```
+DELETE /api/books/<book_id>/cover/
+```
+
+Removes the uploaded cover image. The book reverts to the default cover.
+
+**Response (200):**
+```json
+{
+  "detail": "Cover image removed.",
+  "has_cover_image": false
+}
+```
 
 ---
 

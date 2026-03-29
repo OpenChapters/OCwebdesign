@@ -6,7 +6,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isStaff: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, turnstileToken?: string) => Promise<void>;
+  register: (email: string, password: string, turnstileToken?: string, fullName?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -74,8 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     scheduleRefresh();
   }, [scheduleRefresh]);
 
-  const register = useCallback(async (email: string, password: string, turnstileToken?: string) => {
-    await authApi.register(email, password, turnstileToken ?? '');
+  const register = useCallback(async (email: string, password: string, turnstileToken?: string, fullName?: string) => {
+    await authApi.register(email, password, turnstileToken ?? '', fullName);
   }, []);
 
   useEffect(() => {

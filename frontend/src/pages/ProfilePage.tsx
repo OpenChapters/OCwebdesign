@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import client from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 interface Profile {
   id: number;
   email: string;
+  full_name: string;
   is_staff: boolean;
   date_joined: string;
   last_login: string | null;
@@ -17,11 +18,17 @@ export default function ProfilePage() {
   const toast = useToast();
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
     queryFn: () => client.get<Profile>('/auth/profile/').then((r) => r.data),
   });
+
+  // Full name editing
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
 
   // Change password
   const [showPwForm, setShowPwForm] = useState(false);
@@ -87,6 +94,46 @@ export default function ProfilePage() {
       <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Account</h2>
         <dl className="text-sm space-y-3">
+          <div className="flex justify-between items-center">
+            <dt className="text-gray-500">Full Name</dt>
+            <dd className="text-gray-900 flex items-center gap-2">
+              {editingName ? (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setNameSaving(true);
+                    try {
+                      await client.patch('/auth/profile/', { full_name: nameValue });
+                      queryClient.invalidateQueries({ queryKey: ['profile'] });
+                      setEditingName(false);
+                      toast('Name updated.', 'success');
+                    } catch { toast('Failed to update name.', 'error'); }
+                    finally { setNameSaving(false); }
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <input
+                    value={nameValue}
+                    onChange={(e) => setNameValue(e.target.value)}
+                    autoFocus
+                    className="border border-gray-300 rounded px-2 py-0.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button type="submit" disabled={nameSaving} className="text-xs text-blue-600 hover:underline">Save</button>
+                  <button type="button" onClick={() => setEditingName(false)} className="text-xs text-gray-400">Cancel</button>
+                </form>
+              ) : (
+                <>
+                  {profile.full_name || <span className="text-gray-400 italic">Not set</span>}
+                  <button
+                    onClick={() => { setNameValue(profile.full_name); setEditingName(true); }}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+            </dd>
+          </div>
           <div className="flex justify-between">
             <dt className="text-gray-500">Email</dt>
             <dd className="text-gray-900">{profile.email}</dd>

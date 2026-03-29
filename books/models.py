@@ -26,6 +26,20 @@ class Book(models.Model):
         default=Status.DRAFT,
     )
 
+    def _cover_upload_path(instance, filename):
+        return f"covers/user_{instance.user_id}/{filename}"
+
+    cover_image = models.FileField(
+        upload_to=_cover_upload_path,
+        blank=True,
+        help_text="Optional cover page PDF (A4, two 298pt-high images separated by white).",
+    )
+    doi = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Optional DOI link for this book.",
+    )
+
     class Meta:
         ordering = ["-created_at"]
 

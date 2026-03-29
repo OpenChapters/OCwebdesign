@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -63,7 +64,7 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await register(email, password, turnstileToken);
+      await register(email, password, turnstileToken, fullName);
       navigate('/login');
     } catch (err: any) {
       const data = err?.response?.data;
@@ -87,6 +88,16 @@ export default function RegisterPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 w-full max-w-sm p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Create account</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input

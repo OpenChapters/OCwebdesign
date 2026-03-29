@@ -38,16 +38,19 @@ export interface BuildJob {
 export interface Book {
   id: number;
   title: string;
+  doi: string;
   status: 'draft' | 'queued' | 'building' | 'complete' | 'failed';
   created_at: string;
   updated_at: string;
   parts: BookPart[];
   build_job: BuildJob | null;
+  has_cover_image: boolean;
 }
 
 export interface BookListItem {
   id: number;
   title: string;
+  doi: string;
   status: 'draft' | 'queued' | 'building' | 'complete' | 'failed';
   created_at: string;
   updated_at: string;

@@ -25,7 +25,7 @@ Chapters and figures live in the [OpenChapters/OpenChapters](https://github.com/
 └────────┬──────────────────────────────────┬────────────────┘
          │                                  │
 ┌────────▼────────┐              ┌──────────▼──────────┐
-│  PostgreSQL 16  │              │  Redis 7            │
+│  PostgreSQL 16  │              │  RabbitMQ           │
 │  Data store     │              │  Celery broker      │
 └─────────────────┘              └──────────┬──────────┘
                                             │
@@ -198,8 +198,10 @@ For SSL, place a reverse proxy (e.g., Caddy or nginx with Let's Encrypt) in fron
 | `GET` | `/api/books/` | Yes | List user's books |
 | `POST` | `/api/books/` | Yes | Create a book |
 | `GET` | `/api/books/<id>/` | Yes | Book detail (with parts and chapters) |
-| `PATCH` | `/api/books/<id>/` | Yes | Update book title |
+| `PATCH` | `/api/books/<id>/` | Yes | Update book title, DOI |
 | `DELETE` | `/api/books/<id>/` | Yes | Delete a book |
+| `POST` | `/api/books/<id>/cover/` | Yes | Upload cover page PDF |
+| `DELETE` | `/api/books/<id>/cover/` | Yes | Remove cover page PDF |
 | `POST` | `/api/books/<id>/parts/` | Yes | Add a part |
 | `PATCH` | `/api/books/<id>/parts/<pid>/` | Yes | Rename a part |
 | `DELETE` | `/api/books/<id>/parts/<pid>/` | Yes | Delete a part |

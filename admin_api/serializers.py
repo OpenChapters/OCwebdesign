@@ -28,7 +28,7 @@ class AdminUserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "email", "is_active", "is_staff", "is_superuser",
+            "id", "email", "full_name", "is_active", "is_staff", "is_superuser",
             "date_joined", "last_login", "book_count",
         ]
         read_only_fields = fields
@@ -38,7 +38,7 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "email", "is_active", "is_staff", "is_superuser",
+            "id", "email", "full_name", "is_active", "is_staff", "is_superuser",
             "date_joined", "last_login",
         ]
         read_only_fields = ["id", "email", "date_joined", "last_login"]

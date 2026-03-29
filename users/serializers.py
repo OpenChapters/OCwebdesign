@@ -14,7 +14,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["email", "password", "turnstile_token"]
+        fields = ["email", "full_name", "password", "turnstile_token"]
 
     def validate_turnstile_token(self, value):
         secret = getattr(settings, "TURNSTILE_SECRET_KEY", "")
@@ -42,4 +42,5 @@ class RegisterSerializer(serializers.ModelSerializer):
             username=validated_data["email"],
             email=validated_data["email"],
             password=validated_data["password"],
+            full_name=validated_data.get("full_name", ""),
         )

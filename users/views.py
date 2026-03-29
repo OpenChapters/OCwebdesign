@@ -174,6 +174,7 @@ class ChangePasswordView(APIView):
 
 class ProfileView(APIView):
     """GET /api/auth/profile/ — current user info.
+    PATCH /api/auth/profile/ — update profile fields.
     DELETE /api/auth/profile/ — delete own account."""
 
     permission_classes = [IsAuthenticated]
@@ -183,6 +184,22 @@ class ProfileView(APIView):
         return Response({
             "id": u.id,
             "email": u.email,
+            "full_name": u.full_name,
+            "is_staff": u.is_staff,
+            "date_joined": u.date_joined,
+            "last_login": u.last_login,
+        })
+
+    def patch(self, request):
+        u = request.user
+        full_name = request.data.get("full_name")
+        if full_name is not None:
+            u.full_name = full_name
+            u.save(update_fields=["full_name"])
+        return Response({
+            "id": u.id,
+            "email": u.email,
+            "full_name": u.full_name,
             "is_staff": u.is_staff,
             "date_joined": u.date_joined,
             "last_login": u.last_login,

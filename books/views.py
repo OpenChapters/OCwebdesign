@@ -48,6 +48,39 @@ class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
         return self.update(request, *args, **kwargs)
 
 
+# ── Cover Image ───────────────────────────────────────────────────────────────
+
+class CoverImageView(APIView):
+    """POST /api/books/<book_pk>/cover/ — upload a cover image PDF.
+    DELETE /api/books/<book_pk>/cover/ — remove the uploaded cover image."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, book_pk):
+        book = get_object_or_404(Book, pk=book_pk, user=request.user)
+        file = request.FILES.get("cover_image")
+        if not file:
+            return Response({"detail": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST)
+        if not file.name.lower().endswith(".pdf"):
+            return Response({"detail": "File must be a PDF."}, status=status.HTTP_400_BAD_REQUEST)
+        if file.size > 50 * 1024 * 1024:  # 50MB limit
+            return Response({"detail": "File too large (max 50MB)."}, status=status.HTTP_400_BAD_REQUEST)
+        # Delete old cover if exists
+        if book.cover_image:
+            book.cover_image.delete(save=False)
+        book.cover_image = file
+        book.save(update_fields=["cover_image"])
+        return Response({"detail": "Cover image uploaded.", "has_cover_image": True})
+
+    def delete(self, request, book_pk):
+        book = get_object_or_404(Book, pk=book_pk, user=request.user)
+        if book.cover_image:
+            book.cover_image.delete(save=False)
+            book.cover_image = ""
+            book.save(update_fields=["cover_image"])
+        return Response({"detail": "Cover image removed.", "has_cover_image": False})
+
+
 # ── Parts ─────────────────────────────────────────────────────────────────────
 
 class PartListCreateView(APIView):

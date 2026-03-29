@@ -12,6 +12,7 @@ from books.views import (
     BookListCreateView,
     BuildStatusView,
     BuildTriggerView,
+    CoverImageView,
     DownloadPDFByTokenView,
     DownloadPDFView,
     LibraryView,
@@ -61,6 +62,7 @@ urlpatterns = [
     # ── Books ─────────────────────────────────────────────────────────────────
     path("api/books/", BookListCreateView.as_view(), name="book-list"),
     path("api/books/<int:pk>/", BookDetailView.as_view(), name="book-detail"),
+    path("api/books/<int:book_pk>/cover/", CoverImageView.as_view(), name="book-cover"),
 
     # Parts
     path("api/books/<int:book_pk>/parts/", PartListCreateView.as_view(), name="part-list"),

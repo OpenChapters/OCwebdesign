@@ -461,6 +461,72 @@ export default function BookEditorPage() {
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Book Structure</p>
           </div>
 
+          {/* Cover image upload */}
+          <div className="mx-5 mt-4 bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-700">Cover Page Image</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {book.has_cover_image
+                  ? 'Custom cover image uploaded.'
+                  : 'Using default cover. Upload a PDF to customize.'}
+              </p>
+            </div>
+            {book.has_cover_image ? (
+              <button
+                onClick={async () => {
+                  await booksApi.removeCover(bookId);
+                  toast('Cover image removed.', 'info');
+                  refresh();
+                }}
+                className="text-xs text-red-600 hover:underline"
+              >
+                Remove
+              </button>
+            ) : null}
+            <label className="text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded cursor-pointer hover:bg-gray-200">
+              {book.has_cover_image ? 'Replace' : 'Upload PDF'}
+              <input
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    await booksApi.uploadCover(bookId, file);
+                    toast('Cover image uploaded.', 'success');
+                    refresh();
+                  } catch (err: any) {
+                    toast(err?.response?.data?.detail ?? 'Upload failed.', 'error');
+                  }
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
+
+          {/* DOI field */}
+          <div className="mx-5 mt-3 bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-4">
+            <p className="text-sm font-medium text-gray-700 shrink-0">DOI</p>
+            <input
+              type="text"
+              placeholder="e.g. 10.1234/openchapters.2026"
+              defaultValue={book.doi || ''}
+              onBlur={async (e) => {
+                const val = e.target.value;
+                if (val !== (book.doi || '')) {
+                  try {
+                    await booksApi.update(bookId, { doi: val });
+                    toast('DOI saved.', 'success');
+                    refresh();
+                  } catch { /* ignore */ }
+                }
+              }}
+              className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600"
+            />
+            <p className="text-xs text-gray-400 shrink-0">(optional)</p>
+          </div>
+
           {/* Auto-include suggestions */}
           {suggestions.length > 0 && (
             <div className="mx-5 mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">

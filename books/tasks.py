@@ -103,7 +103,7 @@ def build_book(self, book_id: int) -> None:
 
     # ── Load book & create / reset BuildJob ──────────────────────────────────
     try:
-        book = Book.objects.get(id=book_id)
+        book = Book.objects.select_related("user").get(id=book_id)
     except Book.DoesNotExist:
         logger.error("build_book: Book %d not found", book_id)
         return
@@ -175,6 +175,31 @@ def build_book(self, book_id: int) -> None:
 
         shutil.copytree(matter_src, workdir / "matter", ignore=_skip_symlinks)
         log(f"Copied matter/ from {matter_src}")
+
+        # 5a. Process Frontmatter.tex.template → Frontmatter.tex
+        #     Replace ##COVERIMAGE##, ##BOOKTITLE##, ##USERNAME##
+        fm_template = workdir / "matter" / "Frontmatter.tex.template"
+        fm_output = workdir / "matter" / "Frontmatter.tex"
+        if fm_template.is_file():
+            cover_filename = "background.pdf"  # default
+            if book.cover_image:
+                cover_filename = Path(book.cover_image.name).name
+            fm_text = fm_template.read_text()
+            fm_text = fm_text.replace("##COVERIMAGE##", cover_filename)
+            fm_text = fm_text.replace("##BOOKTITLE##", book.title)
+            fm_text = fm_text.replace("##USERNAME##", book.user.full_name or book.user.email)
+            fm_output.write_text(fm_text)
+            log(f"Processed Frontmatter.tex (cover={cover_filename}, title={book.title}, user={book.user.full_name or book.user.email})")
+
+        # 5b. Copy cover image to ImageFolder/
+        img_folder = workdir / "ImageFolder"
+        img_folder.mkdir(exist_ok=True)
+        if book.cover_image:
+            cover_src = Path(book.cover_image.path)
+            if cover_src.is_file():
+                shutil.copy2(str(cover_src), str(img_folder / Path(book.cover_image.name).name))
+                log(f"Copied user cover image to ImageFolder/{Path(book.cover_image.name).name}")
+        # Default background.pdf is already in matter/pdf/ which is on the graphics path
 
         # 6. Merge bibliography files → OpenChapters.bib
         _run_script(scripts_dir / "concat_bibs.py", workdir, log)

@@ -56,9 +56,9 @@ Internet
 │          │  Static files via whitenoise
 └──┬────┬──┘
    │    │
-┌──▼──┐ ┌▼──────┐
-│ PG  │ │ Redis │
-└─────┘ └──┬────┘
+┌──▼──┐ ┌▼──────────┐
+│ PG  │ │ RabbitMQ  │
+└─────┘ └──┬────────┘
             │
        ┌────▼────┐
        │ Celery  │  TeX Live worker (LaTeX builds)
@@ -148,6 +148,10 @@ PDF_LINK_EXPIRY_DAYS=7
 # Cloudflare Turnstile (bot protection on registration)
 TURNSTILE_SITE_KEY=<your_turnstile_site_key>
 TURNSTILE_SECRET_KEY=<your_turnstile_secret_key>
+
+# Optional: path to local monorepo clone (for admin thumbnail updates)
+# Only needed if the server has a local clone of the OpenChapters repo
+OPENCHAPTERS_MONOREPO_PATH=
 ```
 
 **Important:**
@@ -172,6 +176,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 ```
 
 This builds three custom images:
+
 - **nginx** — multi-stage: compiles React frontend, bundles into nginx:alpine
 - **web** — multi-stage: compiles frontend, installs Django + gunicorn, runs collectstatic
 - **worker** — TeX Live base image + Python dependencies + build pipeline scripts
@@ -360,6 +365,7 @@ docker compose -f docker-compose.prod.yml up --build -d nginx
 ### Development Mode
 
 In development, test keys are used by default:
+
 - Site key: `1x00000000000000000000AA` (always passes)
 - Secret key: `1x0000000000000000000000000000000AA` (always passes)
 

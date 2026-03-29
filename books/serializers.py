@@ -42,10 +42,15 @@ class BookSerializer(serializers.ModelSerializer):
     parts = BookPartSerializer(many=True, read_only=True)
     build_job = BuildJobSerializer(read_only=True)
 
+    has_cover_image = serializers.SerializerMethodField()
+
+    def get_has_cover_image(self, obj):
+        return bool(obj.cover_image)
+
     class Meta:
         model = Book
-        fields = ["id", "title", "status", "created_at", "updated_at", "parts", "build_job"]
-        read_only_fields = ["id", "status", "created_at", "updated_at", "parts", "build_job"]
+        fields = ["id", "title", "doi", "status", "created_at", "updated_at", "parts", "build_job", "has_cover_image"]
+        read_only_fields = ["id", "status", "created_at", "updated_at", "parts", "build_job", "has_cover_image"]
 
 
 class BookListSerializer(serializers.ModelSerializer):
@@ -53,5 +58,5 @@ class BookListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Book
-        fields = ["id", "title", "status", "created_at", "updated_at"]
+        fields = ["id", "title", "doi", "status", "created_at", "updated_at"]
         read_only_fields = ["id", "status", "created_at", "updated_at"]

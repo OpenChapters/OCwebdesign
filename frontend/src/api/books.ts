@@ -10,7 +10,7 @@ export const booksApi = {
   create: (title: string) =>
     client.post<Book>('/books/', { title }).then((r) => r.data),
 
-  update: (id: number, data: { title: string }) =>
+  update: (id: number, data: { title?: string; doi?: string }) =>
     client.patch<Book>(`/books/${id}/`, data).then((r) => r.data),
 
   delete: (id: number) => client.delete(`/books/${id}/`),
@@ -44,6 +44,17 @@ export const booksApi = {
 
   getBuildStatus: (bookId: number) =>
     client.get(`/books/${bookId}/build/status/`).then((r) => r.data),
+
+  // Cover image
+  uploadCover: (bookId: number, file: File) => {
+    const form = new FormData();
+    form.append('cover_image', file);
+    return client.post(`/books/${bookId}/cover/`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
+  removeCover: (bookId: number) =>
+    client.delete(`/books/${bookId}/cover/`).then((r) => r.data),
 
   // Download
   downloadPDF: (bookId: number) =>

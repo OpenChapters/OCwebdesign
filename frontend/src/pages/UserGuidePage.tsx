@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 import rehypeSlug from 'rehype-slug';
+import remarkGfm from 'remark-gfm';
 
 export default function UserGuidePage() {
   const [content, setContent] = useState('');
@@ -18,7 +19,7 @@ export default function UserGuidePage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
       <div className="prose prose-gray max-w-none">
-        <Markdown rehypePlugins={[rehypeSlug]}>{content}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSlug]}>{content}</Markdown>
       </div>
     </div>
   );

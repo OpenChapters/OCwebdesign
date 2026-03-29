@@ -13,6 +13,7 @@ from .views import (
     AdminChapterDetailView,
     AdminChapterListView,
     AdminChapterSyncView,
+    AdminChapterUpdateTOCView,
     AdminChapterUpdateThumbnailsView,
     AdminSettingsView,
     AdminUserBooksView,
@@ -37,6 +38,7 @@ urlpatterns = [
     path("chapters/", AdminChapterListView.as_view(), name="admin-chapter-list"),
     path("chapters/<int:pk>/", AdminChapterDetailView.as_view(), name="admin-chapter-detail"),
     path("chapters/sync/", AdminChapterSyncView.as_view(), name="admin-chapter-sync"),
+    path("chapters/update-toc/", AdminChapterUpdateTOCView.as_view(), name="admin-chapter-toc"),
     path("chapters/update-thumbnails/", AdminChapterUpdateThumbnailsView.as_view(), name="admin-chapter-thumbnails"),
 
     # Builds

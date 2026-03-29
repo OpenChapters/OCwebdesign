@@ -256,6 +256,74 @@ class AdminChapterSyncView(APIView):
             )
 
 
+class AdminChapterUpdateTOCView(APIView):
+    """POST /api/admin/chapters/update-toc/ — re-extract section headings
+    from .tex files on GitHub and update the toc field in the database
+    and chapter.json files (if monorepo path is configured)."""
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        import json
+        import re
+        from catalog.github_client import raw_file_url
+
+        token = getattr(settings, "GITHUB_TOKEN", "")
+        headers = {}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        monorepo_path = getattr(settings, "OPENCHAPTERS_MONOREPO_PATH", "")
+        section_re = re.compile(r'^\s*\\section\{([^}]+)\}', re.MULTILINE)
+
+        updated = []
+        skipped = []
+        errors = []
+
+        for ch in Chapter.objects.all():
+            if not ch.latex_entry_file:
+                skipped.append(f"{ch.title}: no entry file")
+                continue
+
+            tex_url = raw_file_url(ch.github_repo, "master", ch.latex_entry_file)
+            try:
+                resp = httpx.get(tex_url, headers=headers, timeout=15, follow_redirects=True)
+                if resp.status_code != 200:
+                    skipped.append(f"{ch.title}: .tex not found ({resp.status_code})")
+                    continue
+
+                sections = [m.group(1).strip() for m in section_re.finditer(resp.text)]
+
+                if sections == ch.toc:
+                    skipped.append(f"{ch.title}: TOC unchanged ({len(sections)} sections)")
+                    continue
+
+                old_count = len(ch.toc)
+                ch.toc = sections
+                ch.save(update_fields=["toc"])
+
+                # Update chapter.json in monorepo if configured
+                if monorepo_path:
+                    cj_path = Path(monorepo_path) / ch.chapter_subdir / "chapter.json"
+                    if cj_path.is_file():
+                        cj = json.loads(cj_path.read_text())
+                        cj["toc"] = sections
+                        cj_path.write_text(json.dumps(cj, indent=2) + "\n")
+
+                updated.append(f"{ch.title}: {old_count} -> {len(sections)} sections")
+
+            except Exception as e:
+                errors.append(f"{ch.title}: {e}")
+
+        return Response({
+            "detail": f"Updated TOC for {len(updated)} chapter(s).",
+            "updated": updated,
+            "skipped": skipped,
+            "errors": errors,
+            "monorepo": bool(monorepo_path),
+        })
+
+
 class AdminChapterUpdateThumbnailsView(APIView):
     """POST /api/admin/chapters/update-thumbnails/ — regenerate cover.png
     from header images for chapters whose header is newer than the cover.

@@ -2,15 +2,15 @@ import { useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 import rehypeSlug from 'rehype-slug';
 
-export default function AboutPage() {
+export default function UserGuidePage() {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/about/')
+    fetch('/api/user-guide/')
       .then((r) => r.text())
       .then((text) => { setContent(text); setLoading(false); })
-      .catch(() => { setContent('# About\n\nFailed to load content.'); setLoading(false); });
+      .catch(() => { setContent('# User Guide\n\nFailed to load content.'); setLoading(false); });
   }, []);
 
   if (loading) return <div className="text-center text-gray-500 py-16">Loading…</div>;

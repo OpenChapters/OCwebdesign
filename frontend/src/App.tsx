@@ -13,6 +13,7 @@ import BookEditorPage from './pages/BookEditorPage';
 import BuildStatusPage from './pages/BuildStatusPage';
 import LibraryPage from './pages/LibraryPage';
 import AboutPage from './pages/AboutPage';
+import UserGuidePage from './pages/UserGuidePage';
 
 // Admin
 import AdminRoute from './admin/AdminRoute';
@@ -121,12 +122,20 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* Public: About */}
+      {/* Public: About and User Guide */}
       <Route
         path="/about"
         element={
           <Layout>
             <AboutPage />
+          </Layout>
+        }
+      />
+      <Route
+        path="/guide"
+        element={
+          <Layout>
+            <UserGuidePage />
           </Layout>
         }
       />

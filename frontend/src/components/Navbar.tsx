@@ -47,6 +47,14 @@ export default function Navbar() {
           </>
         )}
         <NavLink
+          to="/guide"
+          className={({ isActive }) =>
+            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+          }
+        >
+          User Guide
+        </NavLink>
+        <NavLink
           to="/about"
           className={({ isActive }) =>
             `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`

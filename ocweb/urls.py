@@ -41,6 +41,14 @@ def about_md(request):
     return HttpResponse("# About\n\nContent not available.", content_type="text/plain; charset=utf-8")
 
 
+def user_guide_md(request):
+    """Serve docs/user-guide.md as plain text for the frontend to render."""
+    md_path = Path(__file__).resolve().parent.parent / "docs" / "user-guide.md"
+    if md_path.is_file():
+        return HttpResponse(md_path.read_text(), content_type="text/plain; charset=utf-8")
+    return HttpResponse("# User Guide\n\nContent not available.", content_type="text/plain; charset=utf-8")
+
+
 urlpatterns = [
     path("admin/", admin.site.urls),
 
@@ -105,4 +113,5 @@ urlpatterns = [
 
     # ── About (serves markdown for frontend rendering) ────────────────────────
     path("api/about/", about_md, name="about"),
+    path("api/user-guide/", user_guide_md, name="user-guide"),
 ]

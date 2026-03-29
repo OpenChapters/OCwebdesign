@@ -136,6 +136,7 @@ Build/
 ### Shared Resources
 
 Some resources are shared across disciplines:
+
 - **User accounts** — a single user can build books from any discipline
 - **Build pipeline** — the same Celery worker handles all disciplines
 - **Base `.sty` files** — the core OpenChapters style; discipline-specific `.sty` files override or extend it

@@ -236,7 +236,7 @@ Each chapter in the [OpenChapters monorepo](https://github.com/OpenChapters/Open
 ```
 
 - **chapter_type**: `"foundational"` or `"topical"` — controls grouping in the browser
-- **chabbr**: unique abbreviation used in LaTeX `\label`/`\ref` cross-references
+- **chabbr**: unique 6-character abbreviation used in LaTeX `\label`/`\ref` cross-references
 - **depends_on**: list of `chabbr` values for foundational chapters this chapter references; the Book Editor auto-suggests including these
 - **published**: set to `false` to hide incomplete/template chapters from the catalog
 

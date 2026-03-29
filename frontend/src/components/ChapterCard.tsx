@@ -6,6 +6,7 @@ interface Props {
   chapter: Chapter;
   onAdd?: (chapterId: number) => void;
   addLabel?: string;
+  addDisabled?: boolean;
   showBrowserButtons?: boolean;
   onAddToBook?: (chapterId: number) => void;
 }
@@ -14,6 +15,7 @@ export default function ChapterCard({
   chapter,
   onAdd,
   addLabel = '+ Add to Part',
+  addDisabled = false,
   showBrowserButtons = false,
   onAddToBook,
 }: Props) {
@@ -83,8 +85,13 @@ export default function ChapterCard({
         {onAdd && (
           <div className="px-3 pb-3">
             <button
-              onClick={() => onAdd(chapter.id)}
-              className="w-full text-xs bg-blue-600 text-white px-2 py-1.5 rounded hover:bg-blue-700 transition-colors"
+              onClick={() => !addDisabled && onAdd(chapter.id)}
+              disabled={addDisabled}
+              className={`w-full text-xs px-2 py-1.5 rounded transition-colors ${
+                addDisabled
+                  ? 'bg-green-100 text-green-700 cursor-default'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
               {addLabel}
             </button>

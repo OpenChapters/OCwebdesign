@@ -447,8 +447,9 @@ export default function BookEditorPage() {
               {filteredChapters.map((chapter) => (
                 <ChapterCard
                   key={chapter.id} chapter={chapter}
-                  onAdd={addedChapterIds.has(chapter.id) ? undefined : addChapter}
+                  onAdd={addedChapterIds.has(chapter.id) ? () => {} : addChapter}
                   addLabel={addedChapterIds.has(chapter.id) ? '✓ Added' : '+ Add'}
+                  addDisabled={addedChapterIds.has(chapter.id)}
                 />
               ))}
             </div>

@@ -41,46 +41,9 @@ class RegisterView(generics.CreateAPIView):
 # ── Password Reset ────────────────────────────────────────────────────────────
 
 def _send_reset_email(user, reset_url):
-    """Send password reset email via SendGrid, or log the link in dev."""
-    api_key = getattr(settings, "SENDGRID_API_KEY", "")
-    if not api_key:
-        logger.info("Password reset link for %s: %s", user.email, reset_url)
-        return
-
-    from_email = getattr(settings, "FROM_EMAIL", "noreply@openchapters.org")
-
-    import sendgrid
-    from sendgrid.helpers.mail import Content, Email, Mail, To
-
-    sg = sendgrid.SendGridAPIClient(api_key=api_key)
-    mail = Mail(
-        from_email=Email(from_email, "OpenChapters"),
-        to_emails=To(user.email),
-        subject="Reset your OpenChapters password",
-        plain_text_content=Content(
-            "text/plain",
-            f"Hi,\n\n"
-            f"A password reset was requested for your OpenChapters account.\n\n"
-            f"Reset your password:\n{reset_url}\n\n"
-            f"If you did not request this, you can ignore this email.\n\n"
-            f"— OpenChapters",
-        ),
-    )
-    mail.add_content(Content(
-        "text/html",
-        f"<p>Hi,</p>"
-        f"<p>A password reset was requested for your OpenChapters account.</p>"
-        f'<p><a href="{reset_url}" style="display:inline-block;padding:12px 24px;'
-        f"background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;"
-        f'font-weight:600;">Reset Password</a></p>'
-        f"<p><small>If you did not request this, you can ignore this email.</small></p>"
-        f"<p>— OpenChapters</p>",
-    ))
-    try:
-        sg.client.mail.send.post(request_body=mail.get())
-        logger.info("Password reset email sent to %s", user.email)
-    except Exception as e:
-        logger.error("Failed to send reset email to %s: %s", user.email, e)
+    """Queue password reset email via Celery for retry support."""
+    from users.tasks import send_reset_email_task
+    send_reset_email_task.delay(user.email, reset_url)
 
 
 class ForgotPasswordView(APIView):

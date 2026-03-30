@@ -323,8 +323,15 @@ def build_book(self, book_id: int) -> None:
             logger.info("[build %s] Cleaned up %s", build_id[:8], workdir)
 
 
-@shared_task(name="books.deliver_pdf")
-def deliver_pdf(book_id: int) -> None:
+@shared_task(
+    bind=True,
+    name="books.deliver_pdf",
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3},
+    retry_backoff=60,
+    retry_backoff_max=600,
+)
+def deliver_pdf(self, book_id: int) -> None:
     """
     Send the user an email with a signed download link for their completed PDF.
 
@@ -401,4 +408,8 @@ def deliver_pdf(book_id: int) -> None:
             response.status_code,
         )
     except Exception as exc:
-        logger.error("deliver_pdf: SendGrid error for book %d: %s", book_id, exc)
+        logger.error(
+            "deliver_pdf: SendGrid error for book %d (attempt %d/%d): %s",
+            book_id, self.request.retries + 1, 3, exc,
+        )
+        raise  # triggers autoretry

@@ -33,3 +33,20 @@ CSRF_COOKIE_HTTPONLY = True
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# ── Turnstile validation ──────────────────────────────────────────────────────
+# Ensure Cloudflare Turnstile test keys are not used in production.
+_TURNSTILE_TEST_KEYS = {
+    "1x00000000000000000000AA",
+    "1x0000000000000000000000000000000AA",
+    "2x00000000000000000000AB",
+    "3x0000000000000000000000000000000AB",
+}
+if TURNSTILE_SITE_KEY in _TURNSTILE_TEST_KEYS or TURNSTILE_SECRET_KEY in _TURNSTILE_TEST_KEYS:
+    import warnings
+    warnings.warn(
+        "TURNSTILE_SITE_KEY or TURNSTILE_SECRET_KEY is set to a Cloudflare test key. "
+        "Registration CAPTCHA will not protect against bots. "
+        "Set real keys in .env.prod for production use.",
+        stacklevel=1,
+    )

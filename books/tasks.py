@@ -353,7 +353,7 @@ def deliver_pdf(self, book_id: int) -> None:
         return
 
     # Build the signed download URL
-    token = make_download_token(book.id)
+    token = make_download_token(book.id, book.user_id)
     site_url = getattr(settings, "SITE_URL", "http://localhost:5173").rstrip("/")
     download_url = f"{site_url}/api/dl/{token}/"
     expiry_days = getattr(settings, "PDF_LINK_EXPIRY_DAYS", 7)

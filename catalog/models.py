@@ -1,4 +1,14 @@
+from django.core.exceptions import ValidationError
 from django.db import models
+
+
+def _validate_string_list(value):
+    """Validate that a JSONField contains a list of strings."""
+    if not isinstance(value, list):
+        raise ValidationError("Must be a list.")
+    for item in value:
+        if not isinstance(item, str):
+            raise ValidationError(f"All items must be strings, got {type(item).__name__}.")
 
 
 class Chapter(models.Model):
@@ -22,11 +32,11 @@ class Chapter(models.Model):
     chapter_subdir = models.CharField(max_length=200, default="")
 
     title = models.CharField(max_length=300)
-    authors = models.JSONField(default=list)
+    authors = models.JSONField(default=list, validators=[_validate_string_list])
     description = models.TextField(blank=True)
 
     # List of section headings from chapter.json, shown in TOC hover preview
-    toc = models.JSONField(default=list)
+    toc = models.JSONField(default=list, validators=[_validate_string_list])
 
     # Raw GitHub URL for cover image, served directly to the browser
     cover_image_url = models.URLField(blank=True)
@@ -35,7 +45,7 @@ class Chapter(models.Model):
     # e.g. "src/LinearAlgebra/LinearAlgebra.tex"
     latex_entry_file = models.CharField(max_length=200)
 
-    keywords = models.JSONField(default=list)
+    keywords = models.JSONField(default=list, validators=[_validate_string_list])
 
     chapter_type = models.CharField(
         max_length=20,
@@ -48,7 +58,7 @@ class Chapter(models.Model):
 
     # List of chabbr values for foundational chapters this chapter cross-references.
     # Used by the frontend to auto-include required foundational chapters.
-    depends_on = models.JSONField(default=list)
+    depends_on = models.JSONField(default=list, validators=[_validate_string_list])
 
     # False for template/placeholder chapters not ready for inclusion in builds.
     published = models.BooleanField(default=True)

@@ -6,9 +6,23 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from .models import Book, BookChapter, BookPart, BuildJob
+
+import re
+
+def _serve_pdf(pdf_path: Path, title: str) -> FileResponse:
+    """Serve a PDF file with a sanitized filename. FileResponse closes the file."""
+    # Sanitize title for use as filename: keep alphanumeric, spaces, hyphens, underscores
+    safe_title = re.sub(r'[^\w\s-]', '', title).strip() or "download"
+    response = FileResponse(
+        open(pdf_path, "rb"),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{safe_title}.pdf"'
+    return response
 from .serializers import (
     BookChapterSerializer,
     BookListSerializer,
@@ -208,6 +222,8 @@ class BuildTriggerView(APIView):
     """POST /api/books/<book_pk>/build/ — enqueue the build_book Celery task."""
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "builds"
 
     def post(self, request, book_pk):
         # Atomic update: only transition from draft/complete/failed to queued.
@@ -269,13 +285,7 @@ class DownloadPDFView(APIView):
         if not pdf.is_file():
             return Response({"detail": "PDF file not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        filename = f"{book.title}.pdf".replace("/", "-")
-        return FileResponse(
-            open(pdf, "rb"),
-            content_type="application/pdf",
-            as_attachment=True,
-            filename=filename,
-        )
+        return _serve_pdf(pdf, book.title)
 
 
 class DownloadPDFByTokenView(APIView):
@@ -283,26 +293,40 @@ class DownloadPDFByTokenView(APIView):
     GET /api/dl/<token>/ — download a PDF using a signed, time-limited token.
 
     Used in email delivery links. No JWT authentication required; the
-    signed token proves the link was issued by the server.
+    signed token proves the link was issued by the server. The token
+    encodes both the book ID and the owner's user ID.
     """
 
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def get(self, request, token):
+        import logging
         from .signing import verify_download_token
 
-        book_id = verify_download_token(token)
-        if book_id is None:
+        logger = logging.getLogger(__name__)
+
+        result = verify_download_token(token)
+        if result is None:
             return Response(
                 {"detail": "Download link is invalid or has expired."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        book_id, user_id = result
+
         book = get_object_or_404(
-            Book.objects.select_related("build_job"),
+            Book.objects.select_related("build_job", "user"),
             pk=book_id,
         )
+
+        # Verify user binding — token must match the book owner
+        if user_id and book.user_id != user_id:
+            return Response(
+                {"detail": "Download link is invalid."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if book.status != Book.Status.COMPLETE or not hasattr(book, "build_job"):
             return Response({"detail": "No completed build."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -310,13 +334,16 @@ class DownloadPDFByTokenView(APIView):
         if not pdf.is_file():
             return Response({"detail": "PDF file not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        filename = f"{book.title}.pdf".replace("/", "-")
-        return FileResponse(
-            open(pdf, "rb"),
-            content_type="application/pdf",
-            as_attachment=True,
-            filename=filename,
+        # Audit trail for token downloads
+        ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+        if not ip:
+            ip = request.META.get("REMOTE_ADDR", "")
+        logger.info(
+            "Token download: book_id=%d user_id=%d ip=%s",
+            book_id, user_id or 0, ip,
         )
+
+        return _serve_pdf(pdf, book.title)
 
 
 class LibraryView(generics.ListAPIView):

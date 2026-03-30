@@ -102,6 +102,7 @@ REST_FRAMEWORK = {
         "anon": "500/hour",
         "user": "1000/hour",
         "auth": "10/hour",
+        "builds": "10/hour",
     },
 }
 

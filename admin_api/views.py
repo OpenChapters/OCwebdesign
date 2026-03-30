@@ -1,6 +1,7 @@
 import logging
 import shutil
 import tempfile
+import time
 from datetime import timedelta
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -15,6 +16,23 @@ from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+# Simple in-memory cache for expensive admin queries.
+# Entries: {key: (timestamp, data)}
+_cache = {}
+_CACHE_TTL = 300  # 5 minutes
+
+
+def _cached(key, ttl=_CACHE_TTL):
+    """Return cached value if fresh, else None."""
+    entry = _cache.get(key)
+    if entry and (time.time() - entry[0]) < ttl:
+        return entry[1]
+    return None
+
+
+def _set_cache(key, data):
+    _cache[key] = (time.time(), data)
 
 logger = logging.getLogger(__name__)
 
@@ -74,13 +92,18 @@ class DashboardView(APIView):
                 "error": bool(job.error_message),
             })
 
-        pdf_dir = Path(str(settings.BUILD_OUTPUT_DIR))
-        pdf_count = 0
-        pdf_size_bytes = 0
-        if pdf_dir.is_dir():
-            for f in pdf_dir.glob("*.pdf"):
-                pdf_count += 1
-                pdf_size_bytes += f.stat().st_size
+        # PDF storage stats (cached 5 min to avoid slow dir scan)
+        storage = _cached("pdf_storage")
+        if storage is None:
+            pdf_dir = Path(str(settings.BUILD_OUTPUT_DIR))
+            pdf_count = 0
+            pdf_size_bytes = 0
+            if pdf_dir.is_dir():
+                for f in pdf_dir.glob("*.pdf"):
+                    pdf_count += 1
+                    pdf_size_bytes += f.stat().st_size
+            storage = {"pdf_count": pdf_count, "pdf_size_mb": round(pdf_size_bytes / (1024 * 1024), 1)}
+            _set_cache("pdf_storage", storage)
 
         return Response({
             "users": {"total": total_users, "new_this_week": new_users_week},
@@ -93,7 +116,7 @@ class DashboardView(APIView):
                 "failed": book_counts.get("failed", 0),
             },
             "builds_today": {"total": builds_today_count, "success": builds_today_ok, "failed": builds_today_fail},
-            "storage": {"pdf_count": pdf_count, "pdf_size_mb": round(pdf_size_bytes / (1024 * 1024), 1)},
+            "storage": storage,
             "recent_builds": recent_builds,
         })
 
@@ -497,7 +520,10 @@ class AdminBuildListView(APIView):
             )
 
         # Simple pagination
-        page = int(request.query_params.get("page", 1))
+        try:
+            page = max(1, int(request.query_params.get("page", 1)))
+        except (ValueError, TypeError):
+            page = 1
         page_size = 25
         total = qs.count()
         offset = (page - 1) * page_size
@@ -827,7 +853,10 @@ class AdminAuditLogView(APIView):
         if user_email:
             qs = qs.filter(user__email__icontains=user_email)
 
-        page = int(request.query_params.get("page", 1))
+        try:
+            page = max(1, int(request.query_params.get("page", 1)))
+        except (ValueError, TypeError):
+            page = 1
         page_size = 30
         total = qs.count()
         offset = (page - 1) * page_size
@@ -866,8 +895,16 @@ class AdminAnalyticsBuildsView(APIView):
         from books.models import BuildJob
         from django.db.models.functions import TruncDate
 
-        days = int(request.query_params.get("days", 30))
+        try:
+            days = max(1, min(int(request.query_params.get("days", 30)), 365))
+        except (ValueError, TypeError):
+            days = 30
         since = timezone.now() - timedelta(days=days)
+
+        cache_key = f"analytics_builds_{days}"
+        cached = _cached(cache_key)
+        if cached is not None:
+            return Response(cached)
 
         qs = (
             BuildJob.objects.filter(started_at__gte=since)
@@ -880,7 +917,9 @@ class AdminAnalyticsBuildsView(APIView):
             )
             .order_by("date")
         )
-        return Response(list(qs))
+        result = list(qs)
+        _set_cache(cache_key, result)
+        return Response(result)
 
 
 class AdminAnalyticsChaptersView(APIView):
@@ -891,15 +930,21 @@ class AdminAnalyticsChaptersView(APIView):
     def get(self, request):
         from books.models import BookChapter
 
+        cached = _cached("analytics_chapters")
+        if cached is not None:
+            return Response(cached)
+
         qs = (
             BookChapter.objects.values("chapter__title", "chapter__chabbr")
             .annotate(count=Count("id"))
             .order_by("-count")[:20]
         )
-        return Response([
+        result = [
             {"title": r["chapter__title"], "chabbr": r["chapter__chabbr"], "count": r["count"]}
             for r in qs
-        ])
+        ]
+        _set_cache("analytics_chapters", result)
+        return Response(result)
 
 
 class AdminAnalyticsUsersView(APIView):
@@ -910,8 +955,16 @@ class AdminAnalyticsUsersView(APIView):
     def get(self, request):
         from django.db.models.functions import TruncDate
 
-        days = int(request.query_params.get("days", 90))
+        try:
+            days = max(1, min(int(request.query_params.get("days", 90)), 365))
+        except (ValueError, TypeError):
+            days = 90
         since = timezone.now() - timedelta(days=days)
+
+        cache_key = f"analytics_users_{days}"
+        cached = _cached(cache_key)
+        if cached is not None:
+            return Response(cached)
 
         qs = (
             User.objects.filter(date_joined__gte=since)
@@ -920,4 +973,6 @@ class AdminAnalyticsUsersView(APIView):
             .annotate(count=Count("id"))
             .order_by("date")
         )
-        return Response(list(qs))
+        result = list(qs)
+        _set_cache(cache_key, result)
+        return Response(result)

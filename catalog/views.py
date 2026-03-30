@@ -78,8 +78,19 @@ class ChapterCoverView(APIView):
                 logger.exception("Unexpected error caching cover for chapter %d", pk)
                 return HttpResponse(status=502)
 
-        return FileResponse(
+        # ETag based on file modification time for conditional requests
+        import hashlib
+        mtime = str(cache_file.stat().st_mtime)
+        etag = hashlib.md5(f"{chapter.id}:{mtime}".encode()).hexdigest()
+
+        if_none_match = request.META.get("HTTP_IF_NONE_MATCH", "")
+        if if_none_match == f'"{etag}"':
+            return HttpResponse(status=304)
+
+        response = FileResponse(
             open(cache_file, "rb"),
             content_type="image/png",
-            headers={"Cache-Control": "public, max-age=86400"},
         )
+        response["Cache-Control"] = "public, max-age=86400"
+        response["ETag"] = f'"{etag}"'
+        return response

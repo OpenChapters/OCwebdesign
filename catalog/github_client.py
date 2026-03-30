@@ -9,11 +9,15 @@ All functions use a short-lived httpx.Client so they are safe to call from
 both management commands (synchronous) and Celery tasks (synchronous worker
 thread).  Authentication uses the GITHUB_TOKEN setting; without a token the
 GitHub API allows only 60 unauthenticated requests per hour.
+
+Transient failures (5xx, timeouts) are retried up to 3 times with
+exponential backoff.
 """
 
 import base64
 import json
 import logging
+import time
 
 import httpx
 from django.conf import settings
@@ -23,6 +27,9 @@ logger = logging.getLogger(__name__)
 _BASE_URL = "https://api.github.com"
 DEFAULT_CHAPTERS_REPO = "OpenChapters/OpenChapters"
 DEFAULT_SRC_PATH = "src"
+
+_MAX_RETRIES = 3
+_RETRY_BACKOFF = 2  # seconds; doubles each retry
 
 
 def _headers() -> dict:
@@ -36,6 +43,34 @@ def _headers() -> dict:
     return headers
 
 
+def _request_with_retry(method: str, url: str, **kwargs) -> httpx.Response:
+    """Make an HTTP request with retry on transient failures."""
+    last_exc = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            with httpx.Client(headers=_headers(), timeout=30) as client:
+                resp = getattr(client, method)(url, **kwargs)
+                # Retry on server errors (500, 502, 503)
+                if resp.status_code >= 500:
+                    logger.warning(
+                        "GitHub %d on %s (attempt %d/%d)",
+                        resp.status_code, url, attempt + 1, _MAX_RETRIES,
+                    )
+                    if attempt < _MAX_RETRIES - 1:
+                        time.sleep(_RETRY_BACKOFF * (2 ** attempt))
+                        continue
+                return resp
+        except (httpx.TimeoutException, httpx.ConnectError) as exc:
+            last_exc = exc
+            logger.warning(
+                "GitHub %s on %s (attempt %d/%d)",
+                type(exc).__name__, url, attempt + 1, _MAX_RETRIES,
+            )
+            if attempt < _MAX_RETRIES - 1:
+                time.sleep(_RETRY_BACKOFF * (2 ** attempt))
+    raise last_exc or httpx.ConnectError("Failed after retries")
+
+
 def list_chapter_subdirs(
     repo: str = DEFAULT_CHAPTERS_REPO,
     src_path: str = DEFAULT_SRC_PATH,
@@ -47,10 +82,9 @@ def list_chapter_subdirs(
     bare directory names (e.g. ``"LinearAlgebra"``), not full paths.
     """
     url = f"{_BASE_URL}/repos/{repo}/contents/{src_path}"
-    with httpx.Client(headers=_headers(), timeout=30) as client:
-        resp = client.get(url)
-        resp.raise_for_status()
-        items = resp.json()
+    resp = _request_with_retry("get", url)
+    resp.raise_for_status()
+    items = resp.json()
 
     dirs = [item["name"] for item in items if item["type"] == "dir"]
     logger.debug("list_chapter_subdirs(%s, %s): %d dirs", repo, src_path, len(dirs))
@@ -68,12 +102,11 @@ def fetch_chapter_json(repo: str, path: str) -> dict | None:
     exist (HTTP 404).  Raises ``httpx.HTTPStatusError`` for other failures.
     """
     url = f"{_BASE_URL}/repos/{repo}/contents/{path}"
-    with httpx.Client(headers=_headers(), timeout=30) as client:
-        resp = client.get(url)
-        if resp.status_code == 404:
-            return None
-        resp.raise_for_status()
-        data = resp.json()
+    resp = _request_with_retry("get", url)
+    if resp.status_code == 404:
+        return None
+    resp.raise_for_status()
+    data = resp.json()
 
     raw = base64.b64decode(data["content"]).decode("utf-8")
     return json.loads(raw)

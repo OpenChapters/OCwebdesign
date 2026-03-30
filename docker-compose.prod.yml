@@ -29,7 +29,7 @@ services:
     build:
       context: .
       dockerfile: docker/worker/Dockerfile
-    command: celery -A ocweb worker -l info --concurrency 2
+    command: celery -A ocweb worker -l info --concurrency 4 --max-tasks-per-child 100
     volumes:
       - media_pdfs:/app/media/pdfs
     env_file: .env.prod

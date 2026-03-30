@@ -12,15 +12,16 @@ This guide covers deploying the OpenChapters web platform to a production server
 4. [Configuration](#configuration)
 5. [Building and Starting](#building-and-starting)
 6. [Database Initialization](#database-initialization)
-7. [SendGrid Email Delivery](#sendgrid-email-delivery)
-8. [Cloudflare Turnstile (Bot Protection)](#cloudflare-turnstile-bot-protection)
-9. [SSL with Let's Encrypt](#ssl-with-lets-encrypt)
-10. [Domain and DNS](#domain-and-dns)
-11. [Updating the Application](#updating-the-application)
-12. [Database Backups](#database-backups)
-13. [Monitoring and Logs](#monitoring-and-logs)
-14. [Troubleshooting](#troubleshooting)
-15. [Security Checklist](#security-checklist)
+7. [Running Tests](#running-tests)
+8. [SendGrid Email Delivery](#sendgrid-email-delivery)
+9. [Cloudflare Turnstile (Bot Protection)](#cloudflare-turnstile-bot-protection)
+10. [SSL with Let's Encrypt](#ssl-with-lets-encrypt)
+11. [Domain and DNS](#domain-and-dns)
+12. [Updating the Application](#updating-the-application)
+13. [Database Backups](#database-backups)
+14. [Monitoring and Logs](#monitoring-and-logs)
+15. [Troubleshooting](#troubleshooting)
+16. [Security Checklist](#security-checklist)
 
 ---
 
@@ -237,6 +238,84 @@ Or run the sync manually as needed:
 ```bash
 docker compose -f docker-compose.prod.yml exec web python manage.py sync_chapters
 ```
+
+## Running Tests
+
+The project includes a test suite (86 tests) built with pytest-django, covering authentication, book management, admin API, build pipeline validation, and signed download tokens.
+
+### Running the Full Suite
+
+```bash
+# Development environment
+docker compose run --rm web pytest
+
+# Production environment
+docker compose -f docker-compose.prod.yml run --rm web pytest
+```
+
+### Running with Coverage Report
+
+```bash
+docker compose run --rm web pytest --cov=books --cov=catalog --cov=users --cov=admin_api --cov-report=term-missing
+```
+
+### Running Specific Test Files
+
+```bash
+# Auth tests only
+docker compose run --rm web pytest tests/test_auth.py
+
+# Build pipeline validation only
+docker compose run --rm web pytest tests/test_build_pipeline.py
+
+# Admin API tests only
+docker compose run --rm web pytest tests/test_admin.py
+```
+
+### Running by Keyword
+
+```bash
+# All tests containing "security" or "permission"
+docker compose run --rm web pytest -k "permission or security"
+
+# All tests for build trigger
+docker compose run --rm web pytest -k "build_trigger"
+```
+
+### Test Coverage Summary
+
+| Module | Tests | What is covered |
+|---|---|---|
+| Auth | 19 | Registration (with CAPTCHA), login (JWT claims), profile, password change/reset |
+| Chapters | 9 | Published filtering, pagination, types, dependencies |
+| Books | 20 | CRUD, parts, chapters, reorder, atomic build trigger |
+| Build pipeline | 9 | Request serialization, input validation (injection, path traversal) |
+| Admin | 24 | Permissions, dashboard, user/chapter/build management, settings, audit log |
+| Signing | 5 | Token roundtrip, tampering detection, expiry |
+
+### When to Run Tests
+
+- **Before deploying** — run the full suite to catch regressions
+- **After updating code** — run tests relevant to the changed area
+- **After database migrations** — run the full suite to verify model changes
+
+### Adding New Tests
+
+Tests are in the `tests/` directory:
+
+```
+tests/
+  conftest.py           Shared fixtures (users, auth clients, books)
+  factories.py          Model factories (factory-boy)
+  test_auth.py          Authentication and profile tests
+  test_books.py         Book CRUD, parts, chapters, build trigger
+  test_build_pipeline.py  Build data validation and security
+  test_chapters.py      Chapter catalog API tests
+  test_admin.py         Admin panel API tests
+  test_signing.py       Signed download token tests
+```
+
+Follow the existing patterns: use `@pytest.mark.django_db` for database tests, use the fixtures from `conftest.py` (`user`, `auth_client`, `staff_client`, `book`, etc.), and use factories from `factories.py` for creating test data.
 
 ## SendGrid Email Delivery
 

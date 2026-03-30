@@ -606,12 +606,29 @@ docker compose -f docker-compose.prod.yml logs --tail 100 worker
 
 ### Check Service Health
 
+All services have Docker healthchecks configured. Services wait for their dependencies to be healthy before starting (e.g., web waits for db and rabbitmq).
+
 ```bash
-# Service status
+# Service status (includes health column)
 docker compose -f docker-compose.prod.yml ps
+
+# Health check endpoint (returns 200 if healthy, 503 if database is down)
+curl http://localhost:8080/api/health/
 
 # Resource usage
 docker stats
+```
+
+### Failed Build Debugging
+
+Failed builds archive key files (main.log, main.tex, build_request.json) to `media/pdfs/failed_builds/<build-uuid>/` for post-mortem debugging. The last 10 failed builds are kept.
+
+```bash
+# List archived failed builds
+docker compose -f docker-compose.prod.yml exec web ls -la /app/media/pdfs/failed_builds/
+
+# View a failed build's LaTeX log
+docker compose -f docker-compose.prod.yml exec web cat /app/media/pdfs/failed_builds/<uuid>/main.log
 ```
 
 ### Check Build Logs

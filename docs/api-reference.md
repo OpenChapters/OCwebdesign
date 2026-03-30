@@ -818,6 +818,34 @@ Tokens expire after `PDF_LINK_EXPIRY_DAYS` (default 7 days).
 
 ---
 
+### Health Check
+
+#### Check Service Health
+
+```
+GET /api/health/
+```
+
+Returns the health status of the platform. No authentication required. Used by Docker healthchecks and load balancers.
+
+**Response (200):**
+```json
+{
+  "status": "ok",
+  "database": "ok"
+}
+```
+
+**Response (503):** returned when the database is unreachable:
+```json
+{
+  "status": "error",
+  "database": "error: connection refused"
+}
+```
+
+---
+
 ## Example: Full Workflow
 
 ```bash

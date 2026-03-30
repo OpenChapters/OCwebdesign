@@ -214,6 +214,7 @@ For SSL, place a reverse proxy (e.g., Caddy or nginx with Let's Encrypt) in fron
 | `GET` | `/api/books/<id>/download/` | Yes | Download PDF |
 | `GET` | `/api/dl/<token>/` | No | Download PDF via signed email link |
 | `GET` | `/api/library/` | Yes | Completed books |
+| `GET` | `/api/health/` | No | Health check (DB connectivity) |
 
 ## Chapter Metadata
 

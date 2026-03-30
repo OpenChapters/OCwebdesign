@@ -210,13 +210,26 @@ class BuildTriggerView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, book_pk):
-        book = get_object_or_404(Book, pk=book_pk, user=request.user)
-        if book.status == Book.Status.BUILDING:
-            return Response({"detail": "Build already in progress."}, status=status.HTTP_409_CONFLICT)
-        book.status = Book.Status.QUEUED
-        book.save(update_fields=["status"])
-        build_book.delay(book.pk)
-        return Response({"detail": "Build queued.", "book_id": book.pk}, status=status.HTTP_202_ACCEPTED)
+        # Atomic update: only transition from draft/complete/failed to queued.
+        # Prevents duplicate builds from concurrent requests.
+        updated = Book.objects.filter(
+            pk=book_pk,
+            user=request.user,
+            status__in=[Book.Status.DRAFT, Book.Status.COMPLETE, Book.Status.FAILED],
+        ).update(status=Book.Status.QUEUED)
+
+        if not updated:
+            # Either book not found, not owned, or already queued/building
+            book = Book.objects.filter(pk=book_pk, user=request.user).first()
+            if not book:
+                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Build already in progress."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        build_book.delay(book_pk)
+        return Response({"detail": "Build queued.", "book_id": book_pk}, status=status.HTTP_202_ACCEPTED)
 
 
 class BuildStatusView(APIView):

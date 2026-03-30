@@ -8,6 +8,7 @@ deliver_pdf — email the completed PDF link to the user (stub; SendGrid TBD)
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -20,10 +21,32 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+# Patterns for validating chapter metadata used in subprocess calls.
+_SAFE_REPO = re.compile(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")
+_SAFE_PATH = re.compile(r"^[a-zA-Z0-9_/.+-]+$")
+
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _validate_build_data(request_data: dict) -> None:
+    """
+    Validate all paths and repo names in build_request.json before any
+    subprocess calls. Raises ValueError on invalid data.
+    """
+    for part in request_data.get("parts", []):
+        for ch in part.get("chapters", []):
+            repo = ch.get("repo", "")
+            subdir = ch.get("chapter_subdir", "")
+            entry = ch.get("entry_file", "")
+            if not _SAFE_REPO.match(repo):
+                raise ValueError(f"Invalid repo name: {repo!r}")
+            if subdir and (not _SAFE_PATH.match(subdir) or ".." in subdir):
+                raise ValueError(f"Invalid chapter_subdir: {subdir!r}")
+            if entry and (not _SAFE_PATH.match(entry) or ".." in entry):
+                raise ValueError(f"Invalid entry_file: {entry!r}")
+
 
 def _build_request_data(book) -> dict:
     """Serialize a Book's chapter selection into the build_request.json schema."""
@@ -150,6 +173,10 @@ def build_book(self, book_id: int) -> None:
             json.dumps(request_data, indent=2), encoding="utf-8"
         )
         log("Wrote build_request.json")
+
+        # 3a. Validate all repo names and paths before subprocess calls
+        _validate_build_data(request_data)
+        log("Validated build request data")
 
         # 4. Clone chapter repo(s) — deduplicated; shallow clone for speed
         repos = {ch["repo"] for p in request_data["parts"] for ch in p["chapters"]}

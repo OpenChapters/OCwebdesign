@@ -16,6 +16,7 @@ import uuid
 from pathlib import Path
 
 from celery import shared_task
+from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.utils import timezone
 
@@ -302,6 +303,18 @@ def build_book(self, book_id: int) -> None:
         # 12. Trigger email delivery
         deliver_pdf.delay(book.id)
 
+    except SoftTimeLimitExceeded:
+        error_msg = "Build exceeded 25-minute time limit and was cancelled."
+        log(f"BUILD TIMEOUT: {error_msg}")
+
+        job.error_message = error_msg
+        job.finished_at = timezone.now()
+        job.log_output = "\n".join(log_lines)
+        job.save()
+
+        book.status = Book.Status.FAILED
+        book.save(update_fields=["status"])
+
     except Exception as exc:
         error_msg = f"{type(exc).__name__}: {exc}"
         log(f"BUILD FAILED: {error_msg}")
@@ -319,6 +332,29 @@ def build_book(self, book_id: int) -> None:
     finally:
         # 13. Clean up temp workspace regardless of outcome
         if workdir.exists():
+            # Archive failed builds for debugging (keep last 5)
+            if book.status == Book.Status.FAILED:
+                archive_dir = Path(str(settings.BUILD_OUTPUT_DIR)) / "failed_builds"
+                archive_dir.mkdir(parents=True, exist_ok=True)
+                archive_path = archive_dir / f"{build_id[:8]}"
+                try:
+                    if archive_path.exists():
+                        shutil.rmtree(archive_path)
+                    # Copy only the log and main.tex, not the full clone
+                    archive_path.mkdir()
+                    for name in ["main.log", "main.tex", "build_request.json"]:
+                        src = workdir / name
+                        if src.exists():
+                            shutil.copy2(src, archive_path / name)
+                    log_file = archive_path / "build.log"
+                    log_file.write_text("\n".join(log_lines))
+                    logger.info("[build %s] Archived failed build to %s", build_id[:8], archive_path)
+                    # Prune old archives (keep last 10)
+                    archives = sorted(archive_dir.iterdir(), key=lambda p: p.stat().st_mtime)
+                    for old in archives[:-10]:
+                        shutil.rmtree(old, ignore_errors=True)
+                except Exception:
+                    logger.exception("[build %s] Failed to archive build", build_id[:8])
             shutil.rmtree(workdir, ignore_errors=True)
             logger.info("[build %s] Cleaned up %s", build_id[:8], workdir)
 

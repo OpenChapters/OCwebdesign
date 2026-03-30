@@ -33,6 +33,25 @@ from users.views import (
     TurnstileConfigView,
 )
 
+def health_check(request):
+    """GET /api/health/ — basic health check for load balancers and Docker."""
+    import json
+    checks = {"status": "ok"}
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = f"error: {e}"
+        checks["status"] = "error"
+    return HttpResponse(
+        json.dumps(checks),
+        content_type="application/json",
+        status=200 if checks["status"] == "ok" else 503,
+    )
+
+
 def about_md(request):
     """Serve docs/About.md as plain text for the frontend to render."""
     md_path = Path(__file__).resolve().parent.parent / "docs" / "About.md"
@@ -51,6 +70,9 @@ def user_guide_md(request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+
+    # ── Health check ──────────────────────────────────────────────────────────
+    path("api/health/", health_check, name="health-check"),
 
     # ── Auth ──────────────────────────────────────────────────────────────────
     path("api/auth/register/", RegisterView.as_view(), name="auth-register"),

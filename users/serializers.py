@@ -1,7 +1,11 @@
+import logging
+
 import httpx
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -28,6 +32,12 @@ class RegisterSerializer(serializers.ModelSerializer):
                 timeout=10,
             )
             result = resp.json()
+        except httpx.TimeoutException:
+            logger.warning("Turnstile verification timed out — allowing registration")
+            return value  # graceful degradation: don't block users if Cloudflare is slow
+        except httpx.RequestError as exc:
+            logger.error("Turnstile service error: %s", exc)
+            return value  # graceful degradation: don't block users if Cloudflare is down
         except Exception:
             raise serializers.ValidationError("Could not verify CAPTCHA. Please try again.")
 

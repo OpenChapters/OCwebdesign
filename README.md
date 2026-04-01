@@ -58,8 +58,9 @@ OCwebdesign/
 │       ├── dev.py          Development overrides (DEBUG=True)
 │       └── prod.py         Production (whitenoise, secure cookies)
 ├── users/                  Custom User model (email-based auth)
-├── catalog/                Chapter catalog (synced from GitHub)
-│   ├── github_client.py    GitHub API wrapper
+├── catalog/                Chapter catalog (synced from git repo)
+│   ├── git_provider.py     Pluggable git backend (GitHub/GitLab)
+│   ├── github_client.py    Backwards-compatible wrapper
 │   └── management/commands/sync_chapters.py
 ├── books/                  Book assembly, parts, build pipeline
 │   ├── models.py           Book, BookPart, BookChapter, BuildJob
@@ -99,7 +100,7 @@ OCwebdesign/
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- A GitHub personal access token with read access to the OpenChapters organization
+- A git access token (GitHub PAT or GitLab token) with read access to the chapter repositories
 
 ### Setup
 

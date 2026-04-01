@@ -87,16 +87,27 @@ git clone https://github.com/OpenChapters/OCwebdesign.git
 cd OCwebdesign
 ```
 
-### 3. Create a GitHub Personal Access Token
+### 3. Create a Git Access Token
 
-The application needs a GitHub token to sync chapters from the OpenChapters organization.
+The application needs a token to sync chapters from the chapter repository. The platform supports both GitHub and GitLab.
 
+**For GitHub (default):**
 1. Go to https://github.com/settings/tokens
 2. Click **Generate new token (classic)**
 3. Select scopes: `repo` (read access to public repos is sufficient)
-4. Copy the token for use in the configuration step
+4. Copy the token and set `GITHUB_TOKEN` in `.env.prod`
 
 **Note:** Fine-grained PATs may be blocked by the OpenChapters organization policy if the token lifetime exceeds 366 days. Use a classic PAT for reliable access.
+
+**For GitLab:**
+1. Go to your GitLab instance → User Settings → Access Tokens
+2. Create a token with `read_repository` scope
+3. Set the following in `.env.prod`:
+   ```
+   GIT_PROVIDER=gitlab
+   GIT_TOKEN=glpat-<your_token>
+   GIT_BASE_URL=https://gitlab.example.com
+   ```
 
 ## Configuration
 
@@ -137,8 +148,13 @@ CELERY_RESULT_BACKEND=rpc://
 RABBITMQ_DEFAULT_USER=ocweb
 RABBITMQ_DEFAULT_PASS=<rabbitmq_password>
 
-# GitHub
+# Git provider ("github" or "gitlab")
+GIT_PROVIDER=github
 GITHUB_TOKEN=ghp_<your_classic_pat>
+# For GitLab, use instead:
+# GIT_PROVIDER=gitlab
+# GIT_TOKEN=glpat-<your_gitlab_token>
+# GIT_BASE_URL=https://gitlab.example.com
 
 # SendGrid (email delivery of PDF download links)
 SENDGRID_API_KEY=SG.<your_sendgrid_api_key>
@@ -683,7 +699,7 @@ docker compose -f docker-compose.prod.yml logs web --tail 20
 
 ### Chapter sync fails with 401
 
-The GitHub token is invalid or expired. Generate a new classic PAT and update `GITHUB_TOKEN` in `.env.prod`, then:
+The git access token is invalid or expired. Generate a new token and update `GITHUB_TOKEN` (or `GIT_TOKEN` for GitLab) in `.env.prod`, then:
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --force-recreate web
@@ -702,7 +718,7 @@ Before going live, verify:
 - [ ] `CSRF_TRUSTED_ORIGINS` matches your domain(s) with `https://` prefix
 - [ ] `SITE_URL` is set to your production HTTPS URL
 - [ ] SSL is configured (HTTPS only)
-- [ ] GitHub token has minimal required permissions
+- [ ] Git access token has minimal required permissions (read-only repo access)
 - [ ] SendGrid API key is configured and domain authentication is complete
 - [ ] `FROM_EMAIL` matches the authenticated SendGrid domain
 - [ ] Cloudflare Turnstile keys are set (not the test keys)

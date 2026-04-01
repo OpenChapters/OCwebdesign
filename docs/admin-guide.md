@@ -223,9 +223,9 @@ Each service is checked and displayed as a card. Auto-refreshes every 15 seconds
 | **Disk** | Free space, total space, usage percentage | > 90% used |
 | **PDF storage** | File count, total size, oldest/newest file dates | — |
 
-### GitHub API
+### Git Provider API
 
-Shows the status of the configured GitHub token:
+Shows the status of the configured git access token (GitHub or GitLab):
 
 | Field | Description |
 |---|---|

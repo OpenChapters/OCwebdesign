@@ -180,11 +180,13 @@ def build_book(self, book_id: int) -> None:
         log("Validated build request data")
 
         # 4. Clone chapter repo(s) — deduplicated; shallow clone for speed
+        from catalog.git_provider import get_provider
+        provider = get_provider()
         repos = {ch["repo"] for p in request_data["parts"] for ch in p["chapters"]}
         for repo in repos:
             repo_dir = workdir / repo.split("/")[-1]
             _run(
-                ["git", "clone", "--depth=1", f"https://github.com/{repo}.git", str(repo_dir)],
+                ["git", "clone", "--depth=1", provider.clone_url(repo), str(repo_dir)],
                 log,
             )
 

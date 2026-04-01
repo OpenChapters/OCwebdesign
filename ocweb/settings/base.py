@@ -122,7 +122,18 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
 # ── External services ─────────────────────────────────────────────────────────
+# ── Git provider ──────────────────────────────────────────────────────────────
+# Supported: "github" (default) or "gitlab"
+GIT_PROVIDER = env("GIT_PROVIDER", default="github")
+# Authentication token for the git provider (GitHub PAT or GitLab token)
+GIT_TOKEN = env("GIT_TOKEN", default="")
+# Legacy alias — used if GIT_TOKEN is empty
 GITHUB_TOKEN = env("GITHUB_TOKEN", default="")
+# GitLab only: base URL of the GitLab instance
+GIT_BASE_URL = env("GIT_BASE_URL", default="https://gitlab.com")
+# GitLab only: default branch for raw file access
+GIT_DEFAULT_BRANCH = env("GIT_DEFAULT_BRANCH", default="main")
+
 SENDGRID_API_KEY = env("SENDGRID_API_KEY", default="")
 
 # Cloudflare Turnstile (bot protection on registration)

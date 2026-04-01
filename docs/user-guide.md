@@ -53,9 +53,20 @@ Your session stays active for up to 7 days. The access token refreshes automatic
 
 The **Chapter Browser** is the main page of the site, accessible by clicking **Browse** in the navigation bar or visiting the home page.
 
-Chapters are organized into two sections:
+### Discipline Filter
 
-- **Topical Chapters** — specialized topics in materials science and engineering (displayed first)
+When multiple disciplines are available, a row of selector buttons appears at the top of the page:
+
+- **All Disciplines** — shows chapters from all disciplines (default)
+- **Per-discipline buttons** — click to filter to a single discipline (e.g., "Materials Science and Engineering")
+
+Your selected discipline is remembered across page visits. When "All Disciplines" is selected, each chapter card shows a colored badge indicating its discipline.
+
+### Chapter Organization
+
+Within each discipline (or across all), chapters are organized into two sections:
+
+- **Topical Chapters** — specialized topics (displayed first)
 - **Foundational Chapters** — core mathematical and scientific background
 
 Each chapter is displayed as a card showing:

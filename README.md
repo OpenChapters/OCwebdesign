@@ -192,7 +192,8 @@ For SSL, place a reverse proxy (e.g., Caddy or nginx with Let's Encrypt) in fron
 | `POST` | `/api/auth/change-password/` | Yes | Change password (current + new) |
 | `GET` | `/api/auth/profile/` | Yes | Current user info |
 | `DELETE` | `/api/auth/profile/` | Yes | Delete own account |
-| `GET` | `/api/chapters/` | No | List published chapters |
+| `GET` | `/api/disciplines/` | No | List published disciplines |
+| `GET` | `/api/chapters/` | No | List published chapters (?discipline=slug to filter) |
 | `GET` | `/api/chapters/<id>/` | No | Chapter detail |
 | `GET` | `/api/chapters/<id>/cover/` | No | Chapter cover image (proxied + cached) |
 | `GET` | `/api/books/` | Yes | List user's books |
@@ -232,13 +233,15 @@ Each chapter in the [OpenChapters monorepo](https://github.com/OpenChapters/Open
   "chapter_type": "foundational",
   "chabbr": "LINALG",
   "depends_on": [],
+  "discipline": "mse",
   "published": true
 }
 ```
 
 - **chapter_type**: `"foundational"` or `"topical"` — controls grouping in the browser
-- **chabbr**: unique 6-character abbreviation used in LaTeX `\label`/`\ref` cross-references
+- **chabbr**: unique abbreviation used in LaTeX `\label`/`\ref` cross-references
 - **depends_on**: list of `chabbr` values for foundational chapters this chapter references; the Book Editor auto-suggests including these
+- **discipline**: slug of the discipline this chapter belongs to (e.g., `"mse"` for Materials Science and Engineering). Maps to the `Discipline` model. If omitted during sync, the existing assignment is preserved.
 - **published**: set to `false` to hide incomplete/template chapters from the catalog
 
 ## LaTeX Build Pipeline

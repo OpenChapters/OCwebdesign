@@ -13,6 +13,7 @@ The OpenChapters API is a RESTful JSON API built with Django REST Framework. All
    - [Auth](#auth)
    - [Password Reset](#password-reset)
    - [Profile](#profile)
+   - [Disciplines](#disciplines)
    - [Chapters](#chapters)
    - [Books](#books)
    - [Parts](#parts)
@@ -304,6 +305,30 @@ POST /api/auth/change-password/
 
 ---
 
+### Disciplines
+
+#### List Disciplines
+
+```
+GET /api/disciplines/
+```
+
+Returns all published disciplines. No authentication required. No pagination.
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "name": "Materials Science and Engineering",
+    "slug": "mse",
+    "color_primary": "#2563eb"
+  }
+]
+```
+
+---
+
 ### Chapters
 
 #### List Chapters
@@ -316,6 +341,7 @@ Returns all published chapters. No authentication required.
 
 **Query parameters:**
 - `page` — page number (default: 1)
+- `discipline` — filter by discipline slug (e.g., `?discipline=mse`). Omit to list all disciplines.
 
 **Response (200):**
 ```json
@@ -364,6 +390,7 @@ Returns all published chapters. No authentication required.
 | `chapter_type` | string | `"foundational"` or `"topical"` |
 | `chabbr` | string | Unique LaTeX abbreviation (e.g. `"LINALG"`) |
 | `depends_on` | string[] | List of `chabbr` values this chapter cross-references |
+| `discipline` | object/null | `{id, name, slug, color_primary}` or `null` if unassigned |
 | `github_repo` | string | GitHub repository (e.g. `"OpenChapters/OpenChapters"`) |
 | `chapter_subdir` | string | Path within the repo (e.g. `"src/LinearAlgebra"`) |
 | `cached_at` | datetime | Last sync timestamp |

@@ -46,9 +46,17 @@ export default function BookEditorPage() {
     queryFn: () => booksApi.detail(bookId),
   });
 
+  const [editorDiscipline, setEditorDiscipline] = useState('');
+
+  const { data: disciplines = [] } = useQuery({
+    queryKey: ['disciplines'],
+    queryFn: () => chaptersApi.disciplines(),
+    staleTime: 300_000,
+  });
+
   const { data: chaptersData } = useQuery({
-    queryKey: ['chapters'],
-    queryFn: () => chaptersApi.list(),
+    queryKey: ['chapters', editorDiscipline],
+    queryFn: () => chaptersApi.list(1, editorDiscipline || undefined),
   });
 
   useEffect(() => {
@@ -431,11 +439,25 @@ export default function BookEditorPage() {
         <div className="w-2/5 border-r border-gray-200 flex flex-col overflow-hidden bg-gray-50">
           <div className="px-4 py-3 border-b border-gray-200 bg-white">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Chapter Catalog</p>
-            <input
-              type="search" placeholder="Search chapters…" value={chapterSearch}
-              onChange={(e) => setChapterSearch(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex gap-2 mb-2">
+              <input
+                type="search" placeholder="Search chapters…" value={chapterSearch}
+                onChange={(e) => setChapterSearch(e.target.value)}
+                className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {disciplines.length > 1 && (
+                <select
+                  value={editorDiscipline}
+                  onChange={(e) => setEditorDiscipline(e.target.value)}
+                  className="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All</option>
+                  {disciplines.map((d: any) => (
+                    <option key={d.slug} value={d.slug}>{d.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
             {activePart && (
               <p className="text-xs text-blue-600 mt-2">
                 Adding to: <strong>{book.parts.find((p) => p.id === activePart)?.title}</strong>

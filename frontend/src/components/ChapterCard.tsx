@@ -8,6 +8,7 @@ interface Props {
   addLabel?: string;
   addDisabled?: boolean;
   showBrowserButtons?: boolean;
+  showDisciplineBadge?: boolean;
   onAddToBook?: (chapterId: number) => void;
 }
 
@@ -17,6 +18,7 @@ export default function ChapterCard({
   addLabel = '+ Add to Part',
   addDisabled = false,
   showBrowserButtons = false,
+  showDisciplineBadge = false,
   onAddToBook,
 }: Props) {
   const navigate = useNavigate();
@@ -64,6 +66,14 @@ export default function ChapterCard({
           <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-snug">
             {chapter.title}
           </h3>
+          {showDisciplineBadge && chapter.discipline && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded text-white w-fit"
+              style={{ backgroundColor: chapter.discipline.color_primary }}
+            >
+              {chapter.discipline.name}
+            </span>
+          )}
           {chapter.authors.length > 0 && (
             <p className="text-xs text-gray-500 truncate">{chapter.authors.join(', ')}</p>
           )}

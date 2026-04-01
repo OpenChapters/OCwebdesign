@@ -9,8 +9,8 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
-from .models import Chapter
-from .serializers import ChapterSerializer
+from .models import Chapter, Discipline
+from .serializers import ChapterSerializer, DisciplineSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +18,24 @@ logger = logging.getLogger(__name__)
 COVER_CACHE_DIR = Path(settings.BASE_DIR) / "media" / "covers"
 
 
+class DisciplineListView(generics.ListAPIView):
+    """GET /api/disciplines/ — list all published disciplines."""
+    queryset = Discipline.objects.filter(published=True)
+    serializer_class = DisciplineSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None  # No pagination; small list
+
+
 class ChapterListView(generics.ListAPIView):
-    queryset = Chapter.objects.filter(published=True)
     serializer_class = ChapterSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        qs = Chapter.objects.filter(published=True).select_related("discipline")
+        discipline = self.request.query_params.get("discipline", "").strip()
+        if discipline:
+            qs = qs.filter(discipline__slug=discipline)
+        return qs
 
 
 class ChapterDetailView(generics.RetrieveAPIView):

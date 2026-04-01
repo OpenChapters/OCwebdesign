@@ -23,7 +23,7 @@ from books.views import (
     PartDetailView,
     PartListCreateView,
 )
-from catalog.views import ChapterCoverView, ChapterDetailView, ChapterListView
+from catalog.views import ChapterCoverView, ChapterDetailView, ChapterListView, DisciplineListView
 from users.views import (
     ChangePasswordView,
     ForgotPasswordView,
@@ -85,6 +85,7 @@ urlpatterns = [
     path("api/auth/profile/", ProfileView.as_view(), name="auth-profile"),
 
     # ── Catalog ───────────────────────────────────────────────────────────────
+    path("api/disciplines/", DisciplineListView.as_view(), name="discipline-list"),
     path("api/chapters/", ChapterListView.as_view(), name="chapter-list"),
     path("api/chapters/<int:pk>/", ChapterDetailView.as_view(), name="chapter-detail"),
     path("api/chapters/<int:pk>/cover/", ChapterCoverView.as_view(), name="chapter-cover"),

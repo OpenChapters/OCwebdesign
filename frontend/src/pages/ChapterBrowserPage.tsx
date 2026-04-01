@@ -7,13 +7,16 @@ import { chaptersApi } from '../api/chapters';
 import { booksApi } from '../api/books';
 import { useAuth } from '../contexts/AuthContext';
 import ChapterCard from '../components/ChapterCard';
-import type { Chapter, BookListItem } from '../types';
+import type { Chapter, BookListItem, Discipline } from '../types';
 import { useToast } from '../components/Toast';
 import { SkeletonCardGrid } from '../components/Skeleton';
 
 export default function ChapterBrowserPage() {
   const toast = useToast();
   const [search, setSearch] = useState('');
+  const [selectedDiscipline, setSelectedDiscipline] = useState<string>(
+    () => localStorage.getItem('selected_discipline') || '',
+  );
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -30,10 +33,25 @@ export default function ChapterBrowserPage() {
     staleTime: 60_000,
   });
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['chapters'],
-    queryFn: () => chaptersApi.list(),
+  const { data: disciplines = [] } = useQuery({
+    queryKey: ['disciplines'],
+    queryFn: () => chaptersApi.disciplines(),
+    staleTime: 300_000,
   });
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['chapters', selectedDiscipline],
+    queryFn: () => chaptersApi.list(1, selectedDiscipline || undefined),
+  });
+
+  function selectDiscipline(slug: string) {
+    setSelectedDiscipline(slug);
+    if (slug) {
+      localStorage.setItem('selected_discipline', slug);
+    } else {
+      localStorage.removeItem('selected_discipline');
+    }
+  }
 
   const { data: books = [] } = useQuery({
     queryKey: ['books'],
@@ -142,6 +160,7 @@ export default function ChapterBrowserPage() {
             <ChapterCard
               chapter={chapter}
               showBrowserButtons
+              showDisciplineBadge={!selectedDiscipline && disciplines.length > 1}
               onAddToBook={handleAddToBook}
             />
             {pickerChapterId === chapter.id && (
@@ -227,6 +246,36 @@ export default function ChapterBrowserPage() {
             className="text-gray-700 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(welcomeMessage) }}
           />
+        </div>
+      )}
+
+      {/* Discipline selector */}
+      {disciplines.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => selectDiscipline('')}
+            className={`text-sm px-3 py-1.5 rounded-full transition-colors ${
+              !selectedDiscipline
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All Disciplines
+          </button>
+          {disciplines.map((d: Discipline) => (
+            <button
+              key={d.slug}
+              onClick={() => selectDiscipline(d.slug)}
+              className={`text-sm px-3 py-1.5 rounded-full transition-colors ${
+                selectedDiscipline === d.slug
+                  ? 'text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              style={selectedDiscipline === d.slug ? { backgroundColor: d.color_primary } : {}}
+            >
+              {d.name}
+            </button>
+          ))}
         </div>
       )}
 

@@ -1,3 +1,10 @@
+export interface Discipline {
+  id: number;
+  name: string;
+  slug: string;
+  color_primary: string;
+}
+
 export interface Chapter {
   id: number;
   title: string;
@@ -9,6 +16,7 @@ export interface Chapter {
   chapter_type: 'foundational' | 'topical';
   chabbr: string;
   depends_on: string[];
+  discipline: Discipline | null;
   github_repo: string;
   chapter_subdir: string;
   cached_at: string;

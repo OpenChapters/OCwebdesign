@@ -1,9 +1,18 @@
 from rest_framework import serializers
 
-from .models import Chapter
+from .models import Chapter, Discipline
+
+
+class DisciplineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Discipline
+        fields = ["id", "name", "slug", "color_primary"]
+        read_only_fields = fields
 
 
 class ChapterSerializer(serializers.ModelSerializer):
+    discipline = DisciplineSerializer(read_only=True)
+
     class Meta:
         model = Chapter
         fields = [
@@ -17,6 +26,7 @@ class ChapterSerializer(serializers.ModelSerializer):
             "chapter_type",
             "chabbr",
             "depends_on",
+            "discipline",
             "github_repo",
             "chapter_subdir",
             "cached_at",

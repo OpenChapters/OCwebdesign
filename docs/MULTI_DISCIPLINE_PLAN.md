@@ -253,31 +253,62 @@ The dashboard shows chapter and build counts per discipline.
 
 ## Migration Path
 
-### Phase 1: Add the Discipline model (non-breaking)
+### Phase 1: Discipline model + migration + sync update (~3 days)
 
-1. Create the `Discipline` model with a single entry: "Materials Science and Engineering"
-2. Add `discipline` ForeignKey to `Chapter` (nullable)
-3. Migrate existing chapters to the MSE discipline
-4. No UI changes — everything works as before
+1. Create the `Discipline` model with a single entry: "Materials Science and Engineering" (slug: `mse`)
+2. Add `discipline` ForeignKey to `Chapter` (nullable, `SET_NULL`)
+3. Generate and apply migrations
+4. Write a data migration or management command to bulk-assign existing chapters to the MSE discipline
+5. Add `discipline` field to the `chapter.json` spec (e.g., `"discipline": "mse"`)
+6. Update `sync_chapters` to read the `discipline` field from `chapter.json` and map it to the `Discipline` model by slug
+7. Add `Discipline` to Django admin for initial setup
+8. Update `ChapterSerializer` to include `discipline` (slug + name) in the API response
+9. No frontend UI changes — everything works as before; the discipline field is present but not yet filtered on
 
-### Phase 2: Add discipline selector to Browse page
+### Phase 2: Browse page discipline selector + editor (~4 days)
 
-1. Add discipline tabs/pills to the Chapter Browser
+1. Add discipline tabs/pills to the Chapter Browser header
 2. Add discipline filter to the chapters API: `GET /api/chapters/?discipline=mse`
-3. Show discipline badge on cards when "All" is selected
+3. Show discipline badge on chapter cards when "All Disciplines" is selected
 4. Existing bookmarks and links continue to work (no discipline filter = show all)
+5. Store selected discipline in localStorage so it persists across page visits
+6. Update chapter count badges to show per-discipline counts
+7. Update the Book Editor's left panel chapter catalog to support discipline filtering
+8. Update TypeScript `Chapter` interface to include `discipline` field
 
-### Phase 3: Support multiple repos
+### Phase 3: Multi-repo sync + admin updates (~3 days)
 
-1. Extend `sync_chapters` to read from discipline-specific repos
-2. Add Celery Beat schedules per discipline
-3. Test with a second discipline (e.g., a small test set of chapters)
+1. Extend `sync_chapters` to iterate over all published disciplines and sync each repo
+2. Add `--discipline` flag to sync a single discipline: `python manage.py sync_chapters --discipline mse`
+3. Add Celery Beat schedules per discipline (configurable sync times)
+4. Update admin "Sync from GitHub" button to support per-discipline or all-disciplines sync
+5. Update admin "Update TOC" and "Update Thumbnails" buttons to work across multiple repos
+6. Handle sync errors per-discipline (one failed repo doesn't block others)
+7. Ensure GitHub token has access to all discipline repos (document requirement)
+8. Test with a second discipline (e.g., a small test set of chapters)
 
-### Phase 4: Discipline-specific styling
+### Phase 4: Discipline-specific styling + build pipeline (~4 days)
 
-1. Support custom `.sty` and cover templates per discipline
-2. Add "Primary discipline" selector to the Book Editor for multi-discipline books
-3. Update the build pipeline to apply discipline-specific resources
+1. Support custom `.sty` files per discipline (stored in discipline repo's `Build/template/`)
+2. Support custom `Frontmatter.tex.template` per discipline (different cover text, editors, funding)
+3. Support custom `matter/` directory per discipline (Postmatter, copyright)
+4. Add "Primary discipline" selector to the Book Editor for multi-discipline books
+5. Update the build pipeline to:
+   a. Determine primary discipline from the book's chapters
+   b. Clone each needed discipline's repo
+   c. Apply discipline-specific `.sty` (override base style)
+   d. Use discipline-specific frontmatter template if available
+   e. Fall back gracefully to base OpenChapters style when no custom style exists
+6. Apply discipline color theme to the frontend (use `Discipline.color_primary`)
+
+### Phase 5: Admin panel discipline management (~2 days)
+
+1. Add Disciplines section to admin sidebar (list, create, edit, delete)
+2. Discipline detail: name, slug, description, repo URL, src path, color, display order, published toggle
+3. Chapter list: add discipline column and filter
+4. Dashboard: show per-discipline chapter and build counts
+5. Audit logging for discipline create/update/delete
+6. Superusers only for create/delete; staff can edit details and toggle published
 
 ---
 
@@ -315,24 +346,25 @@ Support a full category tree: discipline → subdiscipline → topic area.
 ## Implementation Phases
 
 ```
-Phase 1  Discipline model + migration          ~2 days
-Phase 2  Browse page discipline selector       ~3 days
-Phase 3  Multi-repo sync                       ~2 days
-Phase 4  Discipline-specific styling           ~3 days
+Phase 1  Discipline model + migration + sync update    ~3 days
+Phase 2  Browse page discipline selector + editor      ~4 days
+Phase 3  Multi-repo sync + admin updates               ~3 days
+Phase 4  Discipline-specific styling + build pipeline   ~4 days
+Phase 5  Admin panel discipline management             ~2 days
 ```
 
-**Total: ~10 days**
+**Total: ~16 days**
 
-Phase 1 is non-breaking and can be deployed immediately. Phases 2–4 can be implemented incrementally as new disciplines are onboarded.
+Phase 1 is non-breaking and can be deployed immediately. Phases 2–5 can be implemented incrementally as new disciplines are onboarded.
 
 ---
 
-## Open Questions
+## Open Questions — Recommendations
 
-1. **Who manages new disciplines?** — Should any admin be able to create a discipline, or is it limited to superusers? The `Discipline` model includes a `published` flag for staging.
-
-2. **Chapter sharing across disciplines?** — Can the same chapter appear in multiple disciplines (e.g., a "Linear Algebra" chapter used by both MSE and Statistics)? If so, the relationship should be many-to-many rather than a ForeignKey.
-
-3. **Domain structure?** — Should each discipline have its own subdomain (mse.openchapters.org) or use URL paths (openchapters.org/mse)? The URL path approach is simpler and is assumed in this plan.
-
-4. **Build queue isolation?** — Should each discipline have its own Celery queue to prevent one discipline's builds from blocking another? At small scale this isn't needed, but may matter if build volume grows.
+| Question | Recommendation |
+|---|---|
+| **Who manages new disciplines?** | Superusers only for create/delete; staff can edit details and toggle published. The `published` flag allows staging before going live. |
+| **Chapter sharing across disciplines?** | Start with ForeignKey (one discipline per chapter). Shared chapters like "Linear Algebra" can belong to a "Shared/Foundational" discipline visible to all. Upgrade to many-to-many later if needed. |
+| **Domain structure?** | URL paths (`/chapters?discipline=mse`) — simpler, single deployment, no DNS/SSL per discipline. |
+| **Build queue isolation?** | Not needed initially. Add priority-based task routing later if one discipline dominates the queue. |
+| **GitHub token scope?** | A single classic PAT with read access to all discipline repos is simplest. Document that the token must have access to all repos listed in `Discipline.github_repo`. |

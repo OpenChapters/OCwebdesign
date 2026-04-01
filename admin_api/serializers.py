@@ -45,14 +45,17 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
 
 
 class AdminChapterSerializer(serializers.ModelSerializer):
+    discipline_name = serializers.CharField(source="discipline.name", read_only=True, default="")
+
     class Meta:
         model = Chapter
         fields = [
             "id", "title", "authors", "description", "toc",
             "cover_image_url", "keywords", "chapter_type", "chabbr",
-            "depends_on", "published", "github_repo", "chapter_subdir",
-            "latex_entry_file", "cached_at",
+            "depends_on", "published", "discipline", "discipline_name",
+            "github_repo", "chapter_subdir", "latex_entry_file", "cached_at",
         ]
         read_only_fields = [
-            "id", "github_repo", "chapter_subdir", "latex_entry_file", "cached_at",
+            "id", "github_repo", "chapter_subdir", "latex_entry_file",
+            "cached_at", "discipline_name",
         ]

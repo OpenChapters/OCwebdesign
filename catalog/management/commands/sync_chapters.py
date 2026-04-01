@@ -31,7 +31,7 @@ from catalog.github_client import (
     list_chapter_subdirs,
     raw_file_url,
 )
-from catalog.models import Chapter
+from catalog.models import Chapter, Discipline
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,10 @@ class Command(BaseCommand):
             cover_file = chapter_data.get("cover_image", "cover.png")
             cover_url = raw_file_url(repo, default_branch, f"{chapter_subdir}/{cover_file}")
 
+            # Map discipline slug to Discipline object (if specified in chapter.json).
+            # If not specified, don't overwrite an existing discipline assignment.
+            discipline_slug = chapter_data.get("discipline", "")
+
             defaults = {
                 "title": chapter_data.get("title", ""),
                 "authors": chapter_data.get("authors", []),
@@ -137,6 +141,10 @@ class Command(BaseCommand):
                 "depends_on": chapter_data.get("depends_on", []),
                 "published": chapter_data.get("published", True),
             }
+            if discipline_slug:
+                discipline_obj = Discipline.objects.filter(slug=discipline_slug).first()
+                if discipline_obj:
+                    defaults["discipline"] = discipline_obj
 
             if dry_run:
                 self.stdout.write(

@@ -50,8 +50,18 @@ def _validate_build_data(request_data: dict) -> None:
 
 
 def _build_request_data(book) -> dict:
-    """Serialize a Book's chapter selection into the build_request.json schema."""
+    """Serialize a Book's chapter selection into the build_request.json schema.
+
+    Automatically includes any foundational chapters that are listed in
+    ``depends_on`` by the selected chapters but not already present in the
+    book.  These are prepended as a "Foundations" part so that their
+    ``\\label`` commands are available for cross-chapter ``\\ref`` resolution.
+    """
+    from catalog.models import Chapter
+
     parts = []
+    included_chabbrs: set[str] = set()
+
     for part in book.parts.order_by("order"):
         chapters = []
         for bc in part.book_chapters.order_by("order").select_related("chapter"):
@@ -61,7 +71,40 @@ def _build_request_data(book) -> dict:
                 "chapter_subdir": ch.chapter_subdir,
                 "entry_file": ch.latex_entry_file,
             })
+            if ch.chabbr:
+                included_chabbrs.add(ch.chabbr)
         parts.append({"title": part.title, "chapters": chapters})
+
+    # Resolve foundational-chapter dependencies --------------------------
+    # Collect all chabbr values referenced by depends_on across the book.
+    all_chapters = Chapter.objects.filter(
+        id__in=book.parts.values_list(
+            "book_chapters__chapter_id", flat=True,
+        )
+    )
+    needed_chabbrs: set[str] = set()
+    for ch in all_chapters:
+        for dep in ch.depends_on:
+            if dep not in included_chabbrs:
+                needed_chabbrs.add(dep)
+
+    if needed_chabbrs:
+        dep_chapters = (
+            Chapter.objects.filter(chabbr__in=needed_chabbrs, published=True)
+            .order_by("title")
+        )
+        dep_entries = []
+        for ch in dep_chapters:
+            dep_entries.append({
+                "repo": ch.github_repo,
+                "chapter_subdir": ch.chapter_subdir,
+                "entry_file": ch.latex_entry_file,
+            })
+        if dep_entries:
+            # Prepend a Foundations part so labels are defined before
+            # they are referenced by topical chapters.
+            parts.insert(0, {"title": "Foundations", "chapters": dep_entries})
+
     return {"book_title": book.title, "parts": parts}
 
 

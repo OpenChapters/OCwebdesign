@@ -3,7 +3,13 @@
 import pytest
 
 from books.tasks import _build_request_data, _validate_build_data
-from tests.factories import BookChapterFactory, BookFactory, BookPartFactory, ChapterFactory
+from tests.factories import (
+    BookChapterFactory,
+    BookFactory,
+    BookPartFactory,
+    ChapterFactory,
+    FoundationalChapterFactory,
+)
 
 
 @pytest.mark.django_db
@@ -29,6 +35,81 @@ class TestBuildRequestData:
         book = BookFactory()
         data = _build_request_data(book)
         assert data["parts"] == []
+
+    def test_auto_includes_foundational_dependencies(self):
+        """Foundational chapters listed in depends_on are auto-included."""
+        fc = FoundationalChapterFactory(
+            chabbr="LINALG",
+            github_repo="OpenChapters/OpenChapters",
+            chapter_subdir="src/LinearAlgebra",
+            latex_entry_file="src/LinearAlgebra/LinearAlgebra.tex",
+        )
+        tc = ChapterFactory(
+            depends_on=["LINALG"],
+            github_repo="OpenChapters/OpenChapters",
+            chapter_subdir="src/Diffraction",
+            latex_entry_file="src/Diffraction/Diffraction.tex",
+        )
+        book = BookFactory()
+        part = BookPartFactory(book=book, title="Topics", order=0)
+        BookChapterFactory(part=part, chapter=tc, order=0)
+
+        data = _build_request_data(book)
+
+        # Should have two parts: auto-inserted Foundations + user's Topics
+        assert len(data["parts"]) == 2
+        assert data["parts"][0]["title"] == "Foundations"
+        assert len(data["parts"][0]["chapters"]) == 1
+        assert data["parts"][0]["chapters"][0]["entry_file"] == fc.latex_entry_file
+        assert data["parts"][1]["title"] == "Topics"
+
+    def test_no_duplicate_when_dependency_already_included(self):
+        """If the user already added a foundational chapter, don't duplicate it."""
+        fc = FoundationalChapterFactory(
+            chabbr="LINALG",
+            github_repo="OpenChapters/OpenChapters",
+            chapter_subdir="src/LinearAlgebra",
+            latex_entry_file="src/LinearAlgebra/LinearAlgebra.tex",
+        )
+        tc = ChapterFactory(
+            depends_on=["LINALG"],
+            github_repo="OpenChapters/OpenChapters",
+            chapter_subdir="src/Diffraction",
+            latex_entry_file="src/Diffraction/Diffraction.tex",
+        )
+        book = BookFactory()
+        part1 = BookPartFactory(book=book, title="Foundations", order=0)
+        BookChapterFactory(part=part1, chapter=fc, order=0)
+        part2 = BookPartFactory(book=book, title="Topics", order=1)
+        BookChapterFactory(part=part2, chapter=tc, order=0)
+
+        data = _build_request_data(book)
+
+        # No auto-inserted part — dependency already present
+        assert len(data["parts"]) == 2
+        assert data["parts"][0]["title"] == "Foundations"
+        assert data["parts"][1]["title"] == "Topics"
+
+    def test_transitive_dependencies_not_resolved(self):
+        """Only direct depends_on entries are auto-included (not transitive)."""
+        fc1 = FoundationalChapterFactory(
+            chabbr="CALC",
+            depends_on=["LINALG"],
+        )
+        fc2 = FoundationalChapterFactory(chabbr="LINALG")
+        tc = ChapterFactory(depends_on=["CALC"])
+
+        book = BookFactory()
+        part = BookPartFactory(book=book, title="Topics", order=0)
+        BookChapterFactory(part=part, chapter=tc, order=0)
+
+        data = _build_request_data(book)
+
+        # Should auto-include CALC but not LINALG (transitive)
+        assert len(data["parts"]) == 2
+        foundation_entries = data["parts"][0]["chapters"]
+        assert len(foundation_entries) == 1
+        assert foundation_entries[0]["entry_file"] == fc1.latex_entry_file
 
 
 class TestBuildDataValidation:

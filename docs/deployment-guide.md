@@ -257,7 +257,7 @@ docker compose -f docker-compose.prod.yml exec web python manage.py sync_chapter
 
 ## Running Tests
 
-The project includes a test suite (86 tests) built with pytest-django, covering authentication, book management, admin API, build pipeline validation, and signed download tokens.
+The project includes a test suite (91 tests) built with pytest-django, covering authentication, book management, admin API, build pipeline validation, and signed download tokens.
 
 ### Running the Full Suite
 
@@ -305,7 +305,7 @@ docker compose run --rm web pytest -k "build_trigger"
 | Auth | 19 | Registration (with CAPTCHA), login (JWT claims), profile, password change/reset |
 | Chapters | 9 | Published filtering, pagination, types, dependencies |
 | Books | 20 | CRUD, parts, chapters, reorder, atomic build trigger |
-| Build pipeline | 9 | Request serialization, input validation (injection, path traversal) |
+| Build pipeline | 12 | Request serialization, foundational dependency auto-inclusion, input validation |
 | Admin | 24 | Permissions, dashboard, user/chapter/build management, settings, audit log |
 | Signing | 5 | Token roundtrip, tampering detection, expiry |
 

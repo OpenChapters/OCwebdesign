@@ -220,9 +220,11 @@ When you add a topical chapter, the system checks whether it references any foun
 You can:
 - Click **+ Add** next to individual chapters to include them
 - Click **Add all** to include all suggested chapters at once
-- Click **Dismiss** to hide the banner (the book will still build, but cross-references to missing chapters will be unresolved)
+- Click **Dismiss** to hide the banner
 
-Foundational chapters are added to a dedicated **Foundational Material** part, which is automatically created at the end of your book. You can reorder chapters within this part, drag chapters to other parts, or move the part itself using the up/down arrows.
+Even if you dismiss the banner, the build system will **automatically include** any foundational chapters required by your selected topical chapters. This ensures that all cross-chapter references resolve correctly in the final PDF. Auto-included chapters appear in a **Foundations** part at the beginning of the book.
+
+If you add the foundational chapters yourself, you can place them in any part and in any order you prefer.
 
 ## Building Your Book
 

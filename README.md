@@ -241,7 +241,7 @@ Each chapter in the [OpenChapters monorepo](https://github.com/OpenChapters/Open
 
 - **chapter_type**: `"foundational"` or `"topical"` — controls grouping in the browser
 - **chabbr**: unique abbreviation used in LaTeX `\label`/`\ref` cross-references
-- **depends_on**: list of `chabbr` values for foundational chapters this chapter references; the Book Editor auto-suggests including these
+- **depends_on**: list of `chabbr` values for foundational chapters this chapter references; the Book Editor suggests including these, and the build pipeline auto-includes any that are missing
 - **discipline**: slug of the discipline this chapter belongs to (e.g., `"mse"` for Materials Science and Engineering). Maps to the `Discipline` model. If omitted during sync, the existing assignment is preserved.
 - **published**: set to `false` to hide incomplete/template chapters from the catalog
 
@@ -251,7 +251,7 @@ When a user triggers a build, the Celery worker:
 
 1. Creates an isolated workspace at `/tmp/ocbuild-<uuid>/`
 2. Copies `.sty`, `.ins`, `.ist` template files
-3. Writes `build_request.json` from the book's part/chapter structure
+3. Writes `build_request.json` from the book's part/chapter structure (auto-including any foundational chapter dependencies not already in the book)
 4. Clones the OpenChapters monorepo (shallow, `--depth=1`)
 5. Copies `matter/` (front matter, post matter) from the clone
 6. Runs `concat_bibs.py` → merges chapter bibliographies into `OpenChapters.bib`

@@ -44,7 +44,6 @@ OCchaptertemplate/
 │   └── pdf/
 │       ├── background.pdf      Default cover background
 │       └── TOCheader.pdf       Table of contents header image
-├── arara-rules/                Custom arara rules (if needed)
 ├── .gitignore
 └── LICENSE                     CC BY-NC-SA 4.0
 ```
@@ -107,7 +106,7 @@ Pre-filled with the discipline field and clear placeholder values:
   "cover_image": "cover.png",
   "keywords": [],
   "chapter_type": "topical",
-  "chabbr": "AAAAAA",
+  "chabbr": "MYCHAP",
   "depends_on": [],
   "discipline": "mse",
   "published": false
@@ -140,9 +139,9 @@ Sections:
    - Write your content
    - Add figures to `chapter/pdf/`
    - Compile with `arara main.tex` or your editor's build command
-4. **Label conventions** — `\chabbr:TYPE:LABEL` format explained
+4. **Label conventions** — `\chabbr:TYPE:NAME` format explained (TYPE is one of `ch`, `sec`, `ssec`, `eq`, `fig`, `tb`)
 5. **Figure conventions** — PDF format, naming, placement
-6. **Cross-references** — how to reference other OpenChapters chapters
+6. **Cross-references** — how to reference other OpenChapters chapters (use `\ref{CHABBR:ch:Name}` for chapter-level refs, `\ref{CHABBR:sec:Name}` for sections, etc.)
 7. **Submitting your chapter** — how to package and send to editors
 8. **Troubleshooting** — common LaTeX errors and solutions
 9. **Style guide** — OpenChapters writing conventions

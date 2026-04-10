@@ -15,6 +15,8 @@ from .views import (
     AdminChapterSyncView,
     AdminChapterUpdateTOCView,
     AdminChapterUpdateThumbnailsView,
+    AdminDisciplineDetailView,
+    AdminDisciplineListView,
     AdminSettingsView,
     AdminUserBooksView,
     AdminUserDetailView,
@@ -33,6 +35,10 @@ urlpatterns = [
     path("users/", AdminUserListView.as_view(), name="admin-user-list"),
     path("users/<int:pk>/", AdminUserDetailView.as_view(), name="admin-user-detail"),
     path("users/<int:pk>/books/", AdminUserBooksView.as_view(), name="admin-user-books"),
+
+    # Disciplines
+    path("disciplines/", AdminDisciplineListView.as_view(), name="admin-discipline-list"),
+    path("disciplines/<int:pk>/", AdminDisciplineDetailView.as_view(), name="admin-discipline-detail"),
 
     # Chapters
     path("chapters/", AdminChapterListView.as_view(), name="admin-chapter-list"),

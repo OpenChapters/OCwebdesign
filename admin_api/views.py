@@ -36,13 +36,14 @@ def _set_cache(key, data):
 
 logger = logging.getLogger(__name__)
 
-from catalog.models import Chapter
+from catalog.models import Chapter, Discipline
 
 from .models import AuditEntry, SiteSetting
 
 from .permissions import IsStaffUser
 from .serializers import (
     AdminChapterSerializer,
+    AdminDisciplineSerializer,
     AdminUserCreateSerializer,
     AdminUserDetailSerializer,
     AdminUserListSerializer,
@@ -223,6 +224,49 @@ class AdminUserBooksView(APIView):
             for b in books
         ]
         return Response(data)
+
+
+# ── Discipline Management ────────────────────────────────────────────────────
+
+class AdminDisciplineListView(generics.ListCreateAPIView):
+    """GET /api/admin/disciplines/ — all disciplines with chapter counts.
+    POST /api/admin/disciplines/ — create a new discipline."""
+
+    permission_classes = [IsStaffUser]
+    serializer_class = AdminDisciplineSerializer
+
+    def get_queryset(self):
+        return Discipline.objects.annotate(chapter_count=Count("chapters")).order_by("order", "name")
+
+    def perform_create(self, serializer):
+        disc = serializer.save()
+        AuditEntry.log(self.request, "discipline.create", "Discipline", disc.id, {"name": disc.name})
+
+
+class AdminDisciplineDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """GET/PATCH/DELETE /api/admin/disciplines/<id>/"""
+
+    permission_classes = [IsStaffUser]
+    serializer_class = AdminDisciplineSerializer
+
+    def get_queryset(self):
+        return Discipline.objects.annotate(chapter_count=Count("chapters"))
+
+    def perform_update(self, serializer):
+        disc = self.get_object()
+        changes = {
+            k: {"old": getattr(disc, k), "new": v}
+            for k, v in serializer.validated_data.items()
+            if getattr(disc, k) != v
+        }
+        serializer.save()
+        if changes:
+            AuditEntry.log(self.request, "discipline.update", "Discipline", disc.id, changes)
+
+    def destroy(self, request, *args, **kwargs):
+        disc = self.get_object()
+        AuditEntry.log(request, "discipline.delete", "Discipline", disc.id, {"name": disc.name})
+        return super().destroy(request, *args, **kwargs)
 
 
 # ── Chapter Management ────────────────────────────────────────────────────────

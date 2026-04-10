@@ -23,6 +23,7 @@ import UsersPage from './admin/pages/UsersPage';
 import UserDetailPage from './admin/pages/UserDetailPage';
 import ChaptersAdminPage from './admin/pages/ChaptersPage';
 import ChapterAdminDetailPage from './admin/pages/ChapterDetailPage';
+import DisciplinesAdminPage from './admin/pages/DisciplinesPage';
 import BuildsAdminPage from './admin/pages/BuildsPage';
 import BuildAdminDetailPage from './admin/pages/BuildDetailPage';
 import SystemPage from './admin/pages/SystemPage';
@@ -111,6 +112,7 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="users/:id" element={<UserDetailPage />} />
+          <Route path="disciplines" element={<DisciplinesAdminPage />} />
           <Route path="chapters" element={<ChaptersAdminPage />} />
           <Route path="chapters/:id" element={<ChapterAdminDetailPage />} />
           <Route path="builds" element={<BuildsAdminPage />} />

@@ -128,6 +128,21 @@ export interface AdminBuildDetail extends AdminBuild {
   pdf_path: string;
 }
 
+// ── Disciplines ─────────────────────────────────────────────────────────────
+
+export interface AdminDiscipline {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  github_repo: string;
+  github_src_path: string;
+  color_primary: string;
+  order: number;
+  published: boolean;
+  chapter_count: number;
+}
+
 // ── Chapters ─────────────────────────────────────────────────────────────────
 
 export interface AdminChapter {
@@ -229,6 +244,18 @@ export const adminApi = {
     client.get<{ date: string; count: number }[]>(
       '/admin/analytics/users/', { params: { days } }
     ).then((r) => r.data),
+
+  // Disciplines
+  disciplineList: () =>
+    client.get<PaginatedResponse<AdminDiscipline>>('/admin/disciplines/').then((r) => r.data.results),
+  disciplineDetail: (id: number) =>
+    client.get<AdminDiscipline>(`/admin/disciplines/${id}/`).then((r) => r.data),
+  disciplineCreate: (data: Partial<AdminDiscipline>) =>
+    client.post<AdminDiscipline>('/admin/disciplines/', data).then((r) => r.data),
+  disciplineUpdate: (id: number, data: Partial<AdminDiscipline>) =>
+    client.patch<AdminDiscipline>(`/admin/disciplines/${id}/`, data).then((r) => r.data),
+  disciplineDelete: (id: number) =>
+    client.delete(`/admin/disciplines/${id}/`),
 
   // Chapters
   chapterList: (params?: { search?: string; page?: number }) =>

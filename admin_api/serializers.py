@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from catalog.models import Chapter
+from catalog.models import Chapter, Discipline
 
 User = get_user_model()
 
@@ -42,6 +42,19 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
             "date_joined", "last_login",
         ]
         read_only_fields = ["id", "email", "date_joined", "last_login"]
+
+
+class AdminDisciplineSerializer(serializers.ModelSerializer):
+    chapter_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Discipline
+        fields = [
+            "id", "name", "slug", "description", "github_repo",
+            "github_src_path", "color_primary", "order", "published",
+            "chapter_count",
+        ]
+        read_only_fields = ["id", "chapter_count"]
 
 
 class AdminChapterSerializer(serializers.ModelSerializer):

@@ -222,7 +222,7 @@ export default function BookEditorPage() {
       return;
     }
     const part = book?.parts.find((p) => p.id === activePart);
-    const order = part?.chapters.length ?? 0;
+    const order = part ? part.chapters.reduce((m, c) => Math.max(m, c.order), -1) + 1 : 0;
     try {
       await booksApi.addChapter(bookId, activePart, { chapter_id: chapterId, order });
       const updatedIds = new Set(addedChapterIds);

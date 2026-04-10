@@ -184,7 +184,13 @@ class PartChapterDetailView(APIView):
 
     def delete(self, request, book_pk, part_pk, chapter_pk):
         bc = self._book_chapter(request, book_pk, part_pk, chapter_pk)
+        part = bc.part
         bc.delete()
+        # Re-compact order values so there are no gaps
+        for i, sibling in enumerate(part.book_chapters.order_by("order")):
+            if sibling.order != i:
+                sibling.order = i
+                sibling.save(update_fields=["order"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

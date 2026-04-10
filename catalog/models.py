@@ -77,6 +77,9 @@ class Chapter(models.Model):
 
     keywords = models.JSONField(default=list, validators=[_validate_string_list])
 
+    # Mapping of author name → homepage URL, e.g. {"Marc De Graef": "https://..."}
+    author_urls = models.JSONField(default=dict, blank=True)
+
     chapter_type = models.CharField(
         max_length=20,
         choices=ChapterType.choices,

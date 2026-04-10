@@ -134,6 +134,7 @@ export interface AdminChapter {
   id: number;
   title: string;
   authors: string[];
+  author_urls: Record<string, string>;
   description: string;
   toc: string[];
   cover_image_url: string;

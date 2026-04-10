@@ -138,6 +138,7 @@ class Command(BaseCommand):
                 "keywords": chapter_data.get("keywords", []),
                 "chapter_type": chapter_data.get("chapter_type", "topical"),
                 "chabbr": chapter_data.get("chabbr", ""),
+                "author_urls": chapter_data.get("author_urls", {}),
                 "depends_on": chapter_data.get("depends_on", []),
                 "published": chapter_data.get("published", True),
             }

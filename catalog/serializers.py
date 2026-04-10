@@ -19,6 +19,7 @@ class ChapterSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "authors",
+            "author_urls",
             "description",
             "toc",
             "cover_image_url",

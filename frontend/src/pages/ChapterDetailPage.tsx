@@ -118,7 +118,19 @@ export default function ChapterDetailPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{chapter.title}</h1>
               {chapter.authors.length > 0 && (
-                <p className="text-sm text-gray-500 mt-1">{chapter.authors.join(', ')}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {chapter.authors.map((name, i) => {
+                    const url = chapter.author_urls?.[name];
+                    return (
+                      <span key={name}>
+                        {i > 0 && ', '}
+                        {url ? (
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{name}</a>
+                        ) : name}
+                      </span>
+                    );
+                  })}
+                </p>
               )}
             </div>
             <span

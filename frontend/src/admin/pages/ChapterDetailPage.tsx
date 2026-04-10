@@ -177,7 +177,21 @@ export default function ChapterDetailPage() {
           <dl className="text-sm space-y-2">
             <div>
               <dt className="text-gray-500">Authors</dt>
-              <dd className="text-gray-900">{chapter.authors.join(', ') || '—'}</dd>
+              <dd className="text-gray-900">
+                {chapter.authors.length > 0
+                  ? chapter.authors.map((name, i) => {
+                      const url = chapter.author_urls?.[name];
+                      return (
+                        <span key={name}>
+                          {i > 0 && ', '}
+                          {url ? (
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{name}</a>
+                          ) : name}
+                        </span>
+                      );
+                    })
+                  : '—'}
+              </dd>
             </div>
             <div>
               <dt className="text-gray-500">Dependencies</dt>

@@ -75,7 +75,19 @@ export default function ChapterCard({
             </span>
           )}
           {chapter.authors.length > 0 && (
-            <p className="text-xs text-gray-500 truncate">{chapter.authors.join(', ')}</p>
+            <p className="text-xs text-gray-500 truncate">
+              {chapter.authors.map((name, i) => {
+                const url = chapter.author_urls?.[name];
+                return (
+                  <span key={name}>
+                    {i > 0 && ', '}
+                    {url ? (
+                      <a href={url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 hover:underline">{name}</a>
+                    ) : name}
+                  </span>
+                );
+              })}
+            </p>
           )}
           {chapter.keywords.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">

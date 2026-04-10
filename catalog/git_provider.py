@@ -86,6 +86,10 @@ class GitProvider(abc.ABC):
     def clone_url(self, repo: str) -> str:
         """Return the HTTPS clone URL for *repo*."""
 
+    @abc.abstractmethod
+    def last_commit_date(self, repo: str, path: str) -> str | None:
+        """Return the ISO-8601 date of the most recent commit touching *path*, or None."""
+
 
 # ---------------------------------------------------------------------------
 # GitHub implementation
@@ -131,6 +135,19 @@ class GitHubProvider(GitProvider):
 
     def clone_url(self, repo: str) -> str:
         return f"https://github.com/{repo}.git"
+
+    def last_commit_date(self, repo: str, path: str) -> str | None:
+        url = f"{self.BASE_URL}/repos/{repo}/commits"
+        resp = _request_with_retry(
+            "get", url, headers=self._headers(),
+            params={"path": path, "per_page": 1},
+        )
+        if resp.status_code != 200:
+            return None
+        commits = resp.json()
+        if not commits:
+            return None
+        return commits[0]["commit"]["committer"]["date"]
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +211,20 @@ class GitLabProvider(GitProvider):
 
     def clone_url(self, repo: str) -> str:
         return f"{self.base_url}/{repo}.git"
+
+    def last_commit_date(self, repo: str, path: str) -> str | None:
+        pid = self._project_id(repo)
+        url = f"{self.base_url}/api/v4/projects/{pid}/repository/commits"
+        resp = _request_with_retry(
+            "get", url, headers=self._headers(),
+            params={"path": path, "per_page": 1},
+        )
+        if resp.status_code != 200:
+            return None
+        commits = resp.json()
+        if not commits:
+            return None
+        return commits[0]["committed_date"]
 
 
 # ---------------------------------------------------------------------------

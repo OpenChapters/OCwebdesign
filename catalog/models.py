@@ -105,6 +105,9 @@ class Chapter(models.Model):
         related_name="chapters",
     )
 
+    # Date of the most recent commit touching this chapter's subdirectory
+    last_updated = models.DateTimeField(null=True, blank=True)
+
     # Timestamp of the last successful sync from GitHub
     cached_at = models.DateTimeField(auto_now=True)
 

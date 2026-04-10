@@ -30,6 +30,7 @@ class ChapterSerializer(serializers.ModelSerializer):
             "discipline",
             "github_repo",
             "chapter_subdir",
+            "last_updated",
             "cached_at",
         ]
         read_only_fields = fields

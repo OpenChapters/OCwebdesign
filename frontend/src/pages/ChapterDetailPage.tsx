@@ -132,6 +132,11 @@ export default function ChapterDetailPage() {
                   })}
                 </p>
               )}
+              {chapter.last_updated && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Last updated {new Date(chapter.last_updated).toLocaleDateString()}
+                </p>
+              )}
             </div>
             <span
               className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${

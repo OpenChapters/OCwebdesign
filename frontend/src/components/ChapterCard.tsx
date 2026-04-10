@@ -89,6 +89,11 @@ export default function ChapterCard({
               })}
             </p>
           )}
+          {chapter.last_updated && (
+            <p className="text-xs text-gray-400">
+              Updated {new Date(chapter.last_updated).toLocaleDateString()}
+            </p>
+          )}
           {chapter.keywords.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {chapter.keywords.slice(0, 3).map((kw) => (

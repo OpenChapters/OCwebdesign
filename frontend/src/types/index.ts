@@ -20,6 +20,7 @@ export interface Chapter {
   discipline: Discipline | null;
   github_repo: string;
   chapter_subdir: string;
+  last_updated: string | null;
   cached_at: string;
 }
 

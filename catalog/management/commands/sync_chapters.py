@@ -24,6 +24,7 @@ from django.core.management.base import BaseCommand
 _SAFE_PATH = re.compile(r"^[a-zA-Z0-9_/.+-]+$")
 _SAFE_REPO = re.compile(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")
 
+from catalog.git_provider import get_provider
 from catalog.github_client import (
     DEFAULT_CHAPTERS_REPO,
     DEFAULT_SRC_PATH,
@@ -63,6 +64,8 @@ class Command(BaseCommand):
         repo: str = options["repo"]
         src_path: str = options["src_path"]
         dry_run: bool = options["dry_run"]
+
+        provider = get_provider()
 
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry-run mode — no database writes."))
@@ -128,6 +131,13 @@ class Command(BaseCommand):
             # If not specified, don't overwrite an existing discipline assignment.
             discipline_slug = chapter_data.get("discipline", "")
 
+            # Fetch last commit date for the chapter subdirectory
+            try:
+                last_commit_iso = provider.last_commit_date(repo, chapter_subdir)
+            except Exception as exc:
+                logger.warning("Could not fetch last commit date for %s: %s", chapter_subdir, exc)
+                last_commit_iso = None
+
             defaults = {
                 "title": chapter_data.get("title", ""),
                 "authors": chapter_data.get("authors", []),
@@ -142,6 +152,8 @@ class Command(BaseCommand):
                 "depends_on": chapter_data.get("depends_on", []),
                 "published": chapter_data.get("published", True),
             }
+            if last_commit_iso:
+                defaults["last_updated"] = last_commit_iso
             if discipline_slug:
                 discipline_obj = Discipline.objects.filter(slug=discipline_slug).first()
                 if discipline_obj:

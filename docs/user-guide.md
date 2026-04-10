@@ -25,6 +25,7 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
 10. [Managing Your Books](#managing-your-books)
 11. [Your Profile](#your-profile)
 12. [Resetting Your Password](#resetting-your-password)
+13. [Feature Requests and Bug Reports](#feature-requests-and-bug-reports)
 
 ---
 
@@ -328,3 +329,14 @@ If you forget your password:
 - Reset links expire after 3 days.
 - If you don't receive the email, check your spam folder.
 - In development mode (no SendGrid configured), the reset link is logged to the server console instead of being emailed.
+
+## Feature Requests and Bug Reports
+
+If you have an idea for a new feature or want to report a problem, please open an issue on the project's GitHub repository:
+
+1. Go to [OpenChapters/OCwebdesign Issues](https://github.com/OpenChapters/OCwebdesign/issues).
+2. Click **New issue**.
+3. Choose a descriptive title and explain your suggestion or the problem you encountered.
+4. Click **Submit new issue**.
+
+A GitHub account (free) is required. The development team reviews all submissions and will follow up in the issue thread.

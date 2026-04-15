@@ -39,6 +39,7 @@ COPY --from=frontend /build/dist /app/frontend/dist
 ENV DJANGO_SETTINGS_MODULE=ocweb.settings.prod
 RUN SECRET_KEY=build-only \
     DATABASE_URL=sqlite:///tmp/build.db \
+    ALLOWED_HOSTS=localhost \
     python manage.py collectstatic --noinput
 
 RUN useradd -m -u 1000 ocweb

@@ -91,6 +91,12 @@ ENV OCBUILD_SCRIPTS_DIR=/opt/ocbuild/Build/scripts
 # arara is invoked via subprocess with an explicit path to main.tex.
 ENV DJANGO_SETTINGS_MODULE=ocweb.settings.dev
 
+# Copy the Django project source into /app so celery can import `ocweb`.
+# In dev, docker-compose.yml mounts the repo here as a volume and overrides
+# this; in prod, the baked-in copy is what the worker runs.
+WORKDIR /app
+COPY . /app
+RUN chown -R texlive:texlive /app
+
 # texlive user (UID 1000) already exists in the base image
 USER texlive
-WORKDIR /app

@@ -243,7 +243,7 @@ The chapter catalog is automatically synced nightly at 03:00 UTC via Celery Beat
     build:
       context: .
       dockerfile: docker/web/Dockerfile.prod
-    command: celery -A ocweb beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A ocweb beat -l info
     env_file: .env.prod
     environment:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod

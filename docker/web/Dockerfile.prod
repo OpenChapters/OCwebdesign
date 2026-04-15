@@ -43,7 +43,9 @@ RUN SECRET_KEY=build-only \
     ALLOWED_HOSTS=localhost \
     python manage.py collectstatic --noinput
 
-RUN useradd -m -u 1000 ocweb
+RUN useradd -m -u 1000 ocweb \
+ && mkdir -p /app/media/covers /app/media/pdfs \
+ && chown -R ocweb:ocweb /app/media
 USER ocweb
 
 EXPOSE 8000

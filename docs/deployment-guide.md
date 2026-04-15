@@ -13,7 +13,7 @@ This guide covers deploying the OpenChapters web platform to a production server
 5. [Building and Starting](#building-and-starting)
 6. [Database Initialization](#database-initialization)
 7. [Running Tests](#running-tests)
-8. [Email Delivery (Brevo SMTP)](#email-delivery-brevo-smtp)
+8. [Email Delivery (SMTP)](#email-delivery-smtp)
 9. [Cloudflare Turnstile (Bot Protection)](#cloudflare-turnstile-bot-protection)
 10. [SSL with Let's Encrypt](#ssl-with-lets-encrypt)
 11. [Domain and DNS](#domain-and-dns)
@@ -156,11 +156,13 @@ GITHUB_TOKEN=ghp_<your_classic_pat>
 # GIT_TOKEN=glpat-<your_gitlab_token>
 # GIT_BASE_URL=https://gitlab.example.com
 
-# Email delivery via SMTP (Brevo in this example; any SMTP provider works)
-EMAIL_HOST=smtp-relay.brevo.com
+# Email delivery via SMTP. See "Email Delivery" section for options:
+#   Option A — institutional relay (e.g., relay.andrew.cmu.edu, port 25, no auth)
+#   Option B — third-party provider (Brevo, Mailgun, SES, etc.)
+EMAIL_HOST=
 EMAIL_PORT=587
-EMAIL_HOST_USER=<your_brevo_smtp_login>
-EMAIL_HOST_PASSWORD=<your_brevo_smtp_key>
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
 EMAIL_USE_TLS=True
 FROM_EMAIL=noreply@yourdomain.com
 SITE_URL=https://yourdomain.com
@@ -337,38 +339,56 @@ tests/
 
 Follow the existing patterns: use `@pytest.mark.django_db` for database tests, use the fixtures from `conftest.py` (`user`, `auth_client`, `staff_client`, `book`, etc.), and use factories from `factories.py` for creating test data.
 
-## Email Delivery (Brevo SMTP)
+## Email Delivery (SMTP)
 
-When a user's book build completes, OpenChapters sends them an email with a signed download link for the PDF. OpenChapters uses **SMTP**, so any provider works (Brevo, Mailgun, AWS SES, SendGrid, Gmail). These instructions use [Brevo](https://www.brevo.com/) because it offers a generous free tier (300 emails/day, no expiry) with no credit card required.
+When a user's book build completes, OpenChapters sends them an email with a signed download link for the PDF. Password reset emails use the same path. OpenChapters talks to **any SMTP server** via Django's built-in SMTP backend, so there are two common options:
 
-### 1. Create a Brevo Account
+- **Option A — Institutional / campus relay** (recommended when available). Many universities run an SMTP relay that accepts mail from allow-listed hosts with no authentication. This is the simplest and most reliable setup: no account to manage, no API keys, no deliverability tuning.
+- **Option B — Third-party provider** like [Brevo](https://www.brevo.com/) (300 emails/day free), Mailgun, AWS SES, or SendGrid. Use this if you don't have an institutional relay.
 
-1. Sign up at https://www.brevo.com/
-2. Verify your email address and complete the onboarding questionnaire
-3. The free tier ("Free" plan) allows 300 emails/day, which is sufficient for most OpenChapters deployments
+Pick one of the two below.
 
-### 2. Get SMTP Credentials
+### Option A: Institutional SMTP Relay
 
-1. In the Brevo dashboard, click your account name (top-right) → **SMTP & API**
-2. Select the **SMTP** tab
-3. Note these values:
-   - **SMTP server**: `smtp-relay.brevo.com`
-   - **Port**: `587`
-   - **Login**: your Brevo login email (e.g., `you@example.com`)
-4. Click **Generate a new SMTP key**, name it (e.g., "OpenChapters"), and copy the key. This is your `EMAIL_HOST_PASSWORD`.
+**Prerequisites:** Your deployment host must be added to the relay's allow list. For CMU this means asking CMU Computing Services (or your department's IT group) to add your VM to the `relay.andrew.cmu.edu` access list; other institutions have equivalent processes.
 
-### 3. Authenticate Your Sending Domain
+Once the host is allow-listed, update `.env.prod`:
 
-For reliable delivery (avoiding spam folders), authenticate the domain you'll send from:
+```env
+EMAIL_HOST=relay.andrew.cmu.edu
+EMAIL_PORT=25
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
+EMAIL_USE_TLS=False
+FROM_EMAIL=noreply@openchapters.materials.cmu.edu
+SITE_URL=https://openchapters.materials.cmu.edu
+PDF_LINK_EXPIRY_DAYS=7
+```
 
-1. In Brevo, go to **Senders, Domains & Dedicated IPs → Domains**
-2. Click **Add a domain** and enter your domain (e.g., `yourdomain.com`)
-3. Brevo will display DNS records (DKIM, Brevo code, optional DMARC) — add these as TXT records in your domain's DNS
-4. Click **Authenticate this domain** after DNS has propagated (may take a few minutes to hours)
+Then restart:
 
-Without domain authentication, emails from `@yourdomain.com` will likely be rejected or sent to spam.
+```bash
+docker compose -f docker-compose.prod.yml restart web worker
+```
 
-### 4. Update `.env.prod`
+**Notes:**
+
+- The relay authorizes you by source IP, so `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` stay blank.
+- Port 25 is the convention for internal relays. If your relay requires STARTTLS, use port 587 and set `EMAIL_USE_TLS=True`.
+- `FROM_EMAIL` should use a domain your host is authorized to send for. Relays typically reject mail claiming `From:` addresses outside their scope. When in doubt, ask IT which envelope sender they expect.
+- No local postfix/MTA is needed — Django opens an SMTP connection to the relay directly. Running postfix just to forward mail to the same relay is unnecessary complexity.
+
+### Option B: Brevo (or other third-party provider)
+
+Use this path if no institutional relay is available.
+
+1. Sign up at https://www.brevo.com/ and complete onboarding (no credit card required).
+2. In the Brevo dashboard, click your account name → **SMTP & API** → **SMTP** tab.
+3. Note the SMTP server (`smtp-relay.brevo.com`), port (`587`), and login (your account email).
+4. Click **Generate a new SMTP key** and copy it — this is your `EMAIL_HOST_PASSWORD`.
+5. Authenticate your sending domain under **Senders, Domains & Dedicated IPs → Domains** by adding the DKIM/DMARC DNS records Brevo displays. Without this, mail will likely be marked as spam.
+
+Then update `.env.prod`:
 
 ```env
 EMAIL_HOST=smtp-relay.brevo.com
@@ -381,26 +401,9 @@ SITE_URL=https://yourdomain.com
 PDF_LINK_EXPIRY_DAYS=7
 ```
 
-| Variable | Description |
-|---|---|
-| `EMAIL_HOST` | SMTP server hostname. Leave blank to disable email (download links are logged instead). |
-| `EMAIL_PORT` | SMTP port (587 for STARTTLS, 465 for SSL). |
-| `EMAIL_HOST_USER` | SMTP login (usually your account email). |
-| `EMAIL_HOST_PASSWORD` | SMTP password / API key generated by the provider. |
-| `EMAIL_USE_TLS` | Use STARTTLS (True for port 587, False for port 465 which uses implicit SSL). |
-| `FROM_EMAIL` | The sender address shown in emails. Must be on your authenticated domain. |
-| `SITE_URL` | The public URL of your site (used to build download links in emails). |
-| `PDF_LINK_EXPIRY_DAYS` | How many days the signed download link in the email remains valid (default: 7). |
+And restart `web` and `worker`.
 
-### 5. Restart Services
-
-```bash
-docker compose -f docker-compose.prod.yml restart web worker
-```
-
-### Using a Different Provider
-
-To use a different SMTP provider, change only the four `EMAIL_*` variables above. Common settings:
+For other providers, only the four `EMAIL_*` variables change:
 
 | Provider | `EMAIL_HOST` | Port | `EMAIL_HOST_USER` |
 |---|---|---|---|
@@ -408,7 +411,20 @@ To use a different SMTP provider, change only the four `EMAIL_*` variables above
 | Mailgun | `smtp.mailgun.org` | 587 | `postmaster@mg.yourdomain.com` |
 | SendGrid | `smtp.sendgrid.net` | 587 | `apikey` (literal string) |
 | AWS SES | `email-smtp.<region>.amazonaws.com` | 587 | SES SMTP username |
-| Gmail | `smtp.gmail.com` | 587 | account email (requires app password) |
+| Gmail | `smtp.gmail.com` | 587 | account email (app password) |
+
+### Variable Reference
+
+| Variable | Description |
+|---|---|
+| `EMAIL_HOST` | SMTP server hostname. Leave blank to disable email (download links are logged instead). |
+| `EMAIL_PORT` | SMTP port (25 for most campus relays; 587 for STARTTLS; 465 for implicit SSL). |
+| `EMAIL_HOST_USER` | SMTP login. Blank for IP-allow-listed relays. |
+| `EMAIL_HOST_PASSWORD` | SMTP password / API key. Blank for IP-allow-listed relays. |
+| `EMAIL_USE_TLS` | `True` for STARTTLS (port 587); `False` for plain port 25 or implicit-SSL port 465. |
+| `FROM_EMAIL` | The sender address shown in emails. Must be on a domain the relay/provider allows. |
+| `SITE_URL` | The public URL of your site (used to build download links in emails). |
+| `PDF_LINK_EXPIRY_DAYS` | How many days the signed download link in the email remains valid (default: 7). |
 
 ### How It Works
 

@@ -2,7 +2,7 @@
 Celery tasks for the books app.
 
 build_book  — full LaTeX build pipeline for a user's book assembly
-deliver_pdf — email the completed PDF link to the user (stub; SendGrid TBD)
+deliver_pdf — email the completed PDF link to the user (via SMTP)
 """
 
 import json
@@ -416,7 +416,7 @@ def deliver_pdf(self, book_id: int) -> None:
     """
     Send the user an email with a signed download link for their completed PDF.
 
-    Uses SendGrid if SENDGRID_API_KEY is configured; otherwise logs only.
+    Uses the configured SMTP server if EMAIL_HOST is set; otherwise logs only.
     The download link is signed with Django's SECRET_KEY and expires after
     PDF_LINK_EXPIRY_DAYS (default 7 days).
     """
@@ -439,58 +439,50 @@ def deliver_pdf(self, book_id: int) -> None:
     download_url = f"{site_url}/api/dl/{token}/"
     expiry_days = getattr(settings, "PDF_LINK_EXPIRY_DAYS", 7)
 
-    api_key = getattr(settings, "SENDGRID_API_KEY", "")
-    if not api_key:
+    if not getattr(settings, "EMAIL_HOST", ""):
         logger.info(
-            "deliver_pdf: SENDGRID_API_KEY not set; would email %s download link %s",
+            "deliver_pdf: EMAIL_HOST not set; would email %s download link %s",
             book.user.email,
             download_url,
         )
         return
 
+    from django.core.mail import EmailMultiAlternatives
+
     from_email = getattr(settings, "FROM_EMAIL", "noreply@openchapters.org")
-
-    import sendgrid
-    from sendgrid.helpers.mail import Content, Email, Mail, To
-
-    sg = sendgrid.SendGridAPIClient(api_key=api_key)
-    mail = Mail(
-        from_email=Email(from_email, "OpenChapters"),
-        to_emails=To(book.user.email),
-        subject=f"Your book is ready: {book.title}",
-        plain_text_content=Content(
-            "text/plain",
-            f"Hi,\n\n"
-            f'Your book "{book.title}" has been typeset and is ready for download.\n\n'
-            f"Download your PDF:\n{download_url}\n\n"
-            f"This link expires in {expiry_days} days.\n\n"
-            f"— OpenChapters",
-        ),
+    subject = f"Your book is ready: {book.title}"
+    text_body = (
+        f"Hi,\n\n"
+        f'Your book "{book.title}" has been typeset and is ready for download.\n\n'
+        f"Download your PDF:\n{download_url}\n\n"
+        f"This link expires in {expiry_days} days.\n\n"
+        f"— OpenChapters"
     )
-    mail.add_content(
-        Content(
-            "text/html",
-            f"<p>Hi,</p>"
-            f'<p>Your book <strong>{book.title}</strong> has been typeset and is ready for download.</p>'
-            f'<p><a href="{download_url}" style="display:inline-block;padding:12px 24px;'
-            f"background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;"
-            f'font-weight:600;">Download PDF</a></p>'
-            f"<p><small>This link expires in {expiry_days} days. "
-            f"You can also download from your <a href=\"{site_url}/library\">Library</a>.</small></p>"
-            f"<p>— OpenChapters</p>",
-        ),
+    html_body = (
+        f"<p>Hi,</p>"
+        f'<p>Your book <strong>{book.title}</strong> has been typeset and is ready for download.</p>'
+        f'<p><a href="{download_url}" style="display:inline-block;padding:12px 24px;'
+        f"background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;"
+        f'font-weight:600;">Download PDF</a></p>'
+        f"<p><small>This link expires in {expiry_days} days. "
+        f"You can also download from your <a href=\"{site_url}/library\">Library</a>.</small></p>"
+        f"<p>— OpenChapters</p>"
     )
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=f"OpenChapters <{from_email}>",
+        to=[book.user.email],
+    )
+    msg.attach_alternative(html_body, "text/html")
 
     try:
-        response = sg.client.mail.send.post(request_body=mail.get())
-        logger.info(
-            "deliver_pdf: email sent to %s (status %s)",
-            book.user.email,
-            response.status_code,
-        )
+        msg.send()
+        logger.info("deliver_pdf: email sent to %s", book.user.email)
     except Exception as exc:
         logger.error(
-            "deliver_pdf: SendGrid error for book %d (attempt %d/%d): %s",
+            "deliver_pdf: SMTP error for book %d (attempt %d/%d): %s",
             book_id, self.request.retries + 1, 3, exc,
         )
         raise  # triggers autoretry

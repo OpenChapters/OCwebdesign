@@ -206,7 +206,7 @@ POST /api/auth/forgot-password/
 }
 ```
 
-Always returns success regardless of whether the email exists (prevents email enumeration). The reset link is sent via SendGrid in production, or logged to the server console in development.
+Always returns success regardless of whether the email exists (prevents email enumeration). The reset link is sent via the configured SMTP server in production, or logged to the server console in development.
 
 #### Reset Password
 

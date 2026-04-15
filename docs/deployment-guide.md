@@ -13,7 +13,7 @@ This guide covers deploying the OpenChapters web platform to a production server
 5. [Building and Starting](#building-and-starting)
 6. [Database Initialization](#database-initialization)
 7. [Running Tests](#running-tests)
-8. [SendGrid Email Delivery](#sendgrid-email-delivery)
+8. [Email Delivery (Brevo SMTP)](#email-delivery-brevo-smtp)
 9. [Cloudflare Turnstile (Bot Protection)](#cloudflare-turnstile-bot-protection)
 10. [SSL with Let's Encrypt](#ssl-with-lets-encrypt)
 11. [Domain and DNS](#domain-and-dns)
@@ -156,8 +156,12 @@ GITHUB_TOKEN=ghp_<your_classic_pat>
 # GIT_TOKEN=glpat-<your_gitlab_token>
 # GIT_BASE_URL=https://gitlab.example.com
 
-# SendGrid (email delivery of PDF download links)
-SENDGRID_API_KEY=SG.<your_sendgrid_api_key>
+# Email delivery via SMTP (Brevo in this example; any SMTP provider works)
+EMAIL_HOST=smtp-relay.brevo.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=<your_brevo_smtp_login>
+EMAIL_HOST_PASSWORD=<your_brevo_smtp_key>
+EMAIL_USE_TLS=True
 FROM_EMAIL=noreply@yourdomain.com
 SITE_URL=https://yourdomain.com
 PDF_LINK_EXPIRY_DAYS=7
@@ -333,37 +337,45 @@ tests/
 
 Follow the existing patterns: use `@pytest.mark.django_db` for database tests, use the fixtures from `conftest.py` (`user`, `auth_client`, `staff_client`, `book`, etc.), and use factories from `factories.py` for creating test data.
 
-## SendGrid Email Delivery
+## Email Delivery (Brevo SMTP)
 
-When a user's book build completes, OpenChapters sends them an email with a signed download link for the PDF. This requires a [SendGrid](https://sendgrid.com/) account.
+When a user's book build completes, OpenChapters sends them an email with a signed download link for the PDF. OpenChapters uses **SMTP**, so any provider works (Brevo, Mailgun, AWS SES, SendGrid, Gmail). These instructions use [Brevo](https://www.brevo.com/) because it offers a generous free tier (300 emails/day, no expiry) with no credit card required.
 
-### 1. Create a SendGrid Account
+### 1. Create a Brevo Account
 
-1. Sign up at https://signup.sendgrid.com/
-2. The free tier allows 100 emails/day, which is sufficient for most deployments.
+1. Sign up at https://www.brevo.com/
+2. Verify your email address and complete the onboarding questionnaire
+3. The free tier ("Free" plan) allows 300 emails/day, which is sufficient for most OpenChapters deployments
 
-### 2. Create an API Key
+### 2. Get SMTP Credentials
 
-1. In the SendGrid dashboard, go to **Settings → API Keys**
-2. Click **Create API Key**
-3. Give it a name (e.g., "OpenChapters")
-4. Select **Restricted Access** and enable only **Mail Send → Full Access**
-5. Copy the key (starts with `SG.`)
+1. In the Brevo dashboard, click your account name (top-right) → **SMTP & API**
+2. Select the **SMTP** tab
+3. Note these values:
+   - **SMTP server**: `smtp-relay.brevo.com`
+   - **Port**: `587`
+   - **Login**: your Brevo login email (e.g., `you@example.com`)
+4. Click **Generate a new SMTP key**, name it (e.g., "OpenChapters"), and copy the key. This is your `EMAIL_HOST_PASSWORD`.
 
-### 3. Configure Domain Authentication
+### 3. Authenticate Your Sending Domain
 
-For reliable email delivery (avoiding spam folders), configure domain authentication:
+For reliable delivery (avoiding spam folders), authenticate the domain you'll send from:
 
-1. In SendGrid, go to **Settings → Sender Authentication → Domain Authentication**
-2. Follow the wizard to add DNS records (CNAME entries) for your domain
-3. This proves to email providers that you're authorized to send from `@yourdomain.com`
+1. In Brevo, go to **Senders, Domains & Dedicated IPs → Domains**
+2. Click **Add a domain** and enter your domain (e.g., `yourdomain.com`)
+3. Brevo will display DNS records (DKIM, Brevo code, optional DMARC) — add these as TXT records in your domain's DNS
+4. Click **Authenticate this domain** after DNS has propagated (may take a few minutes to hours)
 
-Without domain authentication, emails may be rejected or marked as spam by recipients' email providers.
+Without domain authentication, emails from `@yourdomain.com` will likely be rejected or sent to spam.
 
 ### 4. Update `.env.prod`
 
 ```env
-SENDGRID_API_KEY=SG.<your_api_key>
+EMAIL_HOST=smtp-relay.brevo.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=<your_brevo_login_email>
+EMAIL_HOST_PASSWORD=<your_brevo_smtp_key>
+EMAIL_USE_TLS=True
 FROM_EMAIL=noreply@yourdomain.com
 SITE_URL=https://yourdomain.com
 PDF_LINK_EXPIRY_DAYS=7
@@ -371,8 +383,12 @@ PDF_LINK_EXPIRY_DAYS=7
 
 | Variable | Description |
 |---|---|
-| `SENDGRID_API_KEY` | Your SendGrid API key. Leave blank to disable email (download links are logged instead). |
-| `FROM_EMAIL` | The sender address shown in emails. Must match your authenticated domain. |
+| `EMAIL_HOST` | SMTP server hostname. Leave blank to disable email (download links are logged instead). |
+| `EMAIL_PORT` | SMTP port (587 for STARTTLS, 465 for SSL). |
+| `EMAIL_HOST_USER` | SMTP login (usually your account email). |
+| `EMAIL_HOST_PASSWORD` | SMTP password / API key generated by the provider. |
+| `EMAIL_USE_TLS` | Use STARTTLS (True for port 587, False for port 465 which uses implicit SSL). |
+| `FROM_EMAIL` | The sender address shown in emails. Must be on your authenticated domain. |
 | `SITE_URL` | The public URL of your site (used to build download links in emails). |
 | `PDF_LINK_EXPIRY_DAYS` | How many days the signed download link in the email remains valid (default: 7). |
 
@@ -382,11 +398,23 @@ PDF_LINK_EXPIRY_DAYS=7
 docker compose -f docker-compose.prod.yml restart web worker
 ```
 
+### Using a Different Provider
+
+To use a different SMTP provider, change only the four `EMAIL_*` variables above. Common settings:
+
+| Provider | `EMAIL_HOST` | Port | `EMAIL_HOST_USER` |
+|---|---|---|---|
+| Brevo | `smtp-relay.brevo.com` | 587 | account email |
+| Mailgun | `smtp.mailgun.org` | 587 | `postmaster@mg.yourdomain.com` |
+| SendGrid | `smtp.sendgrid.net` | 587 | `apikey` (literal string) |
+| AWS SES | `email-smtp.<region>.amazonaws.com` | 587 | SES SMTP username |
+| Gmail | `smtp.gmail.com` | 587 | account email (requires app password) |
+
 ### How It Works
 
 1. When a build completes, the `deliver_pdf` Celery task runs automatically
 2. It generates a **signed, time-limited download URL** using Django's `TimestampSigner`
-3. It sends an HTML + plain-text email via SendGrid with:
+3. It sends a multipart (HTML + plain-text) email via Django's SMTP backend with:
    - A "Download PDF" button linking to the signed URL
    - A link to the user's Library page
 4. The download link works without login — the signed token proves it was issued by the server
@@ -394,16 +422,17 @@ docker compose -f docker-compose.prod.yml restart web worker
 
 ### Verifying Email Delivery
 
-After configuring SendGrid, trigger a test build and check:
+After configuring SMTP, trigger a test build and check:
 
 ```bash
-# Check worker logs for email delivery status
 docker compose -f docker-compose.prod.yml logs worker --tail 20 | grep deliver_pdf
 ```
 
-You should see: `deliver_pdf: email sent to user@example.com (status 202)`
+You should see: `deliver_pdf: email sent to user@example.com`
 
-If SendGrid is not configured, you'll see: `deliver_pdf: SENDGRID_API_KEY not set; would email ...` with the download URL logged for manual testing.
+If SMTP is not configured, you'll see: `deliver_pdf: EMAIL_HOST not set; would email ...` with the download URL logged for manual testing.
+
+If sending fails (bad credentials, unauthenticated domain, etc.), the task retries up to 3 times with exponential backoff; check worker logs for the SMTP error.
 
 ## Cloudflare Turnstile (Bot Protection)
 
@@ -719,8 +748,8 @@ Before going live, verify:
 - [ ] `SITE_URL` is set to your production HTTPS URL
 - [ ] SSL is configured (HTTPS only)
 - [ ] Git access token has minimal required permissions (read-only repo access)
-- [ ] SendGrid API key is configured and domain authentication is complete
-- [ ] `FROM_EMAIL` matches the authenticated SendGrid domain
+- [ ] SMTP credentials are configured and the sending domain is authenticated (DKIM/SPF)
+- [ ] `FROM_EMAIL` matches the authenticated sending domain
 - [ ] Cloudflare Turnstile keys are set (not the test keys)
 - [ ] Database backups are configured
 - [ ] Firewall allows only ports 80, 443, and SSH (22)

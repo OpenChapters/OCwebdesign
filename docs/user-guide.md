@@ -257,7 +257,7 @@ The page polls automatically every 3 seconds while the build is in progress.
 
 The page also shows the **book title** so you know which build you're monitoring.
 
-If the build **succeeds**, a **Download PDF** button appears. If SendGrid email is configured, you will also receive an email with a download link that remains valid for 7 days. If the build **fails**, the error message from the LaTeX log is shown to help diagnose the issue.
+If the build **succeeds**, a **Download PDF** button appears. If email delivery is configured on the server, you will also receive an email with a download link that remains valid for 7 days. If the build **fails**, the error message from the LaTeX log is shown to help diagnose the issue.
 
 ## Your Library
 
@@ -328,7 +328,7 @@ If you forget your password:
 **Notes:**
 - Reset links expire after 3 days.
 - If you don't receive the email, check your spam folder.
-- In development mode (no SendGrid configured), the reset link is logged to the server console instead of being emailed.
+- In development mode (no SMTP server configured), the reset link is logged to the server console instead of being emailed.
 
 ## Feature Requests and Bug Reports
 

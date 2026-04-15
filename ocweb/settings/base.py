@@ -134,7 +134,16 @@ GIT_BASE_URL = env("GIT_BASE_URL", default="https://gitlab.com")
 # GitLab only: default branch for raw file access
 GIT_DEFAULT_BRANCH = env("GIT_DEFAULT_BRANCH", default="main")
 
-SENDGRID_API_KEY = env("SENDGRID_API_KEY", default="")
+# ── Email delivery (SMTP) ─────────────────────────────────────────────────────
+# Works with any SMTP provider: Brevo, Mailgun, SendGrid, AWS SES, Gmail, etc.
+# Leave EMAIL_HOST empty to disable sending (messages are logged instead).
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_TIMEOUT = 30
 
 # Cloudflare Turnstile (bot protection on registration)
 # Test keys: always pass in dev. Replace with real keys for production.

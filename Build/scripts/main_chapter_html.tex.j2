@@ -2,7 +2,8 @@
 (# Jinja2 template for per-chapter HTML build via lwarp.          #)
 (# Rendered by build_chapter_html.py from chapter metadata.       #)
 % arara: clean: {files: ['main-authors.aux'] }
-% arara: copyImageFiles
+(# Images and bib are already collected by the management command    #)
+(# before arara runs — no copyImageFiles or mergemainbibfiles here.  #)
 % arara: pdflatex: { shell: yes }
 % arara: makeindex: { style: StyleInd.ist, output: ind, log: ilg, input: idx }
 % arara: biber

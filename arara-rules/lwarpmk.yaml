@@ -1,0 +1,23 @@
+!config
+#
+# arara rule for lwarpmk (lwarp make utility)
+#
+# lwarpmk is part of the lwarp LaTeX package and orchestrates
+# the multi-pass compilation needed to produce HTML from LaTeX.
+#
+identifier: lwarpmk
+name: lwarpmk
+authors:
+- OpenChapters
+commands:
+- name: lwarpmk
+  command: >
+    @{
+      return getCommand('lwarpmk', options)
+    }
+arguments:
+- identifier: options
+  flag: >
+    @{
+      return parameters.options
+    }

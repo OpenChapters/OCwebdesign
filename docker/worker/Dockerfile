@@ -29,6 +29,7 @@ RUN apt-get update \
       python3-pip \
       git \
       pdf2svg \
+      poppler-utils \
  && rm -rf /var/lib/apt/lists/*
 
 # ── Python dependencies ───────────────────────────────────────────────────────

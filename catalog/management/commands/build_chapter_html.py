@@ -104,6 +104,7 @@ class Command(BaseCommand):
             self._setup_workspace(workdir, chapter)
             self._clone_repo(workdir, chapter)
             self._collect_images(workdir, chapter)
+            self._convert_images_to_svg(workdir)
             self._copy_bib(workdir, chapter)
             self._render_templates(workdir, chapter)
             self._write_gin(workdir, build_id)
@@ -123,10 +124,11 @@ class Command(BaseCommand):
             if f.is_file():
                 shutil.copy2(f, workdir / f.name)
 
-        # Copy arara.sty from the PDF template dir (shared)
-        arara_sty = TEMPLATE_DIR / "arara.sty"
-        if arara_sty.exists():
-            shutil.copy2(arara_sty, workdir / "arara.sty")
+        # Copy shared .sty files from the PDF template dir
+        for sty_name in ("arara.sty", "mytodonotes.sty"):
+            sty_path = TEMPLATE_DIR / sty_name
+            if sty_path.exists():
+                shutil.copy2(sty_path, workdir / sty_name)
 
         # Create ImageFolder
         (workdir / "ImageFolder").mkdir(exist_ok=True)
@@ -181,6 +183,31 @@ class Command(BaseCommand):
                         count += 1
 
         logger.info("Collected %d image files for %s", count, chapter.chabbr)
+
+    def _convert_images_to_svg(self, workdir: Path) -> None:
+        """Convert PDF figures in ImageFolder/ to SVG for lwarp HTML output."""
+        image_dir = workdir / "ImageFolder"
+        count = 0
+        for pdf_file in list(image_dir.glob("*.pdf")):
+            svg_file = pdf_file.with_suffix(".svg")
+            if svg_file.exists():
+                continue
+            try:
+                subprocess.run(
+                    ["pdf2svg", str(pdf_file), str(svg_file)],
+                    capture_output=True,
+                    check=True,
+                    timeout=30,
+                )
+                count += 1
+            except FileNotFoundError:
+                logger.warning("pdf2svg not installed; skipping SVG conversion")
+                return
+            except subprocess.CalledProcessError as e:
+                logger.warning("pdf2svg failed for %s: %s", pdf_file.name, e.stderr)
+            except subprocess.TimeoutExpired:
+                logger.warning("pdf2svg timed out for %s", pdf_file.name)
+        logger.info("Converted %d PDF figures to SVG", count)
 
     def _copy_bib(self, workdir: Path, chapter: Chapter) -> None:
         """Copy the chapter's bibliography file to the workspace root."""
@@ -270,7 +297,7 @@ class Command(BaseCommand):
             cwd=str(workdir),
             capture_output=True,
             text=True,
-            timeout=600,  # 10 minute timeout per chapter
+            timeout=600,  # 10 min timeout per chapter
             env=env,
         )
 
@@ -285,6 +312,7 @@ class Command(BaseCommand):
 
             raise RuntimeError(
                 f"arara failed (exit {result.returncode})\n"
+                f"stdout: {result.stdout[-1000:]}\n"
                 f"stderr: {result.stderr[-500:]}\n"
                 f"log errors: {error_tail}"
             )

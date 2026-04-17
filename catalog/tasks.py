@@ -24,3 +24,27 @@ def sync_chapters_task():
     logger.info("Starting nightly chapter catalog sync …")
     call_command("sync_chapters")
     logger.info("Chapter catalog sync complete.")
+
+
+@shared_task(
+    name="catalog.build_chapter_html",
+    time_limit=900,
+    soft_time_limit=600,
+)
+def build_chapter_html_task(chabbr=None):
+    """Build HTML output for published chapters using lwarp.
+
+    Runs on the worker (which has TeX Live + arara). Delegates to the
+    build_chapter_html management command.
+    """
+    from io import StringIO
+
+    out = StringIO()
+    kwargs = {"stdout": out}
+    if chabbr:
+        kwargs["chabbr"] = chabbr
+
+    call_command("build_chapter_html", **kwargs)
+    output = out.getvalue()
+    logger.info("build_chapter_html completed:\n%s", output)
+    return {"output": output}

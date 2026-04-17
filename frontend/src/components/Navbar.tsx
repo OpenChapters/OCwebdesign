@@ -26,6 +26,14 @@ export default function Navbar() {
         >
           Browse
         </NavLink>
+        <NavLink
+          to="/search"
+          className={({ isActive }) =>
+            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+          }
+        >
+          Search
+        </NavLink>
         {isAuthenticated && (
           <>
             <NavLink

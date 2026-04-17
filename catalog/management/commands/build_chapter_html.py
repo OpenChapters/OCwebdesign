@@ -180,6 +180,13 @@ class Command(BaseCommand):
             # Update the model
             chapter.html_built_at = timezone.now()
             chapter.save(update_fields=["html_built_at"])
+
+            # Reindex search entries from the generated HTML
+            try:
+                from catalog.search_index import reindex_chapter
+                reindex_chapter(chapter)
+            except Exception as e:
+                logger.warning("Search reindex failed for %s: %s", chapter.chabbr, e)
         except Exception:
             logger.warning("Build failed — workspace preserved at %s", workdir)
             raise

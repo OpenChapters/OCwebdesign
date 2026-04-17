@@ -1,3 +1,5 @@
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -134,3 +136,37 @@ class Chapter(models.Model):
     def repo_dirname(self):
         """Local directory name when the repo is cloned, e.g. 'OpenChapters'."""
         return self.github_repo.split("/")[-1]
+
+
+class ChapterSearchIndex(models.Model):
+    """Full-text search entry for a section within a chapter's HTML output.
+
+    Populated after each successful HTML build by parsing the generated
+    node-*.html files and splitting them by section heading. The
+    search_vector is maintained by a triggered UPDATE in the indexing
+    code and queried via Django's SearchRank.
+    """
+
+    chapter = models.ForeignKey(
+        Chapter, on_delete=models.CASCADE, related_name="search_entries"
+    )
+    # Heading text of the section ("1.2 Complex number representation"),
+    # empty string for content before the first heading.
+    section_title = models.CharField(max_length=500, blank=True)
+    # Filename of the HTML node containing this section (e.g., "node-1.html").
+    html_node = models.CharField(max_length=100)
+    # Anchor within the node (e.g., "autosec-9"); empty for top of file.
+    anchor = models.CharField(max_length=200, blank=True)
+    # Plain-text content of the section (HTML stripped).
+    text_content = models.TextField()
+    # PostgreSQL tsvector for fast ranked search.
+    search_vector = SearchVectorField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            GinIndex(fields=["search_vector"]),
+            models.Index(fields=["chapter"]),
+        ]
+
+    def __str__(self):
+        return f"{self.chapter.chabbr}: {self.section_title or '(intro)'}"

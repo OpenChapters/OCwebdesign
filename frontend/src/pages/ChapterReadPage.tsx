@@ -1,10 +1,17 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import client from '../api/client';
 import type { Chapter } from '../types';
 
 export default function ChapterReadPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+
+  // Support deep-linking from search results: ?node=node-2.html#autosec-9
+  const searchParams = new URLSearchParams(location.search);
+  const node = searchParams.get('node') || 'node-1.html';
+  const anchor = location.hash || '';
+  const iframeSrc = `/api/chapters/${id}/html/${node}${anchor}`;
 
   const { data: chapter, isLoading } = useQuery({
     queryKey: ['chapter', id],
@@ -57,7 +64,7 @@ export default function ChapterReadPage() {
 
       {/* iframe containing lwarp HTML */}
       <iframe
-        src={`/api/chapters/${id}/html/node-1.html`}
+        src={iframeSrc}
         title={chapter.title}
         style={{ width: '100%', height: 'calc(100vh - 48px)', border: 'none' }}
       />

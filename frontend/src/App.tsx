@@ -9,6 +9,7 @@ import ProfilePage from './pages/ProfilePage';
 import ChapterBrowserPage from './pages/ChapterBrowserPage';
 import ChapterDetailPage from './pages/ChapterDetailPage';
 import ChapterReadPage from './pages/ChapterReadPage';
+import SearchPage from './pages/SearchPage';
 import MyBooksPage from './pages/MyBooksPage';
 import BookEditorPage from './pages/BookEditorPage';
 import BuildStatusPage from './pages/BuildStatusPage';
@@ -70,6 +71,14 @@ export default function App() {
       <Route
         path="/chapters/:id/read"
         element={<ChapterReadPage />}
+      />
+      <Route
+        path="/search"
+        element={
+          <Layout>
+            <SearchPage />
+          </Layout>
+        }
       />
 
       {/* Protected routes */}

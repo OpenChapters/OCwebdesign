@@ -8,9 +8,10 @@ from django.conf import settings
 from django.http import FileResponse, HttpResponse
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Chapter, Discipline
+from .models import Chapter, ChapterSearchIndex, Discipline
 from .serializers import ChapterSerializer, DisciplineSerializer
 
 logger = logging.getLogger(__name__)
@@ -178,3 +179,71 @@ class ChapterHtmlView(APIView):
         response["Cache-Control"] = "public, max-age=3600"
         response["X-Frame-Options"] = "SAMEORIGIN"
         return response
+
+
+class ChapterSearchView(APIView):
+    """GET /api/chapters/search/?q=<query>&limit=20 — full-text search over
+    all published chapters with built HTML.
+
+    Returns a ranked list of matching sections with highlighted snippets
+    and deep-link URLs into the HTML reader.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        from django.contrib.postgres.search import SearchHeadline, SearchQuery, SearchRank
+
+        query_text = request.query_params.get("q", "").strip()
+        if not query_text or len(query_text) < 2:
+            return Response({"results": []})
+
+        try:
+            limit = max(1, min(int(request.query_params.get("limit", 20)), 100))
+        except (ValueError, TypeError):
+            limit = 20
+
+        # Use websearch syntax so users can type "rotation matrix" or "quaternion OR euler"
+        query = SearchQuery(query_text, config="english", search_type="websearch")
+
+        qs = (
+            ChapterSearchIndex.objects
+            .filter(chapter__published=True, search_vector=query)
+            .select_related("chapter", "chapter__discipline")
+            .annotate(
+                rank=SearchRank("search_vector", query),
+                headline=SearchHeadline(
+                    "text_content",
+                    query,
+                    config="english",
+                    max_words=30,
+                    min_words=10,
+                    short_word=3,
+                    highlight_all=False,
+                    start_sel="<mark>",
+                    stop_sel="</mark>",
+                ),
+            )
+            .order_by("-rank")[:limit]
+        )
+
+        results = []
+        for e in qs:
+            anchor_frag = f"#{e.anchor}" if e.anchor else ""
+            results.append({
+                "chapter_id": e.chapter.id,
+                "chapter_title": e.chapter.title,
+                "chabbr": e.chapter.chabbr,
+                "discipline": (
+                    {
+                        "name": e.chapter.discipline.name,
+                        "color_primary": e.chapter.discipline.color_primary,
+                    } if e.chapter.discipline else None
+                ),
+                "section_title": e.section_title,
+                "snippet": e.headline,
+                "read_url": f"/chapters/{e.chapter.id}/read?node={e.html_node}{anchor_frag}",
+            })
+
+        return Response({"results": results, "count": len(results)})

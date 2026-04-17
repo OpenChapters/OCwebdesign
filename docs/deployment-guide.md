@@ -513,12 +513,147 @@ These are [Cloudflare's official test keys](https://developers.cloudflare.com/tu
 
 ## SSL with Let's Encrypt
 
-### Option A: Caddy (Simplest)
+There are two common approaches. **Option A (Certbot + nginx)** is recommended because it uses the nginx container you already have. **Option B (Caddy)** is an alternative if you prefer automatic certificate management with zero configuration.
 
-[Caddy](https://caddyserver.com/) automatically provisions and renews SSL certificates.
+### Option A: Certbot + nginx (Recommended)
 
-1. Install Caddy on the host (outside Docker)
-2. Create `/etc/caddy/Caddyfile`:
+Certbot obtains a free certificate from Let's Encrypt. You then configure your existing nginx container to terminate TLS.
+
+**Step 1 — Install certbot:**
+
+```bash
+sudo apt install certbot
+```
+
+**Step 2 — Stop the nginx container** so certbot can bind to port 80:
+
+```bash
+docker compose -f docker-compose.prod.yml stop nginx
+```
+
+**Step 3 — Obtain a certificate:**
+
+```bash
+sudo certbot certonly --standalone -d yourdomain.com
+```
+
+Replace `yourdomain.com` with your actual domain. If you also want `www.yourdomain.com`, add `-d www.yourdomain.com`. Certbot will validate domain ownership and store the certificate files under `/etc/letsencrypt/live/yourdomain.com/`.
+
+**Step 4 — Mount the certificates into the nginx container.** Add a `volumes` entry to the `nginx` service in `docker-compose.prod.yml`:
+
+```yaml
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+```
+
+Note: ports should include both 80 (for the HTTP→HTTPS redirect) and 443 (for TLS).
+
+**Step 5 — Update `docker/nginx/nginx.conf`** to redirect HTTP to HTTPS and serve TLS on port 443. Replace the entire file contents with:
+
+```nginx
+upstream django {
+    server web:8000;
+}
+
+# Redirect all HTTP traffic to HTTPS
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+    client_max_body_size 10M;
+
+    # ── Security headers ──────────────────────────────────────────────────────
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src challenges.cloudflare.com; font-src 'self';" always;
+
+    # ── React SPA ─────────────────────────────────────────────────────────────
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ── Django (API + admin + static) ─────────────────────────────────────────
+    location ~ ^/(api|admin|static)/ {
+        proxy_pass http://django;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+    }
+}
+```
+
+Replace both occurrences of `yourdomain.com` with your actual domain. All existing security headers and proxy settings are preserved.
+
+**Step 6 — Enable Django's HTTPS settings.** In `.env.prod`, set:
+
+```env
+SECURE_SSL_REDIRECT=True
+```
+
+This tells Django to redirect any remaining HTTP requests to HTTPS and to set secure cookie flags.
+
+**Step 7 — Rebuild and start:**
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+Verify by visiting `https://yourdomain.com` — you should see a valid certificate and a padlock icon.
+
+**Step 8 — Set up auto-renewal.** Let's Encrypt certificates expire every 90 days. Create a cron job or systemd timer to renew automatically. Certbot needs port 80 free during renewal, so stop and restart nginx around it:
+
+```bash
+sudo crontab -e
+```
+
+Add this line (runs at 3:00 AM on the 1st and 15th of each month):
+
+```
+0 3 1,15 * * certbot renew --pre-hook "docker compose -f /home/youruser/OCwebdesign/docker-compose.prod.yml stop nginx" --post-hook "docker compose -f /home/youruser/OCwebdesign/docker-compose.prod.yml start nginx"
+```
+
+Replace `/home/youruser/OCwebdesign` with the actual path to your deployment.
+
+### Option B: Caddy (Alternative)
+
+[Caddy](https://caddyserver.com/) is a reverse proxy that automatically obtains and renews Let's Encrypt certificates with zero configuration. Use this instead of the nginx TLS setup above if you prefer a simpler approach. Caddy runs on the host (outside Docker) and proxies to the nginx container.
+
+**Step 1 — Install Caddy:**
+
+```bash
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install caddy
+```
+
+**Step 2 — Create `/etc/caddy/Caddyfile`:**
 
 ```
 yourdomain.com {
@@ -526,68 +661,39 @@ yourdomain.com {
 }
 ```
 
-3. Change the nginx port in `docker-compose.prod.yml` from `"80:80"` to `"8080:80"` (or any unused port)
-4. Start Caddy: `sudo systemctl start caddy`
+Replace `yourdomain.com` with your actual domain.
 
-### Option B: Certbot + nginx
+**Step 3 — Change the nginx port** in `docker-compose.prod.yml` so Caddy can use 80/443:
 
-1. Install certbot on the host:
-```bash
-sudo apt install certbot
-```
-
-2. Stop the nginx container temporarily:
-```bash
-docker compose -f docker-compose.prod.yml stop nginx
-```
-
-3. Obtain a certificate:
-```bash
-sudo certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
-```
-
-4. Mount the certificates into the nginx container. Add to `docker-compose.prod.yml` under the `nginx` service:
-```yaml
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-```
-
-5. Update `docker/nginx/nginx.conf` to listen on 443:
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com www.yourdomain.com;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name yourdomain.com www.yourdomain.com;
-
-    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-
-    # ... rest of the config (location blocks) ...
-}
-```
-
-6. Add port 443 to `docker-compose.prod.yml`:
 ```yaml
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
 ```
 
-7. Rebuild and start:
+Do **not** expose port 443 from nginx — Caddy handles TLS on the host.
+
+**Step 4 — Start Caddy:**
+
 ```bash
-docker compose -f docker-compose.prod.yml up --build -d
+sudo systemctl enable caddy
+sudo systemctl start caddy
 ```
 
-8. Set up auto-renewal:
-```bash
-sudo certbot renew --pre-hook "docker compose -f /path/to/docker-compose.prod.yml stop nginx" \
-                    --post-hook "docker compose -f /path/to/docker-compose.prod.yml start nginx"
+Caddy automatically obtains a certificate from Let's Encrypt (using the HTTP-01 challenge on port 80) and renews it before expiry. No cron jobs or manual renewal needed.
+
+**Step 5 — Enable Django's HTTPS settings.** In `.env.prod`, set:
+
+```env
+SECURE_SSL_REDIRECT=True
 ```
+
+**Step 6 — Restart:**
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --force-recreate web
+```
+
+Verify at `https://yourdomain.com`.
 
 ## Domain and DNS
 

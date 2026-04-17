@@ -15,7 +15,7 @@ Chapters and figures live in the [OpenChapters/OpenChapters](https://github.com/
 
 ## Contributing a New Chapter
 
-A chapter template is available from the [OpenChapters/ChapterTemplate](https://github.com/OpenChapters/ChapterTemplate) repository. If you want to contribute a chapter, please follow these steps:
+A chapter template is available from the [OpenChapters/OCchaptertemplate](https://github.com/OpenChapters/OCchaptertemplate) repository. If you want to contribute a chapter, please follow these steps:
 
 1. **Fork** the [OpenChapters/OCchaptertemplate](https://github.com/OpenChapters/OCchaptertemplate) repository to your GitHub account, then **clone** it to your local machine
 2. **Read** the AuthorInstructions.pdf file that comes with the repository; this document explains all the style conventions that need to be followed for each chapter

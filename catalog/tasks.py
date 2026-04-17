@@ -20,10 +20,44 @@ def sync_chapters_task():
 
         from catalog.tasks import sync_chapters_task
         sync_chapters_task.delay()
+
+    If HTML_BUILD_ENABLED is set, also dispatches HTML rebuilds for
+    chapters whose source has been updated since the last HTML build.
     """
     logger.info("Starting nightly chapter catalog sync …")
     call_command("sync_chapters")
     logger.info("Chapter catalog sync complete.")
+
+    from django.conf import settings as django_settings
+    if getattr(django_settings, "HTML_BUILD_ENABLED", False):
+        dispatch_stale_html_builds.delay()
+
+
+@shared_task(
+    name="catalog.dispatch_stale_html_builds",
+    time_limit=60,
+)
+def dispatch_stale_html_builds():
+    """Find chapters whose source is newer than their HTML build, and
+    dispatch a build task for each. Celery worker concurrency handles
+    parallelism."""
+    from catalog.models import Chapter
+    from django.db.models import F, Q
+
+    stale = Chapter.objects.filter(
+        published=True,
+    ).exclude(chabbr="").filter(
+        Q(html_built_at__isnull=True)
+        | Q(last_updated__gt=F("html_built_at"))
+    )
+
+    count = 0
+    for ch in stale:
+        build_chapter_html_task.delay(chabbr=ch.chabbr)
+        count += 1
+
+    logger.info("Dispatched HTML builds for %d stale chapter(s)", count)
+    return {"dispatched": count}
 
 
 @shared_task(

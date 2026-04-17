@@ -277,8 +277,8 @@ export const adminApi = {
     client.post<{ detail: string; updated: string[]; skipped: string[]; errors: string[] }>(
       '/admin/chapters/update-thumbnails/'
     ).then((r) => r.data),
-  chapterBuildHtml: (chabbr?: string) =>
-    client.post<{ detail: string; output: string }>(
-      '/admin/chapters/build-html/', chabbr ? { chabbr } : {}
+  chapterBuildHtml: (opts?: { chabbr?: string; mode?: 'all' | 'stale' }) =>
+    client.post<{ detail: string }>(
+      '/admin/chapters/build-html/', opts ?? {}
     ).then((r) => r.data),
 };

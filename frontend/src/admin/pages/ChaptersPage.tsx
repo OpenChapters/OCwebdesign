@@ -52,16 +52,19 @@ export default function ChaptersPage() {
     }
   }
 
-  async function handleBuildHtml() {
-    if (!confirm('Build HTML output for all published chapters? This may take several minutes.')) return;
+  async function handleBuildHtml(mode: 'all' | 'stale') {
+    const message = mode === 'stale'
+      ? 'Build HTML only for chapters whose source has changed since their last HTML build?'
+      : 'Rebuild HTML output for ALL published chapters? This may take several minutes.';
+    if (!confirm(message)) return;
     setBuildingHtml(true);
     setSyncOutput('');
     try {
-      const result = await adminApi.chapterBuildHtml();
-      setSyncOutput(result.output || result.detail);
+      const result = await adminApi.chapterBuildHtml({ mode });
+      setSyncOutput(result.detail);
       queryClient.invalidateQueries({ queryKey: ['admin-chapters'] });
     } catch (err: any) {
-      setSyncOutput(err?.response?.data?.output || err?.response?.data?.detail || 'HTML build failed.');
+      setSyncOutput(err?.response?.data?.detail || 'HTML build failed.');
     } finally {
       setBuildingHtml(false);
     }
@@ -99,11 +102,20 @@ export default function ChaptersPage() {
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
-            onClick={handleBuildHtml}
+            onClick={() => handleBuildHtml('stale')}
             disabled={buildingHtml}
             className="text-sm border border-green-300 text-green-700 px-4 py-2 rounded-lg hover:bg-green-50 disabled:opacity-50"
+            title="Build HTML only for chapters whose source has changed"
           >
-            {buildingHtml ? 'Building…' : 'Build HTML'}
+            {buildingHtml ? 'Building…' : 'Build Stale HTML'}
+          </button>
+          <button
+            onClick={() => handleBuildHtml('all')}
+            disabled={buildingHtml}
+            className="text-sm border border-green-300 text-green-700 px-4 py-2 rounded-lg hover:bg-green-50 disabled:opacity-50"
+            title="Rebuild HTML for every published chapter"
+          >
+            {buildingHtml ? 'Building…' : 'Rebuild All HTML'}
           </button>
           <button
             onClick={handleUpdateTOC}

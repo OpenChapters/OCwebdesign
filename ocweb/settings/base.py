@@ -156,6 +156,11 @@ FROM_EMAIL = env("FROM_EMAIL", default="noreply@openchapters.org")
 SITE_URL = env("SITE_URL", default="http://localhost:5173")
 PDF_LINK_EXPIRY_DAYS = env.int("PDF_LINK_EXPIRY_DAYS", default=7)
 
+# Nightly HTML build after chapter sync. Disabled by default so dev
+# machines don't burn CPU on scheduled lwarp builds. Enable in
+# .env.prod by setting HTML_BUILD_ENABLED=True.
+HTML_BUILD_ENABLED = env.bool("HTML_BUILD_ENABLED", default=False)
+
 # ── Celery Beat schedule ──────────────────────────────────────────────────────
 CELERY_BEAT_SCHEDULE = {
     "sync-chapters-nightly": {

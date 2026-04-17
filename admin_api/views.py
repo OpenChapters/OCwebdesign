@@ -397,22 +397,32 @@ class AdminChapterBuildHtmlView(APIView):
     permission_classes = [IsStaffUser]
 
     def post(self, request):
-        from catalog.tasks import build_all_chapter_html_task, build_chapter_html_task
+        from catalog.tasks import (
+            build_all_chapter_html_task,
+            build_chapter_html_task,
+            dispatch_stale_html_builds,
+        )
 
         chabbr = request.data.get("chabbr") or None
+        mode = request.data.get("mode", "all")  # "all" or "stale"
 
         if chabbr:
             build_chapter_html_task.delay(chabbr=chabbr)
+            msg = f"HTML build queued for chapter {chabbr}."
+        elif mode == "stale":
+            dispatch_stale_html_builds.delay()
+            msg = "HTML build queued for chapters whose source is newer than their HTML."
         else:
             build_all_chapter_html_task.delay()
+            msg = "HTML build queued for all published chapters (parallel)."
 
         AuditEntry.log(
             request, "chapter.build_html", "Chapter",
-            detail={"chabbr": chabbr or "all"},
+            detail={"chabbr": chabbr or mode},
         )
 
         return Response({
-            "detail": f"HTML build queued for {'chapter ' + chabbr if chabbr else 'all published chapters (parallel)'}. Check worker logs for progress.",
+            "detail": f"{msg} Check worker logs for progress.",
         })
 
 

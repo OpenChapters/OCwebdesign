@@ -365,6 +365,7 @@ class Command(BaseCommand):
             text=True,
             timeout=1800,  # 30 min timeout per chapter
             env=env,
+            stdin=subprocess.DEVNULL,  # prevent hang on LaTeX error prompts
         )
 
         if result.returncode != 0:

@@ -4,7 +4,7 @@
 % arara: clean: {files: ['main-authors.aux'] }
 (# Images and bib are already collected by the management command    #)
 (# before arara runs — no copyImageFiles or mergemainbibfiles here.  #)
-% arara: pdflatex: { shell: yes }
+% arara: pdflatex: { shell: yes, interaction: batchmode }
 % arara: makeindex: { style: StyleInd.ist, output: ind, log: ilg, input: idx }
 % arara: biber
 % arara: lwarpmk: { options: ['print'] }
@@ -58,8 +58,10 @@
 \HTMLDescription{(( description ))}
 \CSSFilename{lwarp_sagebrush.css}
 
-\renewcommand{\chaptergraphicspath}{ImageFolder/}
-\renewcommand{\graphicspath}{ImageFolder/}
+% OpenChaptersHTML.sty already defines \chaptergraphicspath as ImageFolder/
+% and uses it when including chapter images. Set \graphicspath (used as a
+% text macro in chapter source) to empty so the path isn't doubled.
+\renewcommand{\graphicspath}{}
 \newcommand{\isHTML}{Yes}
 \newcommand{\isEPUB}{No}
 

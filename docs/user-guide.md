@@ -9,9 +9,11 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
 1. [Creating an Account](#creating-an-account)
 2. [Signing In](#signing-in)
 3. [Browsing Chapters](#browsing-chapters)
-4. [Chapter Details](#chapter-details)
-5. [Creating a Book](#creating-a-book)
-6. [The Book Editor](#the-book-editor)
+4. [Searching Chapter Content](#searching-chapter-content)
+5. [Reading a Chapter Online](#reading-a-chapter-online)
+6. [Chapter Details](#chapter-details)
+7. [Creating a Book](#creating-a-book)
+8. [The Book Editor](#the-book-editor)
    - [Adding Parts](#adding-parts)
    - [Adding Chapters](#adding-chapters)
    - [Reordering Chapters](#reordering-chapters)
@@ -19,13 +21,13 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
    - [Moving Chapters Between Parts](#moving-chapters-between-parts)
    - [Removing Chapters and Parts](#removing-chapters-and-parts)
    - [Auto-Include Foundational Chapters](#auto-include-foundational-chapters)
-7. [Building Your Book](#building-your-book)
-8. [Build Status](#build-status)
-9. [Your Library](#your-library)
-10. [Managing Your Books](#managing-your-books)
-11. [Your Profile](#your-profile)
-12. [Resetting Your Password](#resetting-your-password)
-13. [Feature Requests and Bug Reports](#feature-requests-and-bug-reports)
+9. [Building Your Book](#building-your-book)
+10. [Build Status](#build-status)
+11. [Your Library](#your-library)
+12. [Managing Your Books](#managing-your-books)
+13. [Your Profile](#your-profile)
+14. [Resetting Your Password](#resetting-your-password)
+15. [Feature Requests and Bug Reports](#feature-requests-and-bug-reports)
 
 ---
 
@@ -76,24 +78,45 @@ Each chapter is displayed as a card showing:
 - Keywords (if available)
 - A cover image or placeholder icon
 
-### Searching
+### Quick Filter
 
-Use the search box in the top-right corner to filter chapters by title, author, or keyword. The search applies across both topical and foundational sections.
+Use the search box in the top-right of the Browse page to filter chapter cards by title, author, or keyword. This is a fast metadata filter — it does not search inside the chapter text. For content-level search across all chapters, see [Searching Chapter Content](#searching-chapter-content).
 
 ### Hover Preview
 
 Hover your mouse over any chapter card to see a **table of contents** popover listing the sections within that chapter. This lets you quickly assess whether a chapter covers the topics you need.
 
+## Searching Chapter Content
+
+Click **Search** in the top navigation bar to open the full-text search page. Type a query and results appear as you type:
+
+- Each result shows the chapter, the section heading that contains the match, and a short snippet with the matching term(s) highlighted in yellow.
+- Supports phrases in quotes (`"rotation matrix"`), required terms (`+quaternion euler`), and boolean OR.
+- Clicking a result opens that chapter's HTML reader and jumps directly to the matching section.
+
+The search index covers every published chapter that has an HTML version available. Chapters without an HTML build are excluded from search results.
+
+## Reading a Chapter Online
+
+Chapters with an HTML version available have a **Read Online** button on their detail page. This opens an in-browser reader with:
+
+- The full chapter content, rendered with MathJax equations and SVG figures.
+- A side table of contents on the left, listing all sections within the chapter.
+- A small chapter thumbnail at the top of the side TOC.
+
+Not every chapter has an HTML version. When it is not available, only the **+ Add to Book** button appears on the chapter detail page — you can still include the chapter in a custom PDF build.
+
 ## Chapter Details
 
 Each chapter card has two buttons:
 
-- **View** — opens the full chapter detail page showing:
+- **Chapter Info** — opens the full chapter detail page showing:
   - Complete table of contents
   - Author(s) and description
   - Keywords
   - Chapter type (foundational or topical)
   - Dependencies on other foundational chapters
+  - A **Read Online** button (if the chapter has an HTML version)
   - An **+ Add to Book** button
 
 - **+ Add to Book** — opens the chapter detail page with the book picker already visible. You can:

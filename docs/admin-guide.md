@@ -136,6 +136,33 @@ Click **Sync from GitHub** to trigger an immediate catalog sync. The sync:
 
 The catalog also syncs automatically every night at 03:00 UTC.
 
+### Updating Thumbnails
+
+Click **Update Thumbnails** to regenerate cover images for chapters whose header image has changed on GitHub. The admin endpoint downloads the latest header PDFs, crops them to cover-image proportions, and updates the local cache. Any chapters whose covers are already up to date are skipped.
+
+### Updating Table of Contents
+
+Click **Update TOC** to re-extract section headings from each chapter's `.tex` source on GitHub and update the TOC stored in the database. This is useful after an author has added or renamed sections.
+
+### Building Chapter HTML
+
+Two buttons control HTML builds:
+
+- **Build Stale HTML** — queues HTML builds only for chapters whose source has changed since their last HTML build (or never had one). Recommended for routine updates.
+- **Rebuild All HTML** — queues HTML builds for every published chapter, regardless of whether the source has changed. Use this after upgrading the LaTeX template or changing the build pipeline.
+
+Both buttons dispatch individual Celery tasks to the worker queue. Celery's worker concurrency setting controls how many chapters build in parallel. Each chapter typically takes 30 seconds to a few minutes; large chapters may take longer.
+
+Progress is visible in the worker logs:
+
+```bash
+docker compose -f docker-compose.prod.yml logs worker --tail 50
+```
+
+If `HTML_BUILD_ENABLED=True` is set in `.env.prod`, the nightly sync also dispatches stale HTML rebuilds automatically.
+
+After each successful HTML build, the chapter's search index is refreshed so the new content is immediately searchable.
+
 ### Chapter Detail
 
 **Path:** `/admin-panel/chapters/:id`
@@ -150,7 +177,9 @@ Shows full chapter metadata with two panels:
 | Action | Description |
 |---|---|
 | **Publish / Unpublish** | Toggle whether the chapter appears in the public catalog. Unpublished chapters cannot be added to books. |
-| **Edit metadata** | Opens an inline form to change title, description, type (foundational/topical), and keywords. Changes are stored in the database and override synced values. |
+| **Edit metadata** | Opens an inline form to change title, description, type (foundational/topical), keywords, and review information (reviewer name + review date). Changes are stored in the database and override synced values. |
+
+Chapters with a successfully built HTML version show the build timestamp in the details panel. Users can read these chapters online via the **Read Online** button on the public chapter page and search within them via the global Search page.
 
 ## Build Management
 

@@ -12,16 +12,17 @@ This guide covers deploying the OpenChapters web platform to a production server
 4. [Configuration](#configuration)
 5. [Building and Starting](#building-and-starting)
 6. [Database Initialization](#database-initialization)
-7. [Running Tests](#running-tests)
-8. [Email Delivery (SMTP)](#email-delivery-smtp)
-9. [Cloudflare Turnstile (Bot Protection)](#cloudflare-turnstile-bot-protection)
-10. [SSL with Let's Encrypt](#ssl-with-lets-encrypt)
-11. [Domain and DNS](#domain-and-dns)
-12. [Updating the Application](#updating-the-application)
-13. [Database Backups](#database-backups)
-14. [Monitoring and Logs](#monitoring-and-logs)
-15. [Troubleshooting](#troubleshooting)
-16. [Security Checklist](#security-checklist)
+7. [Chapter HTML Builds](#chapter-html-builds)
+8. [Running Tests](#running-tests)
+9. [Email Delivery (SMTP)](#email-delivery-smtp)
+10. [Cloudflare Turnstile (Bot Protection)](#cloudflare-turnstile-bot-protection)
+11. [SSL with Let's Encrypt](#ssl-with-lets-encrypt)
+12. [Domain and DNS](#domain-and-dns)
+13. [Updating the Application](#updating-the-application)
+14. [Database Backups](#database-backups)
+15. [Monitoring and Logs](#monitoring-and-logs)
+16. [Troubleshooting](#troubleshooting)
+17. [Security Checklist](#security-checklist)
 
 ---
 
@@ -62,12 +63,17 @@ Internet
 └─────┘ └──┬────────┘
             │
        ┌────▼────┐
-       │ Celery  │  TeX Live worker (LaTeX builds)
-       │ worker  │
+       │ Celery  │  TeX Live worker
+       │ worker  │  - On-demand custom PDF books (build_book)
+       │         │  - Per-chapter HTML via lwarp (build_chapter_html)
        └─────────┘
 ```
 
-All services run as Docker containers managed by `docker-compose.prod.yml`.
+All services run as Docker containers managed by `docker-compose.prod.yml`. Build artifacts:
+
+- **PDFs** — user-requested custom books, stored under `media/pdfs/`
+- **HTML** — per-chapter lwarp output, stored under `media/html/<chabbr>/`, served at `/api/chapters/<id>/html/`
+- **Search index** — PostgreSQL table (`catalog_chaptersearchindex`) populated after each HTML build, queried via `/api/chapters/search/`
 
 ## Initial Server Setup
 
@@ -175,6 +181,12 @@ TURNSTILE_SECRET_KEY=<your_turnstile_secret_key>
 # Optional: path to local monorepo clone (for admin thumbnail updates)
 # Only needed if the server has a local clone of the OpenChapters repo
 OPENCHAPTERS_MONOREPO_PATH=
+
+# HTML builds (lwarp). If True, the nightly sync_chapters task also
+# queues HTML rebuilds for chapters whose source is newer than their
+# last HTML build. Leave blank/False to disable nightly HTML builds;
+# the admin panel can still trigger them manually.
+HTML_BUILD_ENABLED=True
 ```
 
 **Important:**
@@ -260,6 +272,59 @@ Or run the sync manually as needed:
 ```bash
 docker compose -f docker-compose.prod.yml exec web python manage.py sync_chapters
 ```
+
+## Chapter HTML Builds
+
+In addition to the PDF build pipeline, OpenChapters produces per-chapter HTML output (via [lwarp](https://ctan.org/pkg/lwarp)) so users can read chapters online and search their content. Each chapter is compiled into a self-contained set of HTML files + SVG figures stored under `media/html/<chabbr>/`.
+
+### Initial Build
+
+After the first catalog sync, trigger an HTML build for all published chapters:
+
+```bash
+docker compose -f docker-compose.prod.yml exec web python manage.py build_chapter_html --parallel 4
+```
+
+`--parallel N` builds N chapters concurrently using `ProcessPoolExecutor`. Each chapter typically takes 30 seconds to a few minutes. Long or complex chapters may take longer — the per-chapter timeout is 30 minutes.
+
+To build a single chapter by its `chabbr`:
+
+```bash
+docker compose -f docker-compose.prod.yml exec web python manage.py build_chapter_html --chabbr BASCRY
+```
+
+### Nightly Automation
+
+If `HTML_BUILD_ENABLED=True` is set in `.env.prod`, the nightly `sync_chapters` task (03:00 UTC) dispatches HTML rebuilds for any chapter whose git `last_updated` is newer than its `html_built_at`. Builds run as individual Celery tasks on the worker queue; the worker's `--concurrency` setting (default 4 in `docker-compose.prod.yml`) controls parallelism.
+
+### Admin Panel Controls
+
+On the admin Chapters page (`/admin-panel/chapters`):
+
+- **Build Stale HTML** — queue builds only for chapters whose source changed.
+- **Rebuild All HTML** — queue builds for every published chapter.
+
+Both dispatch tasks to the worker queue and return immediately. Check progress via:
+
+```bash
+docker compose -f docker-compose.prod.yml logs worker --tail 50
+```
+
+### Full-Text Search Index
+
+After each successful HTML build, the chapter's search entries are refreshed (parsed from the HTML, stored in `catalog_chaptersearchindex`, indexed with PostgreSQL's `GIN` + `tsvector`). To rebuild the search index from existing HTML without rebuilding the HTML itself:
+
+```bash
+docker compose -f docker-compose.prod.yml exec web python manage.py rebuild_search_index
+```
+
+The index is used by the public `/api/chapters/search/` endpoint and the Search page in the navbar.
+
+### Troubleshooting
+
+- **Undefined control sequence** errors usually mean a chapter uses a LaTeX command that `OpenChaptersHTML.sty` / `preambleHTML.ins` does not provide. Either add the missing package to `Build/template_html/` or modify the chapter source.
+- **Missing figure file** errors mean a figure was not collected into `ImageFolder/` or was not converted to SVG. The build script auto-converts PDF figures via `pdf2svg`; verify the PDF exists in the chapter's `pdf/` directory on GitHub.
+- **Builds that time out** typically indicate pdflatex is waiting on an error prompt. The build workspace under `/tmp/ochtml-<uuid>/` is preserved on failure; inspect `main_html.log` for the actual error. See the similar section in the admin guide for more detail.
 
 ## Running Tests
 

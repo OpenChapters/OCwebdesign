@@ -1,0 +1,25 @@
+/* OpenChapters web overrides for lwarp HTML output */
+
+/* Hide the full-width header image */
+header {
+    display: none;
+}
+
+/* Add chapter thumbnail to the top of the side TOC */
+.sidetoctitle::before {
+    content: "";
+    display: block;
+    width: 100%;
+    padding-bottom: 50%; /* 2:1 aspect ratio matching header images */
+    background-image: var(--oc-cover-image);
+    background-size: cover;
+    background-position: center;
+    border-radius: 4px;
+    margin-bottom: 0.75em;
+}
+
+/* Hide top/bottom navigation bars (React app handles navigation) */
+nav.topnavigation,
+nav.botnavigation {
+    display: none;
+}

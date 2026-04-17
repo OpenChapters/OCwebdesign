@@ -109,6 +109,7 @@ class Command(BaseCommand):
             self._render_templates(workdir, chapter)
             self._write_gin(workdir, build_id)
             self._run_arara(workdir)
+            self._postprocess_html(workdir, chapter)
             self._collect_output(workdir, chapter)
 
             # Update the model
@@ -297,7 +298,7 @@ class Command(BaseCommand):
             cwd=str(workdir),
             capture_output=True,
             text=True,
-            timeout=600,  # 10 min timeout per chapter
+            timeout=300,  # 5 min timeout per chapter
             env=env,
         )
 
@@ -316,6 +317,23 @@ class Command(BaseCommand):
                 f"stderr: {result.stderr[-500:]}\n"
                 f"log errors: {error_tail}"
             )
+
+    def _postprocess_html(self, workdir: Path, chapter: Chapter) -> None:
+        """Inject custom CSS into generated HTML files after lwarp build."""
+        css_link = '<link rel="stylesheet" type="text/css" href="ocweb_overrides.css" />'
+        cover_style = (
+            f'<style>.sidetoctitle::before {{ '
+            f'--oc-cover-image: url("ImageFolder/{chapter.chabbr}header.svg"); '
+            f'}}</style>'
+        )
+        injection = f'{css_link}\n{cover_style}'
+
+        for html_file in workdir.glob("*.html"):
+            content = html_file.read_text(encoding="utf-8", errors="replace")
+            # Insert before </head>
+            if "</head>" in content:
+                content = content.replace("</head>", f"{injection}\n</head>", 1)
+                html_file.write_text(content, encoding="utf-8")
 
     def _collect_output(self, workdir: Path, chapter: Chapter) -> None:
         """Copy generated HTML and assets to the media directory."""

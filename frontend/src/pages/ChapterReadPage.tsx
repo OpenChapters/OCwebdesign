@@ -57,10 +57,9 @@ export default function ChapterReadPage() {
 
       {/* iframe containing lwarp HTML */}
       <iframe
-        src={`/api/chapters/${id}/html/`}
+        src={`/api/chapters/${id}/html/node-1.html`}
         title={chapter.title}
-        className="flex-1 w-full border-0"
-        sandbox="allow-scripts allow-same-origin"
+        style={{ width: '100%', height: 'calc(100vh - 48px)', border: 'none' }}
       />
     </div>
   );

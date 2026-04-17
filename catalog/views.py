@@ -147,9 +147,13 @@ class ChapterHtmlView(APIView):
         if not chapter_dir.is_dir():
             return HttpResponse(status=404)
 
-        # Default to index.html
+        # Default to node-1.html (chapter content) rather than index.html
+        # (which is lwarp's landing page with only MathJax macro definitions)
         if not filename:
-            filename = "index.html"
+            if (chapter_dir / "node-1.html").exists():
+                filename = "node-1.html"
+            else:
+                filename = "index.html"
 
         # Prevent path traversal
         try:
@@ -172,4 +176,5 @@ class ChapterHtmlView(APIView):
 
         response = FileResponse(open(target, "rb"), content_type=content_type)
         response["Cache-Control"] = "public, max-age=3600"
+        response["X-Frame-Options"] = "SAMEORIGIN"
         return response

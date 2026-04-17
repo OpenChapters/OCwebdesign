@@ -43,16 +43,38 @@ def _include_path(repo: str, entry_file: str) -> str:
     return f"{dirname}/{entry}"
 
 
+def _build_chapter_worker(data):
+    """Standalone function for ProcessPoolExecutor (must be picklable).
+
+    Receives serializable chapter data, sets up Django, and runs the build.
+    """
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ocweb.settings.dev")
+    django.setup()
+
+    from catalog.models import Chapter
+    ch_id = data[0]
+    chapter = Chapter.objects.get(id=ch_id)
+    cmd = Command()
+    cmd.stdout = type("NullOut", (), {"write": lambda self, x: None, "flush": lambda self: None})()
+    cmd._build_chapter(chapter)
+
+
 class Command(BaseCommand):
     help = "Build HTML output for published chapters using lwarp"
 
     def add_arguments(self, parser):
         parser.add_argument("--chabbr", help="Build only this chapter (by chabbr)")
         parser.add_argument("--dry-run", action="store_true", help="Preview only")
+        parser.add_argument(
+            "--parallel", type=int, default=1, metavar="N",
+            help="Build N chapters in parallel (default: 1, sequential)",
+        )
 
     def handle(self, *args, **options):
         chabbr = options.get("chabbr")
         dry_run = options.get("dry_run", False)
+        parallel = max(1, options.get("parallel", 1))
 
         chapters = Chapter.objects.filter(published=True)
         if chabbr:
@@ -62,25 +84,39 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("No matching chapters found."))
             return
 
-        updated = []
+        # Filter to buildable chapters
+        buildable = []
         skipped = []
-        errors = []
-
         for ch in chapters:
             if not ch.chabbr:
                 skipped.append(f"{ch.title}: no chabbr")
-                continue
-            if not ch.github_repo or not _SAFE_REPO.match(ch.github_repo):
+            elif not ch.github_repo or not _SAFE_REPO.match(ch.github_repo):
                 skipped.append(f"{ch.title}: invalid github_repo")
-                continue
-            if not ch.latex_entry_file or not _SAFE_PATH.match(ch.latex_entry_file):
+            elif not ch.latex_entry_file or not _SAFE_PATH.match(ch.latex_entry_file):
                 skipped.append(f"{ch.title}: invalid latex_entry_file")
-                continue
-
-            if dry_run:
+            elif dry_run:
                 self.stdout.write(f"  [dry-run] Would build HTML for: {ch.title} ({ch.chabbr})")
-                continue
+            else:
+                buildable.append(ch)
 
+        if dry_run or not buildable:
+            self.stdout.write(f"Skipped: {len(skipped)}")
+            return
+
+        if parallel > 1 and len(buildable) > 1:
+            updated, errors = self._build_parallel(buildable, parallel)
+        else:
+            updated, errors = self._build_sequential(buildable)
+
+        self.stdout.write("")
+        self.stdout.write(f"Updated: {len(updated)}, Skipped: {len(skipped)}, Errors: {len(errors)}")
+        for e in errors:
+            self.stdout.write(self.style.ERROR(f"  {e}"))
+
+    def _build_sequential(self, chapters):
+        updated = []
+        errors = []
+        for ch in chapters:
             self.stdout.write(f"  Building HTML for: {ch.title} ({ch.chabbr})...")
             try:
                 self._build_chapter(ch)
@@ -89,11 +125,40 @@ class Command(BaseCommand):
             except Exception as exc:
                 errors.append(f"{ch.title}: {exc}")
                 self.stdout.write(self.style.ERROR(f"    FAILED: {exc}"))
+        return updated, errors
 
-        self.stdout.write("")
-        self.stdout.write(f"Updated: {len(updated)}, Skipped: {len(skipped)}, Errors: {len(errors)}")
-        for e in errors:
-            self.stdout.write(self.style.ERROR(f"  {e}"))
+    def _build_parallel(self, chapters, max_workers):
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+
+        updated = []
+        errors = []
+
+        self.stdout.write(f"  Building {len(chapters)} chapters with {max_workers} workers...")
+
+        # Use ProcessPoolExecutor to avoid GIL; pass serializable data
+        chapter_data = [
+            (ch.id, ch.title, ch.chabbr, ch.github_repo, ch.chapter_subdir,
+             ch.latex_entry_file, ch.authors, ch.description)
+            for ch in chapters
+        ]
+
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(_build_chapter_worker, data): data
+                for data in chapter_data
+            }
+            for future in as_completed(futures):
+                data = futures[future]
+                title, chabbr = data[1], data[2]
+                try:
+                    future.result()
+                    updated.append(title)
+                    self.stdout.write(self.style.SUCCESS(f"    OK: {title} ({chabbr})"))
+                except Exception as exc:
+                    errors.append(f"{title}: {exc}")
+                    self.stdout.write(self.style.ERROR(f"    FAILED: {title} ({chabbr}): {exc}"))
+
+        return updated, errors
 
     def _build_chapter(self, chapter: Chapter) -> None:
         build_id = str(uuid.uuid4())
@@ -298,7 +363,7 @@ class Command(BaseCommand):
             cwd=str(workdir),
             capture_output=True,
             text=True,
-            timeout=300,  # 5 min timeout per chapter
+            timeout=1800,  # 30 min timeout per chapter
             env=env,
         )
 

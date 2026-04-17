@@ -1,169 +1,483 @@
 # HTML Output Integration Plan
 
-This document describes how the existing lwarp-based HTML build (in the `OpenChapters/HTMLBuild` folder) could be integrated with the OpenChapters web platform.
+This document describes how the existing lwarp-based HTML build (in the `OpenChapters/HTMLBuild` folder) will be integrated with the OpenChapters web platform.
 
 ## Background
 
 The `HTMLBuild` folder contains a working lwarp setup that converts LaTeX chapter source into HTML5 pages with MathJax-rendered equations, SVG figures, responsive CSS, and side-panel table of contents. The build is orchestrated by arara and uses `main_html.tex` as the lwarp entry point. Output is a set of static HTML files (`index.html`, `node-1.html`, etc.) plus an `ImageFolder/` of SVG assets.
 
-The current web platform only produces PDF output via the `build_book` Celery task. Adding an HTML reading option would let users read chapters directly in the browser without waiting for a PDF build.
+The current web platform only produces PDF output via the `build_book` Celery task. Adding an HTML reading option will let users read chapters directly in the browser without waiting for a PDF build.
 
 ---
 
-## Integration Approaches
+## Design Decisions
 
-### Approach 1: Per-Chapter HTML (Recommended Starting Point)
+Based on initial analysis and review:
 
-Generate HTML for each chapter individually and serve it inline on the chapter detail page.
-
-**Workflow:**
-
-1. A new Celery task (`build_chapter_html`) runs lwarp on a single chapter
-2. Output is stored under `/app/media/html/<chabbr>/` (index.html, node-\*.html, images/)
-3. The chapter detail page gains a **"Read Online"** tab or button, rendering the lwarp HTML in an iframe or a dedicated `/chapters/:id/read` route
-4. The existing cover image, TOC preview, and metadata remain; the HTML version adds full-content reading
-
-**Pros:**
-- Each chapter is independently viewable without building a whole book
-- Fits the browse-then-read workflow
-- Can be cached and served as static files
-- Small storage footprint (100-500 KB per chapter)
-
-**Cons:**
-- Cross-chapter references (`\ref`, `\cite`) won't resolve across chapters
-- Each chapter build needs a wrapper `main.tex` that loads the full preamble
-
-### Approach 2: Per-Book HTML (Parallels the PDF Pipeline)
-
-When a user builds a book, offer "Build as HTML" alongside or instead of "Build as PDF."
-
-**Workflow:**
-
-1. The existing `build_book` task already assembles `main.tex` from selected chapters; a variant uses the `main_html.tex` + lwarp path
-2. Output is a set of HTML files stored alongside the PDF in build artifacts
-3. The Library page shows both "Download PDF" and "View Online" buttons
-4. The HTML version is a multi-page site with lwarp's built-in navigation (side TOC, prev/next links)
-
-**Pros:**
-- Cross-references and bibliography work correctly across all selected chapters
-- The user gets exactly their custom book in HTML form
-- Closest to what HTMLBuild already does
-
-**Cons:**
-- Requires a full LaTeX build (2-3 minutes), same as PDF
-- Cannot preview individual chapters before building
-- More storage per build
-
-### Approach 3: Hybrid (Best of Both)
-
-- **Per-chapter HTML** for the public chapter browser (read individual chapters online)
-- **Per-book HTML** as an optional build output (full custom assembly as a navigable website)
-
-This gives immediate value through individual chapter reading, with the per-book option added later.
+- **Bibliography:** Each chapter already has its own `chaptercitations.bib` file and that file will be used for per-chapter HTML builds. A chapter should not cite a citation that belongs to another chapter. For per-book HTML, bibliography files are merged as they are for the PDF build.
+- **Cross-references:** For per-chapter HTML, broken `\ref` links (to labels in other chapters) will display their argument as replacement text. Full cross-chapter linking is only feasible in per-book HTML mode where all labels are in scope.
+- **Mobile support:** Deferred. lwarp's default responsive CSS is adequate for now.
+- **Offline reading:** Per-book HTML will be downloadable as a zip archive. Per-chapter HTML does not need offline support.
+- **Full-text search:** Desired feature. With chapter content stored as HTML, a full-text search index across all published chapters will be implemented.
 
 ---
 
-## Technical Considerations
+## Implementation Strategy
 
-### 1. Build Environment
+The implementation follows a hybrid approach (Approach 3 from the original analysis):
 
-The worker Docker image already has TeX Live, arara, and the full LaTeX toolchain. Adding lwarp support requires:
+- **Phase 1:** Per-chapter HTML for the public chapter browser (read individual chapters online)
+- **Phase 2:** Nightly automation and full-text search
+- **Phase 3:** Per-book HTML as an optional build output with zip download
 
-- The `lwarp` LaTeX package (likely already included in TeX Live)
-- `OpenChaptersHTML.sty` and `preambleHTML.ins` added to the Build/template files
-- `pdf2svg` or equivalent for figure conversion (PDF to SVG)
-- Sufficient `/tmp` space for intermediate build artifacts
+---
 
-### 2. Per-Chapter Wrapper
+## Phase 1: Per-Chapter HTML Reading
 
-lwarp needs a `main.tex` with the full preamble. For per-chapter builds, a minimal wrapper would be generated (analogous to what `build_main_tex.py` already does for PDF):
+### 1.1 Worker Docker Image Updates
+
+**File:** `docker/worker/Dockerfile`
+
+Add `pdf2svg` and `latexmk` (if not already present) to the worker image:
+
+```dockerfile
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      python3 python3-pip git pdf2svg latexmk \
+ && rm -rf /var/lib/apt/lists/*
+```
+
+Verify that the `lwarp` LaTeX package is included in TeX Live (it ships with the full distribution used in `texlive/texlive:latest`).
+
+### 1.2 HTML Template Files
+
+**New directory:** `Build/template_html/`
+
+Copy these files from `OpenChapters/HTMLBuild` into the template directory:
+
+| File | Purpose |
+|------|---------|
+| `OpenChaptersHTML.sty` | HTML-specific package (loads lwarp-compatible packages) |
+| `preambleHTML.ins` | User-defined commands (HTML-safe version of `preamble.ins`) |
+| `lwarp_sagebrush.css` | Primary CSS theme for HTML output |
+| `lwarp.css` | Base lwarp CSS (required) |
+| `lwarp_mathjax.txt` | MathJax configuration (equation numbering, custom macros) |
+| `StyleInd.ist` | Makeindex style file |
+
+These live alongside but separate from the existing `Build/template/` (used for PDF builds).
+
+### 1.3 Jinja2 Template for Per-Chapter HTML
+
+**New file:** `Build/scripts/main_html.tex.j2`
+
+This template generates the lwarp entry point for a single chapter. It follows the same Jinja2 delimiter conventions as `main.tex.j2` (using `((`, `))`, `(%`, `%)` to avoid LaTeX conflicts).
 
 ```latex
-\documentclass[11pt,fleqn,a4paper]{book}
+% !TEX TS-program = arara
+(# Jinja2 template for per-chapter HTML build via lwarp.          #)
+(# Rendered by build_chapter_html.py from chapter metadata.       #)
+% arara: clean: {files: ['main-authors.aux'] }
+% arara: copyImageFiles
+% arara: pdflatex: { shell: yes }
+% arara: makeindex: { style: StyleInd.ist, output: ind, log: ilg, input: idx }
+% arara: biber
+% arara: lwarpmk: { options: ['print'] }
+% arara: lwarpmk: { options: ['printindex'] }
+% arara: lwarpmk: { options: ['html'] }
+% arara: lwarpmk: { options: ['html'] }
+% arara: lwarpmk: { options: ['htmlindex'] }
+% arara: lwarpmk: { options: ['html'] }
+% arara: lwarpmk: { options: ['clean'] }
+% arara: clean: { extensions: [aux, bbl, bcf, blg, idx, ilg, ind, log, ptc, toc]}
+% arara: clean: { files: ['gitHeadLocal.gin', 'main.run.xml'] }
+%
+% Generated by OpenChapters — per-chapter HTML build
+% Chapter: (( chapter_title ))
+% Chabbr:  (( chabbr ))
+% Date:    (( build_date ))
+
+\documentclass[11pt,fleqn,A4paper]{book}
+
+\usepackage{iftex}
+\ifPDFTeX
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\else
+\usepackage{fontspec}
+\fi
+
 \usepackage[
-    makeindex,
-    ImagesDirectory=ImageFolder,
-    HomeHTMLFilename=index,
-    HTMLFilename={node-},
-    latexmk,
-    mathjax,
+ makeindex,
+ ImagesDirectory=ImageFolder,
+ HomeHTMLFilename=index,
+ HTMLFilename={node-},
+ latexmk,
+ mathjax,
 ]{lwarp}
+
 \usepackage{OpenChaptersHTML}
+\usepackage{arara}
+
+\setcounter{tocdepth}{2}
+\setcounter{secnumdepth}{2}
+\setcounter{FileDepth}{0}
+\booltrue{CombineHigherDepths}
+\boolfalse{FileSectionNames}
+\setcounter{SideTOCDepth}{1}
+
+\HTMLTitle{(( chapter_title ))}
+\HTMLAuthor{(( authors ))}
+\HTMLLanguage{en-US}
+\HTMLDescription{(( description ))}
+\CSSFilename{lwarp_sagebrush.css}
+
+\renewcommand{\chaptergraphicspath}{ImageFolder/}
+\renewcommand{\graphicspath}{ImageFolder/}
+\newcommand{\isHTML}{Yes}
+\newcommand{\isEPUB}{No}
+
 \input{preambleHTML.ins}
+
+% Per-chapter bibliography
+\addbibresource{chaptercitations.bib}
+
 \begin{document}
-\include{src/<chapter_subdir>/chapter/<entry_file>}
+
+\include{(( include_path ))}
+
+\printbibliography
+
 \end{document}
 ```
 
-The existing Jinja2 template system in `build_main_tex.py` could be extended with an HTML variant template.
+A companion `main_html.tex` wrapper (for lwarp's two-pass system):
 
-### 3. MathJax
+```latex
+\PassOptionsToPackage{warpHTML,BaseJobname=main}{lwarp}
+\input{main.tex}
+```
 
-lwarp output uses MathJax 3 (loaded from `cdn.jsdelivr.net`) for equation rendering. This means:
+### 1.4 Build Script
 
-- HTML pages need internet access to render math (or MathJax must be bundled locally)
-- The nginx Content-Security-Policy header needs `script-src` and `font-src` additions for the MathJax CDN
-- The existing `lwarp_mathjax.txt` configuration handles equation numbering, subequations, and custom LaTeX macros
+**New file:** `Build/scripts/build_chapter_html.py`
 
-### 4. CSS Theming
+Analogous to `build_main_tex.py`, this script:
 
-lwarp generates HTML with its own CSS classes. Two approaches to visual integration:
+1. Accepts a chapter chabbr (or ID) as input
+2. Reads chapter metadata from the database (or from a JSON argument)
+3. Renders `main_html.tex.j2` with chapter-specific variables:
+   - `chapter_title`, `chabbr`, `authors`, `description`
+   - `include_path` — calculated the same way as in `build_main_tex.py`
+   - `build_date` — ISO date
+4. Writes `main.tex` and `main_html.tex` to the build workspace
 
-- **Iframe isolation:** Serve lwarp HTML in an iframe within the React app. Styles don't conflict; lwarp's own CSS (e.g., `lwarp_sagebrush.css`) applies cleanly. The iframe approach is simpler but limits interaction between the React shell and the chapter content.
-- **Embedded with adapted CSS:** Inject lwarp HTML directly into a React component and adapt `lwarp_sagebrush.css` to match the OpenChapters site design. More integrated but requires careful CSS scoping to prevent conflicts.
+### 1.5 Django Management Command
 
-### 5. SVG Images
+**New file:** `catalog/management/commands/build_chapter_html.py`
 
-lwarp converts PDF figures to SVG for web display. Each chapter build needs its own image directory to avoid filename collisions. The existing `\graphicspath` mechanism and the lwarp `ImagesDirectory` option handle this naturally.
+This command builds HTML for one or all published chapters:
 
-### 6. Navigation
+```
+python manage.py build_chapter_html                    # all published
+python manage.py build_chapter_html --chabbr BASCRY    # single chapter
+python manage.py build_chapter_html --dry-run          # preview only
+```
 
-lwarp generates its own prev/next navigation bars and a side table of contents. For per-chapter viewing embedded in the React app:
+**For each chapter, the command:**
 
-- Strip lwarp's navigation chrome (header/footer nav bars)
-- Use the site's own UI for chapter-level navigation
-- Keep lwarp's intra-chapter section links (they work within the generated HTML)
+1. Creates an isolated temp workspace under `/tmp/ochtml-<uuid>/`
+2. Copies HTML template files (`OpenChaptersHTML.sty`, `preambleHTML.ins`, CSS, etc.)
+3. Clones the chapter's repo (shallow, single branch) into the workspace
+4. Copies the chapter's figures into `ImageFolder/`
+5. Copies the chapter's `chaptercitations.bib` into the workspace root
+6. Renders the Jinja2 template → `main.tex` and `main_html.tex`
+7. Writes a synthetic `gitHeadLocal.gin` (same as `generate_gin.py`)
+8. Runs arara on `main.tex` (which triggers the full lwarp pipeline)
+9. Collects output HTML files and SVG images
+10. Copies output to `media/html/<chabbr>/` (atomic: write to temp dir, then rename)
+11. Cleans up the temp workspace
 
-For per-book HTML builds, lwarp's navigation can be kept as-is since the user is viewing a standalone multi-chapter document.
+**Error handling:** If the build fails, the error is logged and the chapter is skipped (existing HTML, if any, is preserved). Failed chapters are listed in the command output.
 
-### 7. Storage and Caching
+### 1.6 Admin Panel Integration
 
-- Per-chapter HTML + SVG: typically 100-500 KB per chapter (negligible)
-- Per-book HTML builds: comparable to PDF size, stored alongside PDFs in the media volume
-- HTML can be regenerated on each nightly sync or on-demand from the admin panel
-- Cache-busting via the existing `cached_at` timestamp mechanism
+**Files:** `admin_api/views.py`, `admin_api/urls.py`, `frontend/src/admin/pages/ChaptersPage.tsx`
+
+Add an admin action button **"Build HTML"** on the Chapters admin page, similar to the existing "Update Thumbnails" and "Sync Chapters" buttons.
+
+- **API endpoint:** `POST /api/admin/chapters/build-html/`
+- Triggers `build_chapter_html` for all published chapters (or accepts a list of IDs)
+- Returns a response with `updated`, `skipped`, and `errors` arrays
+- Requires `IsStaffUser` permission
+
+Also add a per-chapter "Build HTML" button on the admin chapter detail page for rebuilding a single chapter's HTML.
+
+### 1.7 Chapter Model Updates
+
+**File:** `catalog/models.py`
+
+Add a field to track HTML build state:
+
+```python
+html_built_at = models.DateTimeField(null=True, blank=True)
+```
+
+This records when HTML was last successfully generated. The frontend uses this to decide whether to show the "Read Online" button.
+
+### 1.8 API for Serving HTML
+
+**File:** `catalog/views.py`
+
+Add a new view to serve per-chapter HTML content:
+
+- **Endpoint:** `GET /api/chapters/<id>/html/` — returns the chapter's `index.html` content
+- **Endpoint:** `GET /api/chapters/<id>/html/<filename>` — serves individual HTML pages and SVG assets from `media/html/<chabbr>/`
+- Sets appropriate `Content-Type` headers (`text/html` for `.html`, `image/svg+xml` for `.svg`)
+- Returns 404 if HTML hasn't been built for this chapter
+- Public access (no auth required, same as chapter detail)
+
+### 1.9 Frontend: "Read Online" Button and Viewer
+
+**Files:** `frontend/src/pages/ChapterDetailPage.tsx`, new `frontend/src/pages/ChapterReadPage.tsx`
+
+**Chapter detail page:** Add a "Read Online" button next to the existing chapter info. Only shown when `chapter.html_built_at` is not null.
+
+**Chapter read page** (`/chapters/:id/read`): A new route that displays the lwarp HTML. Two-part layout:
+
+- **Top bar:** Chapter title, "Back to Chapter Info" link, discipline badge
+- **Content area:** An `<iframe>` pointing at `/api/chapters/<id>/html/` that displays the lwarp output with its own CSS and MathJax. The iframe approach cleanly isolates lwarp's CSS from the React app's styles.
+
+The iframe auto-sizes to content height to avoid nested scrollbars.
+
+### 1.10 Nginx CSP Updates
+
+**File:** `docker/nginx/nginx.conf`
+
+Update the Content-Security-Policy header to allow MathJax CDN resources:
+
+```nginx
+Content-Security-Policy: default-src 'self';
+  script-src 'self' challenges.cloudflare.com cdn.jsdelivr.net;
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob:;
+  connect-src 'self';
+  frame-src challenges.cloudflare.com 'self';
+  font-src 'self' cdn.jsdelivr.net;
+```
+
+Changes from current:
+- `script-src`: add `cdn.jsdelivr.net` (MathJax JS)
+- `font-src`: add `cdn.jsdelivr.net` (MathJax fonts)
+- `frame-src`: add `'self'` (for the iframe serving HTML content)
+
+### 1.11 Cross-Reference Handling
+
+For per-chapter HTML, `\ref` commands that reference labels in other chapters will produce undefined-reference warnings during the build. lwarp renders these as bold `??` by default.
+
+To improve this, add a LaTeX hook in `preambleHTML.ins` that redefines `\ref` behavior for undefined labels to show the label argument as replacement text:
+
+```latex
+\begin{warpHTML}
+% When a \ref is undefined, show the label key as fallback text
+% instead of the default "??"
+\renewcommand{\LWR@ref@undefined}[1]{\textit{(see #1)}}
+\end{warpHTML}
+```
+
+The exact mechanism depends on lwarp's internal hooks and may require testing. The goal is that a reference like `\ref{BASCRY:eq:newton}` in another chapter's HTML shows as *(see BASCRY:eq:newton)* rather than **??**.
 
 ---
 
-## Recommended Implementation Order
+## Phase 2: Nightly Automation and Full-Text Search
 
-**Phase 1 — Per-chapter HTML reading (Approach 1):**
+### 2.1 Integration with Nightly Sync
 
-1. Add `pdf2svg` to the worker Docker image
-2. Create a `build_chapter_html.py` management command that builds one chapter's HTML using a Jinja2 wrapper template
-3. Add an admin action "Build HTML" (similar to "Update Thumbnails") that triggers HTML generation for all published chapters
-4. Store output in `media/html/<chabbr>/`
-5. Add a "Read Online" button on the chapter detail page
-6. Serve via a new route `/chapters/:id/read` that loads the HTML in an iframe or embedded view
-7. Update the nginx CSP header to allow MathJax CDN resources
+**File:** `catalog/management/commands/sync_chapters.py`
 
-**Phase 2 — Nightly automation:**
+After the existing sync completes, trigger HTML rebuild for chapters whose source has changed. Detection:
 
-8. Integrate HTML builds into the `sync_chapters` nightly task (rebuild HTML when source changes)
-9. Add cache invalidation so updated chapters get fresh HTML
+- Compare `chapter.last_updated` (from git commit date) with `chapter.html_built_at`
+- If `last_updated > html_built_at` (or `html_built_at` is null), queue the chapter for HTML rebuild
+- Run rebuilds as a Celery task group to parallelize across worker processes
 
-**Phase 3 — Per-book HTML (Approach 2, optional):**
+Add a setting `HTML_BUILD_ENABLED` (default `False`) to gate this behavior. When disabled, HTML is only built via the admin panel.
 
-10. Extend `build_book` to accept an output format parameter (`pdf`, `html`, or `both`)
-11. Create an HTML variant of the `main.tex` Jinja2 template
-12. Add "View Online" to the Library page alongside "Download PDF"
+### 2.2 Celery Task for HTML Build
+
+**File:** `catalog/tasks.py` (new)
+
+```python
+@shared_task(name="catalog.build_chapter_html")
+def build_chapter_html_task(chapter_id: int) -> dict:
+    """Build HTML for a single chapter. Returns status dict."""
+    ...
+```
+
+This allows the admin endpoint and nightly sync to dispatch HTML builds to the worker queue without blocking the web process.
+
+### 2.3 Full-Text Search
+
+With chapter content available as HTML, implement full-text search across all published chapters.
+
+**Backend:**
+
+- **New model:** `ChapterSearchIndex` with fields: `chapter` (FK), `section_title`, `text_content`, `html_node` (filename)
+- **Indexing:** After each HTML build, parse the generated HTML files, extract text content (strip tags), and store in the search index table. Each HTML node (section) becomes one index entry.
+- **Search endpoint:** `GET /api/chapters/search/?q=<query>` returns matching chapters with highlighted snippets and links to the specific HTML section
+- **Implementation:** Use PostgreSQL's built-in full-text search (`SearchVector`, `SearchQuery`, `SearchRank`) for zero additional infrastructure. Django has native support via `django.contrib.postgres.search`.
+
+**Frontend:**
+
+- Add a search bar to the chapter browser page header
+- Search results show: chapter title, matching section, highlighted snippet, discipline badge
+- Clicking a result navigates to `/chapters/:id/read#section` (deep-links into the HTML reader)
+- Debounced input (300ms) with loading indicator
+
+**Index maintenance:**
+- Rebuilt automatically whenever chapter HTML is regenerated
+- Admin panel shows index status (last indexed, entry count per chapter)
+- Management command: `python manage.py rebuild_search_index`
 
 ---
 
-## Open Questions
+## Phase 3: Per-Book HTML Build
 
-- **Bibliography:** Per-chapter builds won't have a merged bibliography. Should each chapter include its own `.bib` file, or should citations be rendered as inline text without hyperlinked references?
-- **Cross-references:** Chapters that depend on other chapters (via `depends_on`) may have broken `\ref` links in per-chapter HTML. Should these be removed, converted to text, or linked to the other chapter's HTML?
-- **Mobile support:** lwarp's default CSS is responsive but not mobile-optimized. Should a custom mobile CSS be developed?
-- **Offline reading:** Should the HTML output be downloadable as a zip for offline use?
-- **Search:** With chapter content available as HTML, full-text search across all chapters becomes feasible. Is this a desired feature?
+### 3.1 Jinja2 Template for Full-Book HTML
+
+**New file:** `Build/scripts/main_book_html.tex.j2`
+
+This is the multi-chapter variant, closely mirroring the existing `main.tex.j2` but with lwarp directives replacing the PDF arara chain:
+
+```latex
+% arara directives for lwarp (same sequence as HTMLBuild/main.tex)
+% arara: clean: {files: ['main-authors.aux'] }
+% arara: createSVGfiles
+% arara: pdflatex: { shell: yes }
+% arara: makeindex: { style: StyleInd.ist, output: ind, log: ilg, input: idx }
+% arara: mergemainbibfiles
+% arara: biber
+% arara: lwarpmk: { options: ['print'] }
+% arara: lwarpmk: { options: ['printindex'] }
+% arara: lwarpmk: { options: ['html'] }
+% arara: lwarpmk: { options: ['html'] }
+% arara: lwarpmk: { options: ['htmlindex'] }
+% arara: lwarpmk: { options: ['html'] }
+% arara: lwarpmk: { options: ['clean'] }
+...
+
+(% for part in parts %)
+\part{(( part.title ))}
+(% for chapter in part.chapters %)
+\include{(( chapter.include_path ))}
+(% endfor %)
+(% endfor %)
+```
+
+This template uses the full preamble from `HTMLBuild/main.tex` including Frontmatter/Postmatter. Cross-chapter references and merged bibliography work correctly here.
+
+### 3.2 Build Pipeline Extension
+
+**File:** `books/tasks.py`
+
+Extend the `build_book` task (or create a parallel `build_book_html` task) to:
+
+1. Follow the same workspace setup as the PDF build (steps 1-9)
+2. Copy HTML template files instead of (or in addition to) PDF templates
+3. Render `main_book_html.tex.j2` instead of `main.tex.j2`
+4. Run arara with the lwarp directive chain
+5. Collect all output HTML files, CSS, and SVG assets
+6. Store as a directory under `media/html_books/<book_id>/`
+
+### 3.3 Book Model Updates
+
+**File:** `books/models.py`
+
+Add fields to track HTML build output:
+
+```python
+html_path = models.CharField(max_length=500, blank=True)
+html_built_at = models.DateTimeField(null=True, blank=True)
+```
+
+### 3.4 Frontend: Build Format Selection
+
+**File:** `frontend/src/pages/BookEditorPage.tsx`
+
+Add a format selector to the build/checkout flow:
+
+- **Build as PDF** (existing behavior, default)
+- **Build as HTML** (new)
+- **Build both** (new)
+
+The UI is a radio button group or toggle shown before the "Build Book" button.
+
+### 3.5 Library Page Updates
+
+**File:** `frontend/src/pages/LibraryPage.tsx`
+
+For books with HTML builds:
+
+- Show a **"View Online"** button alongside "Download PDF"
+- "View Online" opens the book's HTML in a new tab at `/books/:id/read/` (served by nginx directly from the html_books directory, or proxied through Django)
+- Show a **"Download HTML"** button that downloads a zip archive of the HTML output
+
+### 3.6 Zip Download Endpoint
+
+**File:** `books/views.py`
+
+Add an endpoint `GET /api/books/<id>/download-html/` that:
+
+1. Zips the contents of `media/html_books/<book_id>/` on the fly
+2. Returns the zip with `Content-Disposition: attachment; filename="<book_title>.zip"`
+3. Requires authentication (same as PDF download)
+4. Alternatively, pre-generate the zip at build time and store it alongside the HTML
+
+---
+
+## File Summary
+
+### New files to create:
+
+| File | Purpose |
+|------|---------|
+| `Build/template_html/OpenChaptersHTML.sty` | HTML-specific LaTeX package |
+| `Build/template_html/preambleHTML.ins` | HTML-safe user commands |
+| `Build/template_html/lwarp_sagebrush.css` | Primary CSS theme |
+| `Build/template_html/lwarp.css` | Base lwarp CSS |
+| `Build/template_html/lwarp_mathjax.txt` | MathJax configuration |
+| `Build/template_html/StyleInd.ist` | Makeindex style |
+| `Build/scripts/main_html.tex.j2` | Jinja2 template for per-chapter HTML |
+| `Build/scripts/main_book_html.tex.j2` | Jinja2 template for per-book HTML |
+| `Build/scripts/build_chapter_html.py` | Script to render per-chapter template |
+| `catalog/management/commands/build_chapter_html.py` | Management command |
+| `catalog/tasks.py` | Celery task for async HTML builds |
+| `catalog/migrations/NNNN_html_built_at.py` | Migration for new model field |
+| `frontend/src/pages/ChapterReadPage.tsx` | HTML reader page |
+
+### Existing files to modify:
+
+| File | Change |
+|------|--------|
+| `docker/worker/Dockerfile` | Add `pdf2svg`, `latexmk` |
+| `catalog/models.py` | Add `html_built_at` field |
+| `catalog/serializers.py` | Add `html_built_at` to fields |
+| `catalog/views.py` | Add HTML serving views |
+| `admin_api/views.py` | Add "Build HTML" endpoint |
+| `admin_api/urls.py` | Add route for build-html |
+| `frontend/src/types/index.ts` | Add `html_built_at` to Chapter interface |
+| `frontend/src/pages/ChapterDetailPage.tsx` | Add "Read Online" button |
+| `frontend/src/App.tsx` | Add `/chapters/:id/read` route |
+| `frontend/src/admin/pages/ChaptersPage.tsx` | Add "Build HTML" admin button |
+| `docker/nginx/nginx.conf` | Update CSP for MathJax CDN |
+| `ocweb/urls.py` | Add HTML serving URL patterns |
+
+### Phase 3 additional modifications:
+
+| File | Change |
+|------|--------|
+| `books/models.py` | Add `html_path`, `html_built_at` |
+| `books/tasks.py` | Add `build_book_html` task |
+| `books/views.py` | Add zip download endpoint |
+| `frontend/src/pages/BookEditorPage.tsx` | Add format selector |
+| `frontend/src/pages/LibraryPage.tsx` | Add "View Online" and "Download HTML" |

@@ -8,6 +8,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import ProfilePage from './pages/ProfilePage';
 import ChapterBrowserPage from './pages/ChapterBrowserPage';
 import ChapterDetailPage from './pages/ChapterDetailPage';
+import ChapterReadPage from './pages/ChapterReadPage';
 import MyBooksPage from './pages/MyBooksPage';
 import BookEditorPage from './pages/BookEditorPage';
 import BuildStatusPage from './pages/BuildStatusPage';
@@ -65,6 +66,10 @@ export default function App() {
             <ChapterDetailPage />
           </Layout>
         }
+      />
+      <Route
+        path="/chapters/:id/read"
+        element={<ChapterReadPage />}
       />
 
       {/* Protected routes */}

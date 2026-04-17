@@ -159,6 +159,17 @@ export default function ChapterDetailPage() {
             <p className="text-sm text-gray-600 mt-4 leading-relaxed">{chapter.description}</p>
           )}
 
+          {chapter.html_built_at && (
+            <div className="mt-4">
+              <button
+                onClick={() => navigate(`/chapters/${chapter.id}/read`)}
+                className="text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Read Online
+              </button>
+            </div>
+          )}
+
           {chapter.keywords.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-4">
               {chapter.keywords.map((kw) => (

@@ -33,6 +33,7 @@ class ChapterSerializer(serializers.ModelSerializer):
             "last_updated",
             "reviewer_name",
             "reviewed_at",
+            "html_built_at",
             "cached_at",
         ]
         read_only_fields = fields

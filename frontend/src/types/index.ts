@@ -23,6 +23,7 @@ export interface Chapter {
   last_updated: string | null;
   reviewer_name: string;
   reviewed_at: string | null;
+  html_built_at: string | null;
   cached_at: string;
 }
 

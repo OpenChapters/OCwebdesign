@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 import tempfile
 from pathlib import Path
 
@@ -16,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 # Local cache directory for cover images
 COVER_CACHE_DIR = Path(settings.BASE_DIR) / "media" / "covers"
+
+# Directory where per-chapter HTML output is stored
+HTML_DIR = Path(settings.BASE_DIR) / "media" / "html"
 
 
 class DisciplineListView(generics.ListAPIView):
@@ -107,4 +111,65 @@ class ChapterCoverView(APIView):
         )
         response["Cache-Control"] = "public, max-age=86400"
         response["ETag"] = f'"{etag}"'
+        return response
+
+
+class ChapterHtmlView(APIView):
+    """
+    GET /api/chapters/<id>/html/              — serve index.html
+    GET /api/chapters/<id>/html/<filename>    — serve any file from the HTML output
+
+    Serves pre-built lwarp HTML output for a chapter. Returns 404 if
+    HTML has not been built for the chapter.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    _CONTENT_TYPES = {
+        ".html": "text/html; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".svg": "image/svg+xml",
+        ".png": "image/png",
+        ".txt": "text/plain; charset=utf-8",
+    }
+
+    def get(self, request, pk, filename=None):
+        try:
+            chapter = Chapter.objects.get(pk=pk, published=True)
+        except Chapter.DoesNotExist:
+            return HttpResponse(status=404)
+
+        if not chapter.chabbr or not chapter.html_built_at:
+            return HttpResponse(status=404)
+
+        chapter_dir = HTML_DIR / chapter.chabbr
+        if not chapter_dir.is_dir():
+            return HttpResponse(status=404)
+
+        # Default to index.html
+        if not filename:
+            filename = "index.html"
+
+        # Prevent path traversal
+        try:
+            target = (chapter_dir / filename).resolve()
+            if not str(target).startswith(str(chapter_dir.resolve())):
+                return HttpResponse(status=403)
+        except (ValueError, OSError):
+            return HttpResponse(status=400)
+
+        if not target.is_file():
+            # Check ImageFolder subdirectory
+            target = (chapter_dir / "ImageFolder" / filename).resolve()
+            if not str(target).startswith(str(chapter_dir.resolve())) or not target.is_file():
+                return HttpResponse(status=404)
+
+        suffix = target.suffix.lower()
+        content_type = self._CONTENT_TYPES.get(suffix)
+        if not content_type:
+            content_type = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+
+        response = FileResponse(open(target, "rb"), content_type=content_type)
+        response["Cache-Control"] = "public, max-age=3600"
         return response

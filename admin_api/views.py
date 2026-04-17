@@ -391,6 +391,40 @@ class AdminChapterUpdateTOCView(APIView):
         })
 
 
+class AdminChapterBuildHtmlView(APIView):
+    """POST /api/admin/chapters/build-html/ — build HTML for published chapters."""
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        from django.core.management import call_command
+        from io import StringIO
+
+        chabbr = request.data.get("chabbr")
+
+        out = StringIO()
+        try:
+            kwargs = {"stdout": out}
+            if chabbr:
+                kwargs["chabbr"] = chabbr
+            call_command("build_chapter_html", **kwargs)
+        except Exception as e:
+            return Response(
+                {"detail": f"Build failed: {e}", "output": out.getvalue()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        AuditEntry.log(
+            request, "chapter.build_html", "Chapter",
+            detail={"chabbr": chabbr or "all", "output": out.getvalue()[-500:]},
+        )
+
+        return Response({
+            "detail": "HTML build complete.",
+            "output": out.getvalue(),
+        })
+
+
 class AdminChapterUpdateThumbnailsView(APIView):
     """POST /api/admin/chapters/update-thumbnails/ — regenerate cover.png
     from header images for chapters whose header is newer than the cover.

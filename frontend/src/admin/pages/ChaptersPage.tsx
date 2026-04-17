@@ -8,6 +8,7 @@ export default function ChaptersPage() {
   const [syncing, setSyncing] = useState(false);
   const [updatingThumbs, setUpdatingThumbs] = useState(false);
   const [updatingTOC, setUpdatingTOC] = useState(false);
+  const [buildingHtml, setBuildingHtml] = useState(false);
   const [syncOutput, setSyncOutput] = useState('');
   const queryClient = useQueryClient();
 
@@ -51,6 +52,21 @@ export default function ChaptersPage() {
     }
   }
 
+  async function handleBuildHtml() {
+    if (!confirm('Build HTML output for all published chapters? This may take several minutes.')) return;
+    setBuildingHtml(true);
+    setSyncOutput('');
+    try {
+      const result = await adminApi.chapterBuildHtml();
+      setSyncOutput(result.output || result.detail);
+      queryClient.invalidateQueries({ queryKey: ['admin-chapters'] });
+    } catch (err: any) {
+      setSyncOutput(err?.response?.data?.output || err?.response?.data?.detail || 'HTML build failed.');
+    } finally {
+      setBuildingHtml(false);
+    }
+  }
+
   async function handleUpdateTOC() {
     if (!confirm('Re-extract section headings from .tex files on GitHub and update TOC?')) return;
     setUpdatingTOC(true);
@@ -82,6 +98,13 @@ export default function ChaptersPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          <button
+            onClick={handleBuildHtml}
+            disabled={buildingHtml}
+            className="text-sm border border-green-300 text-green-700 px-4 py-2 rounded-lg hover:bg-green-50 disabled:opacity-50"
+          >
+            {buildingHtml ? 'Building…' : 'Build HTML'}
+          </button>
           <button
             onClick={handleUpdateTOC}
             disabled={updatingTOC}

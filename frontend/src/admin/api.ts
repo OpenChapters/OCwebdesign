@@ -163,6 +163,7 @@ export interface AdminChapter {
   latex_entry_file: string;
   reviewer_name: string;
   reviewed_at: string | null;
+  html_built_at: string | null;
   cached_at: string;
 }
 
@@ -275,5 +276,9 @@ export const adminApi = {
   chapterUpdateThumbnails: () =>
     client.post<{ detail: string; updated: string[]; skipped: string[]; errors: string[] }>(
       '/admin/chapters/update-thumbnails/'
+    ).then((r) => r.data),
+  chapterBuildHtml: (chabbr?: string) =>
+    client.post<{ detail: string; output: string }>(
+      '/admin/chapters/build-html/', chabbr ? { chabbr } : {}
     ).then((r) => r.data),
 };

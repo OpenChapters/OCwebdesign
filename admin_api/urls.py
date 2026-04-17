@@ -14,6 +14,7 @@ from .views import (
     AdminChapterListView,
     AdminChapterSyncView,
     AdminChapterUpdateTOCView,
+    AdminChapterBuildHtmlView,
     AdminChapterUpdateThumbnailsView,
     AdminDisciplineDetailView,
     AdminDisciplineListView,
@@ -46,6 +47,7 @@ urlpatterns = [
     path("chapters/sync/", AdminChapterSyncView.as_view(), name="admin-chapter-sync"),
     path("chapters/update-toc/", AdminChapterUpdateTOCView.as_view(), name="admin-chapter-toc"),
     path("chapters/update-thumbnails/", AdminChapterUpdateThumbnailsView.as_view(), name="admin-chapter-thumbnails"),
+    path("chapters/build-html/", AdminChapterBuildHtmlView.as_view(), name="admin-chapter-build-html"),
 
     # Builds
     path("builds/", AdminBuildListView.as_view(), name="admin-build-list"),

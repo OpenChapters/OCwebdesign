@@ -112,6 +112,9 @@ class Chapter(models.Model):
     reviewer_name = models.CharField(max_length=200, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
+    # Timestamp of the last successful HTML build via lwarp
+    html_built_at = models.DateTimeField(null=True, blank=True)
+
     # Timestamp of the last successful sync from GitHub
     cached_at = models.DateTimeField(auto_now=True)
 

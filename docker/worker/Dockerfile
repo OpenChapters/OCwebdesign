@@ -28,6 +28,7 @@ RUN apt-get update \
       python3 \
       python3-pip \
       git \
+      pdf2svg \
  && rm -rf /var/lib/apt/lists/*
 
 # ── Python dependencies ───────────────────────────────────────────────────────
@@ -52,6 +53,9 @@ COPY Build/scripts/ Build/scripts/
 
 # Custom arara rule definitions (copyImageFiles, mergemainbibfiles)
 COPY arara-rules/ arara-rules/
+
+# HTML template files (lwarp CSS, OpenChaptersHTML.sty, etc.)
+COPY Build/template_html/ Build/template_html/
 
 # LaTeX template files copied into every temp build workspace.
 # These are NOT in this repo — they live in the OpenChapters repo.

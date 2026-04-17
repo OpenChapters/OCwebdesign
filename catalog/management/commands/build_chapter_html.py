@@ -180,7 +180,10 @@ class Command(BaseCommand):
             # Update the model
             chapter.html_built_at = timezone.now()
             chapter.save(update_fields=["html_built_at"])
-        finally:
+        except Exception:
+            logger.warning("Build failed — workspace preserved at %s", workdir)
+            raise
+        else:
             shutil.rmtree(workdir, ignore_errors=True)
 
     def _setup_workspace(self, workdir: Path, chapter: Chapter) -> None:
@@ -198,6 +201,15 @@ class Command(BaseCommand):
 
         # Create ImageFolder
         (workdir / "ImageFolder").mkdir(exist_ok=True)
+
+        # Force non-interactive pdflatex for all latexmk invocations
+        # (including those made by lwarpmk). Otherwise pdflatex hangs
+        # indefinitely on missing-file prompts inside the HTML pass.
+        (workdir / ".latexmkrc").write_text(
+            "$pdflatex = 'pdflatex -interaction=nonstopmode -halt-on-error "
+            "--shell-escape %O %S';\n",
+            encoding="utf-8",
+        )
 
     def _clone_repo(self, workdir: Path, chapter: Chapter) -> None:
         """Shallow-clone the chapter's repository."""
@@ -357,6 +369,13 @@ class Command(BaseCommand):
         env["OCBUILD_SCRIPTS_DIR"] = str(SCRIPTS_DIR)
         # Ensure the wrapper scripts are findable
         env["PATH"] = "/usr/local/bin:" + env.get("PATH", "")
+        # Isolate Perl PAR cache per build so parallel biber runs don't
+        # clobber each other's module cache in /tmp/par-<user>/
+        par_cache = workdir / ".par_cache"
+        par_cache.mkdir(exist_ok=True)
+        env["PAR_GLOBAL_TEMP"] = str(par_cache)
+        env["PAR_TEMP"] = str(par_cache)
+        env["TMPDIR"] = str(par_cache)
 
         result = subprocess.run(
             ["arara", "-v", "main.tex"],

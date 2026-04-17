@@ -21,6 +21,8 @@ export interface Chapter {
   github_repo: string;
   chapter_subdir: string;
   last_updated: string | null;
+  reviewer_name: string;
+  reviewed_at: string | null;
   cached_at: string;
 }
 

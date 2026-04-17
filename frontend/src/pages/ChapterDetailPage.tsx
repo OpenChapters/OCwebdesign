@@ -132,9 +132,15 @@ export default function ChapterDetailPage() {
                   })}
                 </p>
               )}
-              {chapter.last_updated && (
+              {(chapter.last_updated || chapter.reviewer_name) && (
                 <p className="text-xs text-gray-400 mt-1">
-                  Last updated {new Date(chapter.last_updated).toLocaleDateString()}
+                  {chapter.last_updated && (
+                    <>Last updated {new Date(chapter.last_updated).toLocaleDateString()}</>
+                  )}
+                  {chapter.last_updated && chapter.reviewer_name && ' · '}
+                  {chapter.reviewer_name && (
+                    <>Reviewed by {chapter.reviewer_name}{chapter.reviewed_at && ` on ${new Date(chapter.reviewed_at).toLocaleDateString()}`}</>
+                  )}
                 </p>
               )}
             </div>

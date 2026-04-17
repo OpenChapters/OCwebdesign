@@ -151,6 +151,8 @@ class Command(BaseCommand):
                 "author_urls": chapter_data.get("author_urls", {}),
                 "depends_on": chapter_data.get("depends_on", []),
                 "published": chapter_data.get("published", True),
+                "reviewer_name": chapter_data.get("reviewer_name", ""),
+                "reviewed_at": chapter_data.get("reviewed_at") or None,
             }
             if last_commit_iso:
                 defaults["last_updated"] = last_commit_iso

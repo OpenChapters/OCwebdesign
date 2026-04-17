@@ -66,7 +66,8 @@ class AdminChapterSerializer(serializers.ModelSerializer):
             "id", "title", "authors", "description", "toc",
             "cover_image_url", "keywords", "chapter_type", "chabbr",
             "depends_on", "published", "discipline", "discipline_name",
-            "github_repo", "chapter_subdir", "latex_entry_file", "cached_at",
+            "github_repo", "chapter_subdir", "latex_entry_file",
+            "reviewer_name", "reviewed_at", "cached_at",
         ]
         read_only_fields = [
             "id", "github_repo", "chapter_subdir", "latex_entry_file",

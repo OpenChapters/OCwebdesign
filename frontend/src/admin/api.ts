@@ -161,6 +161,8 @@ export interface AdminChapter {
   github_repo: string;
   chapter_subdir: string;
   latex_entry_file: string;
+  reviewer_name: string;
+  reviewed_at: string | null;
   cached_at: string;
 }
 

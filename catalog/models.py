@@ -108,6 +108,10 @@ class Chapter(models.Model):
     # Date of the most recent commit touching this chapter's subdirectory
     last_updated = models.DateTimeField(null=True, blank=True)
 
+    # Review information (entered manually by an admin)
+    reviewer_name = models.CharField(max_length=200, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
     # Timestamp of the last successful sync from GitHub
     cached_at = models.DateTimeField(auto_now=True)
 

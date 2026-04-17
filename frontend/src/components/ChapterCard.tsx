@@ -94,18 +94,6 @@ export default function ChapterCard({
               Updated {new Date(chapter.last_updated).toLocaleDateString()}
             </p>
           )}
-          {chapter.keywords.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {chapter.keywords.slice(0, 3).map((kw) => (
-                <span
-                  key={kw}
-                  className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded"
-                >
-                  {kw}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Book Editor mode: single Add button */}
@@ -132,7 +120,7 @@ export default function ChapterCard({
               onClick={() => navigate(`/chapters/${chapter.id}`)}
               className="flex-1 text-xs border border-gray-300 text-gray-700 px-2 py-1.5 rounded hover:bg-gray-50 transition-colors"
             >
-              View
+              Chapter Info
             </button>
             <button
               onClick={() =>

@@ -26,6 +26,8 @@ export default function ChapterDetailPage() {
         chapter_type: chapter.chapter_type,
         keywords: chapter.keywords,
         published: chapter.published,
+        reviewer_name: chapter.reviewer_name,
+        reviewed_at: chapter.reviewed_at,
       });
     }
   }, [chapter?.id]);
@@ -146,6 +148,25 @@ export default function ChapterDetailPage() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reviewer Name</label>
+                <input
+                  value={form.reviewer_name ?? ''}
+                  onChange={(e) => setForm({ ...form, reviewer_name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Review Date</label>
+                <input
+                  type="date"
+                  value={form.reviewed_at ? new Date(form.reviewed_at).toISOString().slice(0, 10) : ''}
+                  onChange={(e) => setForm({ ...form, reviewed_at: e.target.value ? new Date(e.target.value + 'T00:00:00Z').toISOString() : null })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
             <button
               onClick={handleSave}
               disabled={saving}
@@ -204,6 +225,13 @@ export default function ChapterDetailPage() {
             <div>
               <dt className="text-gray-500">GitHub path</dt>
               <dd className="text-gray-900 font-mono text-xs">{chapter.github_repo}/{chapter.chapter_subdir}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Reviewer</dt>
+              <dd className="text-gray-900">
+                {chapter.reviewer_name || '—'}
+                {chapter.reviewed_at && ` (${new Date(chapter.reviewed_at).toLocaleDateString()})`}
+              </dd>
             </div>
             <div>
               <dt className="text-gray-500">Last synced</dt>

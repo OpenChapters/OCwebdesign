@@ -71,9 +71,11 @@ Internet
 
 All services run as Docker containers managed by `docker-compose.prod.yml`. Build artifacts:
 
-- **PDFs** — user-requested custom books, stored under `media/pdfs/`
-- **HTML** — per-chapter lwarp output, stored under `media/html/<chabbr>/`, served at `/api/chapters/<id>/html/`
+- **PDFs** — user-requested custom books, stored under `media/pdfs/` (shared via the `media_pdfs` named volume between web and worker)
+- **HTML** — per-chapter lwarp output, stored under `media/html/<chabbr>/` (shared via the `media_html` named volume between web and worker), served at `/api/chapters/<id>/html/`
 - **Search index** — PostgreSQL table (`catalog_chaptersearchindex`) populated after each HTML build, queried via `/api/chapters/search/`
+
+Both media volumes are mounted on the web and worker services so the worker can write build output and the web service can serve it.
 
 ## Initial Server Setup
 

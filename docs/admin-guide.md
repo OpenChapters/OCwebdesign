@@ -163,6 +163,8 @@ If `HTML_BUILD_ENABLED=True` is set in `.env.prod`, the nightly sync also dispat
 
 After each successful HTML build, the chapter's search index is refreshed so the new content is immediately searchable.
 
+**About cross-chapter references.** Per-chapter HTML builds only see their own chapter's source. Any `\ref{...}` pointing to a label in a different chapter (e.g., a chapter listed in `depends_on`) cannot be resolved. In PDF these render as bold `??`; in the HTML reader they render as the label name in italics (e.g., *NUMSYS:sec:quaternions*), which gives readers a hint about the target. Cross-chapter linking will become possible in per-book HTML builds (planned feature).
+
 ### Chapter Detail
 
 **Path:** `/admin-panel/chapters/:id`

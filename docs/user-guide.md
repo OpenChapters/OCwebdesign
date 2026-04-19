@@ -106,6 +106,8 @@ Chapters with an HTML version available have a **Read Online** button on their d
 
 Not every chapter has an HTML version. When it is not available, only the **+ Add to Book** button appears on the chapter detail page — you can still include the chapter in a custom PDF build.
 
+**About cross-references.** Per-chapter HTML is built from that chapter's source only. Any cross-reference that points to a label in a different chapter will render as the label name in italics (e.g., *NUMSYS:sec:quaternions*) rather than a live link. Cross-chapter hyperlinks will become possible in per-book HTML builds (planned feature).
+
 ## Chapter Details
 
 Each chapter card has two buttons:

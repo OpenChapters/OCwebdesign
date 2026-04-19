@@ -23,6 +23,7 @@ services:
     command: gunicorn ocweb.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
     volumes:
       - media_pdfs:/app/media/pdfs
+      - media_html:/app/media/html
     env_file: .env.prod
     environment:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
@@ -46,6 +47,7 @@ services:
     command: celery -A ocweb worker -l info --concurrency 4 --max-tasks-per-child 100
     volumes:
       - media_pdfs:/app/media/pdfs
+      - media_html:/app/media/html
     env_file: .env.prod
     environment:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
@@ -81,3 +83,4 @@ services:
 volumes:
   postgres_data_prod:
   media_pdfs:
+  media_html:

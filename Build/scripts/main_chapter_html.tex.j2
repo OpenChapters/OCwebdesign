@@ -68,6 +68,23 @@
 
 \input{preambleHTML.ins}
 
+% For per-chapter HTML builds, cross-chapter \ref targets are unresolved.
+% Replace the default "??" with the label argument (e.g. "NUMSYS:sec:quat")
+% so readers see a meaningful hint rather than "??".
+\begin{warpHTML}
+\makeatletter
+\def\@setref#1#2#3{%
+  \ifx#1\relax
+    \protect\G@refundefinedtrue
+    \nfss@text{\textit{#3}}%
+    \@latex@warning{Reference `#3' on page \thepage\space undefined}%
+  \else
+    \expandafter#2#1\null
+  \fi
+}
+\makeatother
+\end{warpHTML}
+
 % Per-chapter bibliography
 \addbibresource{chaptercitations.bib}
 

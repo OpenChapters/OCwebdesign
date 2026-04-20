@@ -887,9 +887,13 @@ def deliver_book_html(self, book_id: int) -> None:
         logger.warning("deliver_book_html: Book %d has no HTML build", book_id)
         return
 
+    from books.signing import make_download_token
+
     site_url = getattr(settings, "SITE_URL", "http://localhost:5173").rstrip("/")
     view_url = f"{site_url}/books/{book.id}/read"
-    download_url = f"{site_url}/api/books/{book.id}/download-html/"
+    # Signed token so the recipient can download without logging in.
+    token = make_download_token(book.id, book.user_id)
+    download_url = f"{site_url}/api/dl-html/{token}/"
 
     if not getattr(settings, "EMAIL_HOST", ""):
         logger.info(

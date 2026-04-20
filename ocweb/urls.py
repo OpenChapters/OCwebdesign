@@ -15,6 +15,7 @@ from books.views import (
     BuildStatusView,
     BuildTriggerView,
     CoverImageView,
+    DownloadBookHtmlByTokenView,
     DownloadBookHtmlView,
     DownloadPDFByTokenView,
     DownloadPDFView,
@@ -143,6 +144,7 @@ urlpatterns = [
 
     # ── Signed PDF download (from email links, no auth required) ────────────
     path("api/dl/<str:token>/", DownloadPDFByTokenView.as_view(), name="download-pdf-token"),
+    path("api/dl-html/<str:token>/", DownloadBookHtmlByTokenView.as_view(), name="download-book-html-token"),
 
     # ── About (serves markdown for frontend rendering) ────────────────────────
     path("api/about/", about_md, name="about"),

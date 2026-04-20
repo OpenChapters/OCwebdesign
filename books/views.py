@@ -553,26 +553,76 @@ class BookHtmlTokenView(APIView):
         return Response({"token": make_html_access_token(book.id, request.user.id)})
 
 
+def _serve_book_html_zip(book: Book) -> FileResponse | Response:
+    """Stream a book's pre-built HTML zip archive, or return a 404 Response."""
+    html_dir = _book_html_dir(book)
+    if not html_dir:
+        return Response({"detail": "No HTML build."}, status=status.HTTP_404_NOT_FOUND)
+
+    zip_path = html_dir / "book.zip"
+    if not zip_path.is_file():
+        return Response(
+            {"detail": "HTML archive not available."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    import re as _re
+    safe_title = _re.sub(r"[^\w\s-]", "", book.title).strip() or "book"
+    response = FileResponse(open(zip_path, "rb"), content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{safe_title}.zip"'
+    return response
+
+
 class DownloadBookHtmlView(APIView):
-    """GET /api/books/<book_pk>/download-html/ — download the HTML output as zip."""
+    """GET /api/books/<book_pk>/download-html/ — download the HTML zip (JWT auth)."""
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, book_pk):
         book = get_object_or_404(Book, pk=book_pk, user=request.user)
-        html_dir = _book_html_dir(book)
-        if not html_dir:
-            return Response({"detail": "No HTML build."}, status=status.HTTP_404_NOT_FOUND)
+        return _serve_book_html_zip(book)
 
-        zip_path = html_dir / "book.zip"
-        if not zip_path.is_file():
+
+class DownloadBookHtmlByTokenView(APIView):
+    """
+    GET /api/dl-html/<token>/ — download the HTML zip using a signed,
+    time-limited token from an email delivery link. No JWT required;
+    the signed token proves the link was issued by the server and
+    encodes both the book ID and the owner's user ID.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token):
+        import logging
+        from .signing import verify_download_token
+
+        logger = logging.getLogger(__name__)
+
+        result = verify_download_token(token)
+        if result is None:
             return Response(
-                {"detail": "HTML archive not available."},
-                status=status.HTTP_404_NOT_FOUND,
+                {"detail": "Download link is invalid or has expired."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
-        import re as _re
-        safe_title = _re.sub(r"[^\w\s-]", "", book.title).strip() or "book"
-        response = FileResponse(open(zip_path, "rb"), content_type="application/zip")
-        response["Content-Disposition"] = f'attachment; filename="{safe_title}.zip"'
-        return response
+        book_id, user_id = result
+        book = get_object_or_404(Book.objects.select_related("user"), pk=book_id)
+
+        if user_id and book.user_id != user_id:
+            return Response(
+                {"detail": "Download link is invalid."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Audit trail for token downloads
+        ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+        if not ip:
+            ip = request.META.get("REMOTE_ADDR", "")
+        logger.info(
+            "Token HTML download: book_id=%d user_id=%d ip=%s",
+            book_id, user_id or 0, ip,
+        )
+
+        return _serve_book_html_zip(book)

@@ -1,7 +1,9 @@
+import mimetypes
 from pathlib import Path
 
+from django.conf import settings
 from django.db import transaction
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -30,7 +32,7 @@ from .serializers import (
     BookSerializer,
     BuildJobSerializer,
 )
-from .tasks import build_book
+from .tasks import build_book, build_book_html
 
 
 # ── Book CRUD ─────────────────────────────────────────────────────────────────
@@ -225,23 +227,34 @@ class PartChapterReorderView(APIView):
 # ── Build ─────────────────────────────────────────────────────────────────────
 
 class BuildTriggerView(APIView):
-    """POST /api/books/<book_pk>/build/ — enqueue the build_book Celery task."""
+    """POST /api/books/<book_pk>/build/ — enqueue a Celery build task.
+
+    Body (JSON): {"format": "pdf" | "html" | "both"}  (default: "pdf")
+    """
 
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "builds"
 
     def post(self, request, book_pk):
+        from celery import chain
+
+        fmt = str(request.data.get("format", "pdf")).lower()
+        if fmt not in ("pdf", "html", "both"):
+            return Response(
+                {"detail": "format must be 'pdf', 'html', or 'both'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Atomic update: only transition from draft/complete/failed to queued.
         # Prevents duplicate builds from concurrent requests.
         updated = Book.objects.filter(
             pk=book_pk,
             user=request.user,
             status__in=[Book.Status.DRAFT, Book.Status.COMPLETE, Book.Status.FAILED],
-        ).update(status=Book.Status.QUEUED)
+        ).update(status=Book.Status.QUEUED, last_build_format=fmt)
 
         if not updated:
-            # Either book not found, not owned, or already queued/building
             book = Book.objects.filter(pk=book_pk, user=request.user).first()
             if not book:
                 return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -250,8 +263,17 @@ class BuildTriggerView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        build_book.delay(book_pk)
-        return Response({"detail": "Build queued.", "book_id": book_pk}, status=status.HTTP_202_ACCEPTED)
+        if fmt == "pdf":
+            build_book.delay(book_pk)
+        elif fmt == "html":
+            build_book_html.delay(book_pk)
+        else:  # both — chain PDF then HTML so they run sequentially
+            chain(build_book.si(book_pk), build_book_html.si(book_pk)).delay()
+
+        return Response(
+            {"detail": "Build queued.", "book_id": book_pk, "format": fmt},
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class BuildStatusView(APIView):
@@ -353,10 +375,203 @@ class DownloadPDFByTokenView(APIView):
 
 
 class LibraryView(generics.ListAPIView):
-    """GET /api/library/ — completed books for the authenticated user."""
+    """GET /api/library/ — completed books for the authenticated user.
+
+    Includes books that have either a PDF or HTML build available.
+    """
 
     permission_classes = [IsAuthenticated]
     serializer_class = BookListSerializer
 
     def get_queryset(self):
-        return Book.objects.filter(user=self.request.user, status=Book.Status.COMPLETE)
+        from django.db.models import Q
+        return (
+            Book.objects.filter(user=self.request.user)
+            .filter(
+                Q(status=Book.Status.COMPLETE)
+                | Q(html_built_at__isnull=False)
+            )
+        )
+
+
+# ── Per-book HTML output ──────────────────────────────────────────────────────
+
+_HTML_BOOK_CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".txt": "text/plain; charset=utf-8",
+}
+
+
+def _book_html_dir(book: Book) -> Path | None:
+    """Return the on-disk directory holding *book*'s HTML output, or None."""
+    if not book.html_built_at:
+        return None
+    if book.html_path:
+        p = Path(book.html_path)
+        if p.is_dir():
+            return p
+    fallback = Path(settings.BUILD_HTML_OUTPUT_DIR) / f"book_{book.id}"
+    return fallback if fallback.is_dir() else None
+
+
+class BookHtmlView(APIView):
+    """
+    GET /api/books/<book_pk>/html/                — serve the book's landing HTML
+    GET /api/books/<book_pk>/html/<path:filename> — serve any file from the HTML output
+
+    Accepts either a JWT (``Authorization: Bearer …``) or a signed
+    short-lived token via ``?t=<token>`` — needed because iframes
+    cannot send the Authorization header. Tokens are minted by
+    ``BookHtmlTokenView`` after verifying ownership.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def _cookie_name(self, book_pk: int) -> str:
+        return f"ochtml_{book_pk}"
+
+    def _authorize(self, request, book_pk):
+        """Return (Book, token) if the caller owns the book via JWT, a
+        query-string token, or a previously-set HTML-access cookie.
+        Returns (None, None) on failure.
+        """
+        from .signing import verify_html_access_token
+
+        def _verify(tok: str):
+            verified = verify_html_access_token(tok)
+            if verified is None:
+                return None
+            tok_book_id, tok_user_id = verified
+            if tok_book_id != book_pk:
+                return None
+            return Book.objects.filter(pk=book_pk, user_id=tok_user_id).first()
+
+        # 1. Token in the query string (iframe's initial src)
+        token = request.query_params.get("t")
+        if token:
+            book = _verify(token)
+            if book:
+                return book, token
+
+        # 2. Token stashed in a scoped cookie by a prior request
+        cookie_tok = request.COOKIES.get(self._cookie_name(book_pk))
+        if cookie_tok:
+            book = _verify(cookie_tok)
+            if book:
+                return book, None  # cookie already set; no need to refresh it
+
+        # 3. Fall back to standard JWT auth for direct API callers
+        from rest_framework_simplejwt.authentication import JWTAuthentication
+
+        auth = JWTAuthentication()
+        try:
+            result = auth.authenticate(request)
+        except Exception:
+            return None, None
+        if result is None:
+            return None, None
+        user, _validated = result
+        book = Book.objects.filter(pk=book_pk, user=user).first()
+        return book, None
+
+    def get(self, request, book_pk, filename=None):
+        book, fresh_token = self._authorize(request, book_pk)
+        if book is None:
+            return HttpResponse(status=401)
+
+        html_dir = _book_html_dir(book)
+        if not html_dir:
+            return Response({"detail": "No HTML build."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not filename:
+            # For books, lwarp's index.html is the TOC landing page —
+            # the right place for readers to arrive at first.
+            filename = "index.html" if (html_dir / "index.html").exists() else "node-1.html"
+
+        try:
+            target = (html_dir / filename).resolve()
+            if not str(target).startswith(str(html_dir.resolve())):
+                return HttpResponse(status=403)
+        except (ValueError, OSError):
+            return HttpResponse(status=400)
+
+        if not target.is_file():
+            # Fall back to ImageFolder for bare asset names
+            target = (html_dir / "ImageFolder" / filename).resolve()
+            if (
+                not str(target).startswith(str(html_dir.resolve()))
+                or not target.is_file()
+            ):
+                return HttpResponse(status=404)
+
+        suffix = target.suffix.lower()
+        content_type = _HTML_BOOK_CONTENT_TYPES.get(suffix)
+        if not content_type:
+            content_type = (
+                mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+            )
+
+        response = FileResponse(open(target, "rb"), content_type=content_type)
+        response["Cache-Control"] = "private, max-age=3600"
+        response["X-Frame-Options"] = "SAMEORIGIN"
+
+        # Plant a scoped cookie so follow-up requests for iframe
+        # sub-resources (CSS, SVG) — which the browser issues without
+        # the ?t=<token> query string — are still authorized.
+        if fresh_token:
+            response.set_cookie(
+                self._cookie_name(book_pk),
+                fresh_token,
+                max_age=4 * 3600,
+                httponly=True,
+                samesite="Strict",
+                path=f"/api/books/{book_pk}/html/",
+            )
+        return response
+
+
+class BookHtmlTokenView(APIView):
+    """GET /api/books/<book_pk>/html-token/ — mint a short-lived HTML access token.
+
+    The token is required for iframe <src> requests since iframes
+    cannot send the Authorization header. Valid for ~4 hours.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, book_pk):
+        from .signing import make_html_access_token
+
+        book = get_object_or_404(Book, pk=book_pk, user=request.user)
+        if not _book_html_dir(book):
+            return Response({"detail": "No HTML build."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"token": make_html_access_token(book.id, request.user.id)})
+
+
+class DownloadBookHtmlView(APIView):
+    """GET /api/books/<book_pk>/download-html/ — download the HTML output as zip."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, book_pk):
+        book = get_object_or_404(Book, pk=book_pk, user=request.user)
+        html_dir = _book_html_dir(book)
+        if not html_dir:
+            return Response({"detail": "No HTML build."}, status=status.HTTP_404_NOT_FOUND)
+
+        zip_path = html_dir / "book.zip"
+        if not zip_path.is_file():
+            return Response(
+                {"detail": "HTML archive not available."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        import re as _re
+        safe_title = _re.sub(r"[^\w\s-]", "", book.title).strip() or "book"
+        response = FileResponse(open(zip_path, "rb"), content_type="application/zip")
+        response["Content-Disposition"] = f'attachment; filename="{safe_title}.zip"'
+        return response

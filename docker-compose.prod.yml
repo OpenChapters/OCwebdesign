@@ -24,6 +24,7 @@ services:
     volumes:
       - media_pdfs:/app/media/pdfs
       - media_html:/app/media/html
+      - media_html_books:/app/media/html_books
     env_file: .env.prod
     environment:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
@@ -48,6 +49,7 @@ services:
     volumes:
       - media_pdfs:/app/media/pdfs
       - media_html:/app/media/html
+      - media_html_books:/app/media/html_books
     env_file: .env.prod
     environment:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
@@ -84,3 +86,4 @@ volumes:
   postgres_data_prod:
   media_pdfs:
   media_html:
+  media_html_books:

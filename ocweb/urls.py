@@ -9,10 +9,13 @@ from users.token import CustomTokenObtainPairView
 
 from books.views import (
     BookDetailView,
+    BookHtmlTokenView,
+    BookHtmlView,
     BookListCreateView,
     BuildStatusView,
     BuildTriggerView,
     CoverImageView,
+    DownloadBookHtmlView,
     DownloadPDFByTokenView,
     DownloadPDFView,
     LibraryView,
@@ -124,6 +127,10 @@ urlpatterns = [
     path("api/books/<int:book_pk>/build/", BuildTriggerView.as_view(), name="build-trigger"),
     path("api/books/<int:book_pk>/build/status/", BuildStatusView.as_view(), name="build-status"),
     path("api/books/<int:book_pk>/download/", DownloadPDFView.as_view(), name="download-pdf"),
+    path("api/books/<int:book_pk>/download-html/", DownloadBookHtmlView.as_view(), name="download-book-html"),
+    path("api/books/<int:book_pk>/html-token/", BookHtmlTokenView.as_view(), name="book-html-token"),
+    path("api/books/<int:book_pk>/html/", BookHtmlView.as_view(), name="book-html"),
+    path("api/books/<int:book_pk>/html/<path:filename>", BookHtmlView.as_view(), name="book-html-file"),
 
     # ── Library ───────────────────────────────────────────────────────────────
     path("api/library/", LibraryView.as_view(), name="library"),

@@ -15,7 +15,7 @@ import { booksApi } from '../api/books';
 import { chaptersApi } from '../api/chapters';
 import ChapterCard from '../components/ChapterCard';
 import SortableChapterList from '../components/SortableChapterList';
-import type { BookPart, Chapter } from '../types';
+import type { BookPart, BuildFormat, Chapter } from '../types';
 import { useToast } from '../components/Toast';
 
 export default function BookEditorPage() {
@@ -35,6 +35,7 @@ export default function BookEditorPage() {
   const [suggestions, setSuggestions] = useState<Chapter[]>([]);
   const [building, setBuilding] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [buildFormat, setBuildFormat] = useState<BuildFormat>('pdf');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -293,7 +294,7 @@ export default function BookEditorPage() {
     if (buildData?.status) {
       setBuildStatus(buildData.status);
       if (buildData.status === 'complete') {
-        toast('Build complete! Your PDF is ready.', 'success');
+        toast('Build complete! Your book is ready.', 'success');
         refresh();
       } else if (buildData.status === 'failed') {
         toast('Build failed. Check the build status page for details.', 'error');
@@ -309,12 +310,25 @@ export default function BookEditorPage() {
   }, [book?.status]);
 
   async function triggerBuild() {
-    if (!confirm('Start building this book? This may take a few minutes.')) return;
+    const confirmMsg =
+      buildFormat === 'pdf'
+        ? 'Start building this book as a PDF? This typically takes 1–3 minutes.'
+        : buildFormat === 'html'
+          ? 'Start building this book as HTML?\n\nHTML builds run lwarp plus MathJax and SVG conversion for every figure, so they take noticeably longer than PDF builds — expect several minutes.'
+          : 'Start building this book as PDF + HTML?\n\nThe PDF is built first, then HTML. The HTML pass is slow (lwarp + MathJax + SVG) — the whole job usually takes several minutes.';
+    if (!confirm(confirmMsg)) return;
+
     setBuilding(true);
     try {
-      await booksApi.triggerBuild(bookId);
+      await booksApi.triggerBuild(bookId, buildFormat);
       setBuildStatus('queued');
-      toast('Build queued.', 'info');
+      const queuedMsg =
+        buildFormat === 'pdf'
+          ? 'PDF build queued.'
+          : buildFormat === 'html'
+            ? 'HTML build queued — this may take several minutes.'
+            : 'PDF + HTML build queued — the HTML pass will take several minutes.';
+      toast(queuedMsg, 'info');
     } catch (err: any) {
       toast(err?.response?.data?.detail ?? 'Build failed to start.', 'error');
     } finally {
@@ -383,7 +397,7 @@ export default function BookEditorPage() {
         )}
         {buildStatus === 'complete' && (
           <Link to={`/books/${bookId}/status`} className="text-xs bg-green-100 text-green-800 px-3 py-1.5 rounded-full font-medium hover:bg-green-200">
-            PDF Ready — View
+            Build complete — View
           </Link>
         )}
         {buildStatus === 'failed' && (
@@ -398,8 +412,25 @@ export default function BookEditorPage() {
         >
           {showPreview ? 'Hide Preview' : 'Preview TOC'}
         </button>
+        <select
+          value={buildFormat}
+          onChange={(e) => setBuildFormat(e.target.value as BuildFormat)}
+          disabled={building || buildStatus === 'queued' || buildStatus === 'building'}
+          className="text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+          title="Select the build output format"
+        >
+          <option value="pdf">PDF</option>
+          <option value="html">HTML</option>
+          <option value="both">PDF + HTML</option>
+        </select>
         <button onClick={triggerBuild} disabled={!canBuild || building || buildStatus === 'queued' || buildStatus === 'building'} className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-40">
-          {building ? 'Starting…' : 'Build PDF'}
+          {building
+            ? 'Starting…'
+            : buildFormat === 'pdf'
+              ? 'Build PDF'
+              : buildFormat === 'html'
+                ? 'Build HTML'
+                : 'Build PDF + HTML'}
         </button>
       </div>
 

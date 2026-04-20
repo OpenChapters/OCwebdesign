@@ -343,6 +343,8 @@ With chapter content available as HTML, implement full-text search across all pu
 
 ## Phase 3: Per-Book HTML Build
 
+**Status: implemented.** The Book Editor offers a format selector (PDF, HTML, or both); the Library surfaces "View Online" and "Download HTML" actions for books with an HTML build. Output is stored under `media/html_books/book_<id>/` with a pre-built `book.zip` alongside for O(1) zip downloads. The worker task is `books.build_book_html` (chained after `books.build_book` in the "both" case).
+
 ### 3.1 Jinja2 Template for Full-Book HTML
 
 **New file:** `Build/scripts/main_book_html.tex.j2`
@@ -481,3 +483,4 @@ Add an endpoint `GET /api/books/<id>/download-html/` that:
 | `books/views.py` | Add zip download endpoint |
 | `frontend/src/pages/BookEditorPage.tsx` | Add format selector |
 | `frontend/src/pages/LibraryPage.tsx` | Add "View Online" and "Download HTML" |
+2

@@ -40,6 +40,26 @@ class Book(models.Model):
         help_text="Optional DOI link for this book.",
     )
 
+    # Per-book HTML build artifacts (lwarp)
+    html_path = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Filesystem path to the directory containing the built HTML output.",
+    )
+    html_built_at = models.DateTimeField(null=True, blank=True)
+
+    class BuildFormat(models.TextChoices):
+        PDF = "pdf", "PDF"
+        HTML = "html", "HTML"
+        BOTH = "both", "PDF + HTML"
+
+    last_build_format = models.CharField(
+        max_length=8,
+        choices=BuildFormat.choices,
+        default=BuildFormat.PDF,
+        help_text="Format selected for the most recent build; used by Retry.",
+    )
+
     class Meta:
         ordering = ["-created_at"]
 

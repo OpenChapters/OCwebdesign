@@ -43,20 +43,51 @@ class BookSerializer(serializers.ModelSerializer):
     build_job = BuildJobSerializer(read_only=True)
 
     has_cover_image = serializers.SerializerMethodField()
+    has_pdf = serializers.SerializerMethodField()
+    has_html = serializers.SerializerMethodField()
 
     def get_has_cover_image(self, obj):
         return bool(obj.cover_image)
 
+    def get_has_pdf(self, obj):
+        return bool(getattr(obj, "build_job", None) and obj.build_job.pdf_path)
+
+    def get_has_html(self, obj):
+        return bool(obj.html_built_at and obj.html_path)
+
     class Meta:
         model = Book
-        fields = ["id", "title", "doi", "status", "created_at", "updated_at", "parts", "build_job", "has_cover_image"]
-        read_only_fields = ["id", "status", "created_at", "updated_at", "parts", "build_job", "has_cover_image"]
+        fields = [
+            "id", "title", "doi", "status", "created_at", "updated_at",
+            "parts", "build_job", "has_cover_image", "html_built_at",
+            "has_pdf", "has_html", "last_build_format",
+        ]
+        read_only_fields = [
+            "id", "status", "created_at", "updated_at", "parts",
+            "build_job", "has_cover_image", "html_built_at",
+            "has_pdf", "has_html", "last_build_format",
+        ]
 
 
 class BookListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list view (no nested parts)."""
 
+    has_pdf = serializers.SerializerMethodField()
+    has_html = serializers.SerializerMethodField()
+
+    def get_has_pdf(self, obj):
+        return bool(getattr(obj, "build_job", None) and obj.build_job.pdf_path)
+
+    def get_has_html(self, obj):
+        return bool(obj.html_built_at and obj.html_path)
+
     class Meta:
         model = Book
-        fields = ["id", "title", "doi", "status", "created_at", "updated_at"]
-        read_only_fields = ["id", "status", "created_at", "updated_at"]
+        fields = [
+            "id", "title", "doi", "status", "created_at", "updated_at",
+            "html_built_at", "has_pdf", "has_html",
+        ]
+        read_only_fields = [
+            "id", "status", "created_at", "updated_at", "html_built_at",
+            "has_pdf", "has_html",
+        ]

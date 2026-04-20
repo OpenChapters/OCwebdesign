@@ -66,16 +66,18 @@ Internet
        │ Celery  │  TeX Live worker
        │ worker  │  - On-demand custom PDF books (build_book)
        │         │  - Per-chapter HTML via lwarp (build_chapter_html)
+       │         │  - Per-book HTML via lwarp (build_book_html)
        └─────────┘
 ```
 
 All services run as Docker containers managed by `docker-compose.prod.yml`. Build artifacts:
 
 - **PDFs** — user-requested custom books, stored under `media/pdfs/` (shared via the `media_pdfs` named volume between web and worker)
-- **HTML** — per-chapter lwarp output, stored under `media/html/<chabbr>/` (shared via the `media_html` named volume between web and worker), served at `/api/chapters/<id>/html/`
+- **HTML (chapters)** — per-chapter lwarp output, stored under `media/html/<chabbr>/` (shared via the `media_html` named volume between web and worker), served at `/api/chapters/<id>/html/`
+- **HTML (books)** — per-book lwarp output plus a pre-built zip archive, stored under `media/html_books/book_<id>/` (shared via the `media_html_books` named volume between web and worker), served at `/api/books/<id>/html/` and `/api/books/<id>/download-html/`
 - **Search index** — PostgreSQL table (`catalog_chaptersearchindex`) populated after each HTML build, queried via `/api/chapters/search/`
 
-Both media volumes are mounted on the web and worker services so the worker can write build output and the web service can serve it.
+All three media volumes are mounted on the web and worker services so the worker can write build output and the web service can serve it.
 
 ## Initial Server Setup
 
@@ -189,6 +191,11 @@ OPENCHAPTERS_MONOREPO_PATH=
 # last HTML build. Leave blank/False to disable nightly HTML builds;
 # the admin panel can still trigger them manually.
 HTML_BUILD_ENABLED=True
+
+# Optional: override the local directory where per-book HTML output
+# is stored. Defaults to <BASE_DIR>/media/html_books/ (which is the
+# mount point of the media_html_books named volume in production).
+# BUILD_HTML_OUTPUT_DIR=/app/media/html_books
 ```
 
 **Important:**
@@ -327,6 +334,26 @@ The index is used by the public `/api/chapters/search/` endpoint and the Search 
 - **Undefined control sequence** errors usually mean a chapter uses a LaTeX command that `OpenChaptersHTML.sty` / `preambleHTML.ins` does not provide. Either add the missing package to `Build/template_html/` or modify the chapter source.
 - **Missing figure file** errors mean a figure was not collected into `ImageFolder/` or was not converted to SVG. The build script auto-converts PDF figures via `pdf2svg`; verify the PDF exists in the chapter's `pdf/` directory on GitHub.
 - **Builds that time out** typically indicate pdflatex is waiting on an error prompt. The build workspace under `/tmp/ochtml-<uuid>/` is preserved on failure; inspect `main_html.log` for the actual error. See the similar section in the admin guide for more detail.
+
+## Per-Book HTML Builds
+
+When a user selects **HTML** or **PDF + HTML** on the Book Editor, the web service enqueues a `books.build_book_html` task on the worker queue. The worker then:
+
+1. Clones the selected chapter repos into a temp workspace
+2. Copies HTML-specific templates from `Build/template_html/`
+3. Merges bibs via `concat_bibs.py`, collects figures via `collect_images.py`, and converts PDF figures to SVG via `pdf2svg`
+4. Renders `main.tex` from `Build/scripts/main_book_html.tex.j2`
+5. Runs `arara -w main.tex` to execute the full lwarp chain
+6. Injects `ocweb_overrides.css` into each generated HTML page
+7. Writes the output to `media/html_books/book_<id>/` alongside a pre-built `book.zip`
+8. Updates `Book.html_path` and `Book.html_built_at` and emails the user
+   a link to view or download the result
+
+**Format selection** is stored per request (not per book), so a user can choose a different format each time they rebuild. For **PDF + HTML**, the two tasks are dispatched as a Celery chain — the HTML task runs only after the PDF build finishes successfully.
+
+**Media sharing:** Both `web` and `worker` services mount `media_html_books` at `/app/media/html_books`. The worker writes output; the web service streams it via `BookHtmlView` (for `/api/books/<id>/html/…`) and `DownloadBookHtmlView` (for `/api/books/<id>/download-html/`, which serves the pre-built zip).
+
+**Authentication:** All book HTML endpoints require the owning user's JWT. Unlike the per-chapter HTML (public), per-book HTML is private because it may contain the user's personalized frontmatter and chapter selection.
 
 ## Running Tests
 

@@ -256,16 +256,19 @@ If you add the foundational chapters yourself, you can place them in any part an
 
 Once your book has at least one chapter:
 
-1. Click the **Build PDF** button in the top-right corner of the Book Editor.
-2. Confirm the build in the dialog.
-3. You will be redirected to the Build Status page.
+1. Choose a **build format** from the drop-down next to the Build button:
+   - **PDF** — a professionally typeset PDF (default)
+   - **HTML** — an interactive, browser-based version with side-panel table of contents, MathJax-rendered equations, and SVG figures
+   - **PDF + HTML** — run both builds one after the other in a single request
+2. Click the **Build** button in the top-right corner of the Book Editor.
+3. Confirm the build in the dialog.
 
-The build process typically takes 1–3 minutes depending on the number of chapters and figures. During a build, the server:
+The build process typically takes 1–3 minutes per format depending on the number of chapters and figures. During a build, the server:
 
 - Clones the chapter source files from GitHub
 - Merges bibliographies and collects figures
-- Typesets the book using LaTeX (pdflatex + biber + makeindex)
-- Produces a professionally formatted PDF
+- Typesets the book using LaTeX (pdflatex + biber + makeindex for PDF, plus lwarp + MathJax for HTML)
+- Produces the PDF and/or a complete HTML bundle ready for offline reading
 
 ## Build Status
 
@@ -282,7 +285,7 @@ The page polls automatically every 3 seconds while the build is in progress.
 
 The page also shows the **book title** so you know which build you're monitoring.
 
-If the build **succeeds**, a **Download PDF** button appears. If email delivery is configured on the server, you will also receive an email with a download link that remains valid for 7 days. If the build **fails**, the error message from the LaTeX log is shown to help diagnose the issue.
+If the build **succeeds**, a **Download PDF** button appears (and, for an HTML build, a **View Online** link). If email delivery is configured on the server, you will also receive an email with download links that remain valid for 7 days. If the build **fails**, the error message from the LaTeX log is shown to help diagnose the issue.
 
 ## Your Library
 
@@ -291,7 +294,10 @@ Click **Library** in the navigation bar to see all your completed books. Each en
 - Book title
 - Completion date
 - A **Build info** link to view the build status
-- A **Download PDF** button to download the book directly
+- A **Download PDF** button (when a PDF build is available)
+- A **View Online** link and **Download HTML** button (when an HTML build is available)
+
+The **View Online** link opens the full book in the browser with clickable table of contents, search-friendly text, and MathJax-rendered equations. **Download HTML** gives you a zip archive of the complete site (HTML pages, CSS, SVG figures, MathJax configuration) that you can open locally with any web browser — no server required.
 
 ## Managing Your Books
 

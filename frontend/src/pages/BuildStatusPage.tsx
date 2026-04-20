@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { booksApi } from '../api/books';
 import { useToast } from '../components/Toast';
+import type { BuildJob } from '../types';
 
 export default function BuildStatusPage() {
   const toast = useToast();
@@ -24,7 +25,10 @@ export default function BuildStatusPage() {
 
   const bookTitle = bookData?.title ?? '';
   const status: string = data?.status ?? 'unknown';
-  const job = data?.build_job;
+  const job: BuildJob | undefined = data?.build_job;
+
+  const hasPdf = Boolean(bookData?.has_pdf);
+  const hasHtml = Boolean(bookData?.has_html);
 
   const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
     queued:   { label: 'Queued',   color: 'text-yellow-600', icon: '⏳' },
@@ -72,17 +76,45 @@ export default function BuildStatusPage() {
                   {new Date(job.finished_at).toLocaleString()}
                 </div>
               )}
-              {status === 'complete' && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-4">
-                  <p className="text-sm font-medium text-green-800 flex-1">PDF ready</p>
-                  <button
-                    onClick={async () => {
-                      try { await booksApi.downloadPDF(bookId); } catch { toast('Download failed.', 'error'); }
-                    }}
-                    className="bg-green-700 text-white text-sm px-4 py-2 rounded hover:bg-green-800"
-                  >
-                    Download PDF
-                  </button>
+              {status === 'complete' && (hasPdf || hasHtml) && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3 flex-wrap">
+                  <p className="text-sm font-medium text-green-800 flex-1">
+                    {hasPdf && hasHtml
+                      ? 'PDF and HTML ready'
+                      : hasHtml
+                        ? 'HTML ready'
+                        : 'PDF ready'}
+                  </p>
+                  {hasPdf && (
+                    <button
+                      onClick={async () => {
+                        try { await booksApi.downloadPDF(bookId); }
+                        catch { toast('Download failed.', 'error'); }
+                      }}
+                      className="bg-green-700 text-white text-sm px-4 py-2 rounded hover:bg-green-800"
+                    >
+                      Download PDF
+                    </button>
+                  )}
+                  {hasHtml && (
+                    <>
+                      <Link
+                        to={`/books/${bookId}/read`}
+                        className="bg-indigo-600 text-white text-sm px-4 py-2 rounded hover:bg-indigo-700"
+                      >
+                        View Online
+                      </Link>
+                      <button
+                        onClick={async () => {
+                          try { await booksApi.downloadHtmlZip(bookId); }
+                          catch { toast('Download failed.', 'error'); }
+                        }}
+                        className="bg-gray-700 text-white text-sm px-4 py-2 rounded hover:bg-gray-800"
+                      >
+                        Download HTML
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
               {status === 'failed' && job.error_message && (

@@ -66,6 +66,15 @@
 \usepackage{forest}
 \usepackage{tabularx}
 
+% lwarp compatibility stubs for the PDF build.
+% Chapters may use \begin{warpHTML}...\end{warpHTML} (HTML-only
+% content) and \begin{warpprint}...\end{warpprint} (print-only
+% content). lwarp defines these in the HTML build; in the PDF build
+% we must provide stubs so pdflatex can parse the source.
+\usepackage{comment}
+\excludecomment{warpHTML}   % skip HTML-only blocks in the PDF
+\includecomment{warpprint}  % keep print-only blocks in the PDF
+
 \usepackage[top=3cm,bottom=3cm,left=3cm,right=3cm,headsep=10pt,a4paper]{geometry} % Page margins
 
 \usepackage{graphicx} % Required for including pictures

@@ -45,7 +45,7 @@ RUN SECRET_KEY=build-only \
     python manage.py collectstatic --noinput
 
 RUN useradd -m -u 1000 ocweb \
- && mkdir -p /app/media/covers /app/media/pdfs /app/media/html \
+ && mkdir -p /app/media/covers /app/media/pdfs /app/media/html /app/media/html_books \
  && chown -R ocweb:ocweb /app/media
 USER ocweb
 

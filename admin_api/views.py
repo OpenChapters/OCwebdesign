@@ -688,13 +688,19 @@ class AdminBuildCancelView(APIView):
 
 
 class AdminBuildRetryView(APIView):
-    """POST /api/admin/builds/<id>/retry/ — re-enqueue a failed build."""
+    """POST /api/admin/builds/<id>/retry/ — re-enqueue a failed build.
+
+    Reuses the format that was originally selected for the book
+    (``Book.last_build_format``). Admins may override with a
+    ``format`` body parameter (``pdf`` / ``html`` / ``both``).
+    """
 
     permission_classes = [IsStaffUser]
 
     def post(self, request, pk):
+        from celery import chain
         from books.models import Book, BuildJob
-        from books.tasks import build_book
+        from books.tasks import build_book, build_book_html
 
         job = generics.get_object_or_404(BuildJob, pk=pk)
         if job.book.status not in (Book.Status.FAILED, Book.Status.COMPLETE):
@@ -702,11 +708,30 @@ class AdminBuildRetryView(APIView):
                 {"detail": "Only failed or complete builds can be retried."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        fmt = str(request.data.get("format", job.book.last_build_format or "pdf")).lower()
+        if fmt not in ("pdf", "html", "both"):
+            return Response(
+                {"detail": "format must be 'pdf', 'html', or 'both'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         job.book.status = Book.Status.QUEUED
-        job.book.save(update_fields=["status"])
-        build_book.delay(job.book.id)
-        AuditEntry.log(request, "build.retry", "BuildJob", job.id, {"book": job.book.title})
-        return Response({"detail": "Build re-queued."})
+        job.book.last_build_format = fmt
+        job.book.save(update_fields=["status", "last_build_format"])
+
+        if fmt == "pdf":
+            build_book.delay(job.book.id)
+        elif fmt == "html":
+            build_book_html.delay(job.book.id)
+        else:
+            chain(build_book.si(job.book.id), build_book_html.si(job.book.id)).delay()
+
+        AuditEntry.log(
+            request, "build.retry", "BuildJob", job.id,
+            {"book": job.book.title, "format": fmt},
+        )
+        return Response({"detail": "Build re-queued.", "format": fmt})
 
 
 class AdminBuildDownloadView(APIView):

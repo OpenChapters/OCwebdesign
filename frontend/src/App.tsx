@@ -12,6 +12,7 @@ import ChapterReadPage from './pages/ChapterReadPage';
 import SearchPage from './pages/SearchPage';
 import MyBooksPage from './pages/MyBooksPage';
 import BookEditorPage from './pages/BookEditorPage';
+import BookReadPage from './pages/BookReadPage';
 import BuildStatusPage from './pages/BuildStatusPage';
 import LibraryPage from './pages/LibraryPage';
 import AboutPage from './pages/AboutPage';
@@ -102,6 +103,7 @@ export default function App() {
           }
         />
         <Route path="/books/:id" element={<BookEditorPage />} />
+        <Route path="/books/:id/read" element={<BookReadPage />} />
         <Route
           path="/books/:id/status"
           element={

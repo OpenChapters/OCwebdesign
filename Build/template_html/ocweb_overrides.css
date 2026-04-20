@@ -23,3 +23,23 @@ nav.topnavigation,
 nav.botnavigation {
     display: none;
 }
+
+/* ── Sidetoc readability ───────────────────────────────────────────────
+ * lwarp's default sidetoc uses .9em on the container and .7em on the
+ * <p><a> entries, which shrinks noticeably after navigating away from
+ * index.html's main TOC. Bump the sidetoc up to the body font size so
+ * the jump is less jarring. */
+div.sidetoccontainer { font-size: 1em; }
+nav.sidetoc p a { font-size: 0.95em; line-height: 1.35; }
+div.sidetoctitle { font-size: 1.1em; }
+
+/* Highlight the entry matching the current location so readers can see
+ * where they are in the TOC at a glance. The JS injected below adds
+ * the .ochtml-current class to the matching <a>. */
+nav.sidetoc a.ochtml-current {
+    background: #E8F0FF;
+    color: #0033AA !important;
+    text-decoration: none;
+    border-radius: 3px;
+    padding: 0 0.25em;
+}

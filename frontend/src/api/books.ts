@@ -1,5 +1,5 @@
 import client from './client';
-import type { Book, BookListItem } from '../types';
+import type { Book, BookListItem, BuildFormat } from '../types';
 
 export const booksApi = {
   list: () =>
@@ -39,8 +39,8 @@ export const booksApi = {
     client.patch(`/books/${bookId}/parts/${partId}/chapters/reorder/`, { order }),
 
   // Build
-  triggerBuild: (bookId: number) =>
-    client.post(`/books/${bookId}/build/`).then((r) => r.data),
+  triggerBuild: (bookId: number, format: BuildFormat = 'pdf') =>
+    client.post(`/books/${bookId}/build/`, { format }).then((r) => r.data),
 
   getBuildStatus: (bookId: number) =>
     client.get(`/books/${bookId}/build/status/`).then((r) => r.data),
@@ -62,6 +62,24 @@ export const booksApi = {
       const disposition = r.headers['content-disposition'] || '';
       const match = disposition.match(/filename="?([^"]+)"?/);
       const filename = match ? match[1] : `book_${bookId}.pdf`;
+      const url = window.URL.createObjectURL(r.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    }),
+
+  htmlAccessToken: (bookId: number) =>
+    client.get<{ token: string }>(`/books/${bookId}/html-token/`).then((r) => r.data.token),
+
+  downloadHtmlZip: (bookId: number) =>
+    client.get(`/books/${bookId}/download-html/`, { responseType: 'blob' }).then((r) => {
+      const disposition = r.headers['content-disposition'] || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : `book_${bookId}.zip`;
       const url = window.URL.createObjectURL(r.data);
       const a = document.createElement('a');
       a.href = url;

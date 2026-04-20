@@ -11,9 +11,17 @@ export default function LibraryPage() {
     queryFn: booksApi.library,
   });
 
-  async function handleDownload(bookId: number) {
+  async function handleDownloadPDF(bookId: number) {
     try {
       await booksApi.downloadPDF(bookId);
+    } catch {
+      toast('Download failed.', 'error');
+    }
+  }
+
+  async function handleDownloadHTML(bookId: number) {
+    try {
+      await booksApi.downloadHtmlZip(bookId);
     } catch {
       toast('Download failed.', 'error');
     }
@@ -44,7 +52,7 @@ export default function LibraryPage() {
         {books.map((book) => (
           <div
             key={book.id}
-            className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex items-center gap-4"
+            className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex items-center gap-4 flex-wrap"
           >
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-gray-900">{book.title}</p>
@@ -61,12 +69,30 @@ export default function LibraryPage() {
             >
               Build info
             </Link>
-            <button
-              onClick={() => handleDownload(book.id)}
-              className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
-            >
-              Download PDF
-            </button>
+            {book.has_pdf && (
+              <button
+                onClick={() => handleDownloadPDF(book.id)}
+                className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
+              >
+                Download PDF
+              </button>
+            )}
+            {book.has_html && (
+              <>
+                <Link
+                  to={`/books/${book.id}/read`}
+                  className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700"
+                >
+                  View Online
+                </Link>
+                <button
+                  onClick={() => handleDownloadHTML(book.id)}
+                  className="text-xs bg-gray-700 text-white px-3 py-1.5 rounded hover:bg-gray-800"
+                >
+                  Download HTML
+                </button>
+              </>
+            )}
           </div>
         ))}
       </div>

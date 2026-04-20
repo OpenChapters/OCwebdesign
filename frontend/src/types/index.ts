@@ -1,3 +1,5 @@
+export type BuildFormat = 'pdf' | 'html' | 'both';
+
 export interface Discipline {
   id: number;
   name: string;
@@ -58,6 +60,10 @@ export interface Book {
   parts: BookPart[];
   build_job: BuildJob | null;
   has_cover_image: boolean;
+  html_built_at: string | null;
+  has_pdf: boolean;
+  has_html: boolean;
+  last_build_format: BuildFormat;
 }
 
 export interface BookListItem {
@@ -67,7 +73,11 @@ export interface BookListItem {
   status: 'draft' | 'queued' | 'building' | 'complete' | 'failed';
   created_at: string;
   updated_at: string;
+  html_built_at: string | null;
+  has_pdf: boolean;
+  has_html: boolean;
 }
+
 
 export interface PaginatedResponse<T> {
   count: number;

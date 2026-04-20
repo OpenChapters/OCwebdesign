@@ -778,17 +778,26 @@ The `order` array contains BookChapter IDs in the desired sequence. Each item's 
 POST /api/books/<book_id>/build/
 ```
 
-Enqueues a Celery task to typeset the book as a PDF.
+Enqueues a Celery task to typeset the book. The build format is selected via the request body:
+
+**Body (JSON):**
+```json
+{ "format": "pdf" }          // default: build as PDF
+{ "format": "html" }         // build as lwarp HTML + zip archive
+{ "format": "both" }         // chain: PDF first, then HTML
+```
 
 **Response (202):**
 ```json
 {
   "detail": "Build queued.",
-  "book_id": 1
+  "book_id": 1,
+  "format": "html"
 }
 ```
 
 **Errors:**
+- `400` — invalid `format` value
 - `409` — a build is already in progress for this book
 
 #### Get Build Status
@@ -843,7 +852,7 @@ Returns the current build status. Poll this endpoint every few seconds while the
 GET /api/library/
 ```
 
-Returns only books with status `complete` for the authenticated user.
+Returns the authenticated user's books that have any completed output — either PDF (`status = complete`) or HTML (`html_built_at` set).
 
 **Response (200):**
 ```json
@@ -855,11 +864,22 @@ Returns only books with status `complete` for the authenticated user.
       "title": "My Custom Textbook",
       "status": "complete",
       "created_at": "2026-03-25T15:50:00Z",
-      "updated_at": "2026-03-25T16:06:45Z"
+      "updated_at": "2026-03-25T16:06:45Z",
+      "html_built_at": "2026-03-25T16:10:12Z",
+      "has_pdf": true,
+      "has_html": true
     }
   ]
 }
 ```
+
+**Fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `has_pdf` | bool | True when a PDF build exists on disk |
+| `has_html` | bool | True when an HTML build exists on disk |
+| `html_built_at` | datetime \| null | When HTML was last built |
 
 ---
 
@@ -902,6 +922,35 @@ Downloads a PDF using a signed, time-limited token from an email delivery link. 
 Tokens expire after `PDF_LINK_EXPIRY_DAYS` (default 7 days).
 
 **Response:** PDF file, or `403` if the token is invalid/expired.
+
+---
+
+### Book HTML Output
+
+Per-book HTML (generated with format `html` or `both`) is served from the following endpoints. All require the owning user's JWT.
+
+#### View Book HTML
+
+```
+GET /api/books/<book_id>/html/
+GET /api/books/<book_id>/html/<path:filename>
+```
+
+Serves the lwarp output stored under `media/html_books/book_<id>/`. With no `filename`, the server returns `node-1.html` (first content page) if present, else `index.html`. Path traversal is rejected.
+
+Content types: `.html`, `.css`, `.svg`, `.png`, `.txt` (guessed otherwise). The response sets `X-Frame-Options: SAMEORIGIN` so the frontend can embed the output in an iframe.
+
+Returns `404` if no HTML build exists for the book.
+
+#### Download Book HTML (zip)
+
+```
+GET /api/books/<book_id>/download-html/
+```
+
+Streams the pre-built `book.zip` (archive of the full HTML site: pages, CSS, SVG figures, MathJax config). The zip is created during the build and stored alongside the HTML files, so requests are O(1).
+
+**Response:** Zip file with `Content-Disposition: attachment; filename="Book Title.zip"`, or `404` if no HTML archive exists.
 
 ---
 

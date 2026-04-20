@@ -12,6 +12,7 @@ from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
 
 
 _signer = TimestampSigner(salt="pdf-download")
+_html_signer = TimestampSigner(salt="book-html-access")
 
 
 def make_download_token(book_id: int, user_id: int | None = None) -> str:
@@ -35,5 +36,27 @@ def verify_download_token(token: str) -> tuple[int, int] | None:
             return int(book_id), int(user_id)
         # Backwards compat: old tokens have only book_id
         return int(value), 0
+    except (BadSignature, SignatureExpired, ValueError):
+        return None
+
+
+# ── HTML iframe access tokens ────────────────────────────────────────────────
+# Short-lived signed tokens for iframe-based HTML reading. Iframes cannot
+# send the Authorization header, so we pass a token via query string.
+
+_HTML_TOKEN_TTL = 4 * 3600  # 4 hours
+
+
+def make_html_access_token(book_id: int, user_id: int) -> str:
+    """Create a short-lived signed token granting HTML access for a book."""
+    return _html_signer.sign(f"{book_id}:{user_id}")
+
+
+def verify_html_access_token(token: str) -> tuple[int, int] | None:
+    """Return (book_id, user_id) for a valid, unexpired HTML access token."""
+    try:
+        value = _html_signer.unsign(token, max_age=_HTML_TOKEN_TTL)
+        book_id, user_id = value.split(":", 1)
+        return int(book_id), int(user_id)
     except (BadSignature, SignatureExpired, ValueError):
         return None

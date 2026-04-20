@@ -180,6 +180,16 @@ BUILD_SCRIPTS_DIR = BASE_DIR / "Build" / "scripts"
 # In production this will be replaced by S3 upload logic in build_book.
 BUILD_OUTPUT_DIR = env.path("BUILD_OUTPUT_DIR", default=str(BASE_DIR / "media" / "pdfs"))
 
+# Local directory where generated per-book HTML output (lwarp) is stored.
+BUILD_HTML_OUTPUT_DIR = env.path(
+    "BUILD_HTML_OUTPUT_DIR",
+    default=str(BASE_DIR / "media" / "html_books"),
+)
+
+# Additional directory holding HTML-specific LaTeX template files
+# (OpenChaptersHTML.sty, preambleHTML.ins, lwarp CSS, etc.).
+BUILD_TEMPLATE_HTML_DIR = BASE_DIR / "Build" / "template_html"
+
 # Path to a local clone of the OpenChapters monorepo.
 # When set, "Update Thumbnails" also writes cover.png to the monorepo.
 OPENCHAPTERS_MONOREPO_PATH = env("OPENCHAPTERS_MONOREPO_PATH", default="")

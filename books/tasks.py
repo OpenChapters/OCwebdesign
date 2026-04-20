@@ -524,50 +524,16 @@ def _convert_pdfs_to_svg(image_dir: Path, log_fn) -> None:
     log_fn(f"Converted {count} PDF figures to SVG")
 
 
-_OCWEB_SIDETOC_JS = """
-<script>
-// OpenChapters sidetoc enhancement:
-//   1. Mark the sidetoc entry that matches the current page so CSS
-//      can highlight it.
-//   2. Scroll the sidetoc container so the current entry is visible
-//      rather than resetting to the top on every navigation.
-(function () {
-  function enhance() {
-    var toc = document.querySelector('nav.sidetoc');
-    if (!toc) return;
-    var here = location.pathname.split('/').pop() || 'index.html';
-    var links = toc.querySelectorAll('a');
-    var current = null;
-    for (var i = 0; i < links.length; i++) {
-      var href = links[i].getAttribute('href') || '';
-      var file = href.split('#')[0].split('/').pop();
-      if (file && file === here) { current = links[i]; break; }
-    }
-    if (!current) return;
-    current.classList.add('ochtml-current');
-    // Prefer the closest scrollable ancestor in the sidetoc tree.
-    var scroller = toc.querySelector('div.sidetoccontents') || toc;
-    if (typeof current.scrollIntoView === 'function') {
-      try { current.scrollIntoView({ block: 'center' }); return; } catch (e) { /* fall through */ }
-    }
-    // Fallback: manually center the entry within its scroller.
-    var top = current.offsetTop - (scroller.clientHeight / 2);
-    scroller.scrollTop = Math.max(0, top);
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', enhance);
-  } else {
-    enhance();
-  }
-})();
-</script>
-"""
-
-
 def _postprocess_book_html(workdir: Path, log_fn) -> None:
-    """Inject the ocweb_overrides stylesheet + sidetoc JS into every HTML file."""
+    """Link the ocweb_overrides stylesheet + sidetoc JS into every HTML file.
+
+    Both assets are referenced by external URL (not inlined) so the
+    production CSP — which omits ``script-src 'unsafe-inline'`` — does
+    not block them.
+    """
     css_link = '<link rel="stylesheet" type="text/css" href="ocweb_overrides.css" />'
-    injection = css_link + "\n" + _OCWEB_SIDETOC_JS.strip()
+    js_link = '<script defer src="ocweb_sidetoc.js"></script>'
+    injection = css_link + "\n" + js_link
     injected = 0
     for html_file in workdir.glob("*.html"):
         content = html_file.read_text(encoding="utf-8", errors="replace")
@@ -577,7 +543,7 @@ def _postprocess_book_html(workdir: Path, log_fn) -> None:
             content = content.replace("</head>", f"{injection}\n</head>", 1)
             html_file.write_text(content, encoding="utf-8")
             injected += 1
-    log_fn(f"Injected ocweb_overrides.css + sidetoc JS into {injected} HTML file(s)")
+    log_fn(f"Linked ocweb_overrides.css + ocweb_sidetoc.js into {injected} HTML file(s)")
 
 
 def _write_html_gin(workdir: Path, build_id: str) -> None:
@@ -801,7 +767,7 @@ def build_book_html(self, book_id: int) -> None:
         tmp_dir.mkdir(parents=True, exist_ok=False)
 
         try:
-            for ext in ("*.html", "*.css"):
+            for ext in ("*.html", "*.css", "*.js"):
                 for src in workdir.glob(ext):
                     shutil.copy2(src, tmp_dir / src.name)
 

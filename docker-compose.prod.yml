@@ -60,6 +60,25 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Celery Beat — schedules periodic tasks defined in
+  # ocweb/settings/base.py:CELERY_BEAT_SCHEDULE (nightly chapter sync
+  # + stale HTML rebuilds when HTML_BUILD_ENABLED=True). Must run
+  # exactly ONE replica; running more than one double-fires tasks.
+  beat:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile.prod
+    command: celery -A ocweb beat -l info
+    env_file: .env.prod
+    environment:
+      - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
   db:
     image: postgres:16
     volumes:

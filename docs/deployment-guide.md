@@ -259,24 +259,15 @@ docker compose -f docker-compose.prod.yml exec web python manage.py createsuperu
 docker compose -f docker-compose.prod.yml exec web python manage.py sync_chapters
 ```
 
-The chapter catalog is automatically synced nightly at 03:00 UTC via Celery Beat. To enable this, add a beat service to `docker-compose.prod.yml`:
+The chapter catalog is automatically synced nightly at 03:00 UTC via Celery Beat. The `beat` service is included in `docker-compose.prod.yml`; it reads the schedule from `ocweb/settings/base.py:CELERY_BEAT_SCHEDULE` and enqueues tasks onto the worker queue. You must run **exactly one** replica — running more than one double-fires every schedule.
 
-```yaml
-  beat:
-    build:
-      context: .
-      dockerfile: docker/web/Dockerfile.prod
-    command: celery -A ocweb beat -l info
-    env_file: .env.prod
-    environment:
-      - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
-    depends_on:
-      - db
-      - rabbitmq
-    restart: unless-stopped
+Check the scheduler is ticking:
+
+```bash
+docker compose -f docker-compose.prod.yml logs beat --tail 30
 ```
 
-Or run the sync manually as needed:
+You can also run the sync manually at any time:
 
 ```bash
 docker compose -f docker-compose.prod.yml exec web python manage.py sync_chapters

@@ -6,12 +6,21 @@ services:
       dockerfile: docker/nginx/Dockerfile
     ports:
       - "8080:80"
+      - "443:443"
+    volumes:
+      # Let's Encrypt certs live on the host. nginx reads them from the
+      # paths referenced in docker/nginx/nginx.conf. Renewal is handled
+      # by the host's certbot timer; restart this container after a
+      # renewal so nginx reloads the new cert.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       web:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      # Healthcheck hits HTTPS on localhost; -k skips cert verification
+      # because the container sees the cert via SNI = 'localhost'.
+      test: ["CMD-SHELL", "curl -kf https://localhost/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

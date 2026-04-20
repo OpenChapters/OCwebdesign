@@ -710,19 +710,38 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 Verify by visiting `https://yourdomain.com` — you should see a valid certificate and a padlock icon.
 
-**Step 8 — Set up auto-renewal.** Let's Encrypt certificates expire every 90 days. Create a cron job or systemd timer to renew automatically. Certbot needs port 80 free during renewal, so stop and restart nginx around it:
+**Step 8 — Set up auto-renewal.** Let's Encrypt certificates expire every 90 days. On Debian/Ubuntu the `certbot` package ships with a systemd timer (`certbot.timer`) that already runs `certbot renew` twice daily and is enabled by default — so you do not need a cron entry. What you **do** need is a hook that reloads the nginx container whenever the cert is actually refreshed; certbot's `renewal-hooks/deploy/` directory is exactly for this.
+
+Create the deploy hook (one-time setup):
 
 ```bash
-sudo crontab -e
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/openchapters-reload.sh >/dev/null <<'EOF'
+#!/bin/bash
+# Reload the OpenChapters nginx container so it picks up the renewed
+# certificate. Runs only after a successful renewal.
+COMPOSE_FILE=/home/mdg/OCwebdesign/docker-compose.prod.yml
+if [ -f "$COMPOSE_FILE" ]; then
+    /usr/bin/docker compose -f "$COMPOSE_FILE" exec -T nginx nginx -s reload
+fi
+EOF
+sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/openchapters-reload.sh
 ```
 
-Add this line (runs at 3:00 AM on the 1st and 15th of each month):
+Adjust `COMPOSE_FILE` to match the actual location of your deployment. Verify the hook fires by running a dry renewal:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+You should see `Congratulations, all simulated renewals succeeded` and the hook script should be invoked in the output. Because cert files are mounted into the nginx container via a bind mount (`/etc/letsencrypt:/etc/letsencrypt:ro`), `nginx -s reload` is a zero-downtime operation — the new PEMs are visible to the container as soon as certbot updates the `live/` symlinks.
+
+If you are **not** on a distribution with `certbot.timer`, fall back to cron:
 
 ```
-0 3 1,15 * * certbot renew --pre-hook "docker compose -f /home/youruser/OCwebdesign/docker-compose.prod.yml stop nginx" --post-hook "docker compose -f /home/youruser/OCwebdesign/docker-compose.prod.yml start nginx"
+0 3 1,15 * * certbot renew
 ```
 
-Replace `/home/youruser/OCwebdesign` with the actual path to your deployment.
+The deploy hook still takes care of the reload; no `--pre-hook`/`--post-hook` is needed.
 
 ### Option B: Caddy (Alternative)
 

@@ -64,11 +64,17 @@ services:
   # ocweb/settings/base.py:CELERY_BEAT_SCHEDULE (nightly chapter sync
   # + stale HTML rebuilds when HTML_BUILD_ENABLED=True). Must run
   # exactly ONE replica; running more than one double-fires tasks.
+  #
+  # --schedule points at a writable, persistent location; the default
+  # (celerybeat-schedule in CWD) lives under /app which is root-owned
+  # and would give "Permission denied" under the ocweb user.
   beat:
     build:
       context: .
       dockerfile: docker/web/Dockerfile.prod
-    command: celery -A ocweb beat -l info
+    command: celery -A ocweb beat -l info --schedule=/app/beat/celerybeat-schedule
+    volumes:
+      - beat_data:/app/beat
     env_file: .env.prod
     environment:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
@@ -106,3 +112,4 @@ volumes:
   media_pdfs:
   media_html:
   media_html_books:
+  beat_data:

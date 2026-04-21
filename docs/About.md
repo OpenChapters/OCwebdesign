@@ -19,7 +19,8 @@ A chapter template is available from the [OpenChapters/OCchaptertemplate](https:
 
 1. **Fork** the [OpenChapters/OCchaptertemplate](https://github.com/OpenChapters/OCchaptertemplate) repository to your GitHub account, then **clone** it to your local machine
 2. **Read** the AuthorInstructions.pdf file that comes with the repository; this document explains all the style conventions that need to be followed for each chapter
-3. **Write** your chapter and commit/push all changes into your forked ChapterTemplate repository
+3. **Convert** If you have course material in .md, .docx, or .pptx format, there is a python utility, occonvert.py, in the tools folder that will take such a file and transform it into a draft chapter that satisfies most of the style conventions 
+3. **Write** your chapter and commit/push all changes into your forked OCchaptertemplate repository
 4. **Submit** a pull request to the OpenChapters repository when you have a completed chapter; an editor will review your contribution and interact with you to resolve any potential formatting issues before making the chapter available on the active [OpenChapters/OpenChapters](https://github.com/OpenChapters/OpenChapters) repository
 5. **Update** your chapter on a regular basis and submit a pull request for each update
 

@@ -112,6 +112,11 @@ from datetime import timedelta  # noqa: E402
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    # SimpleJWT does not update User.last_login by default — it bypasses
+    # the auth framework's login() path. Enabling this makes the token
+    # view call update_last_login on successful authentication so the
+    # admin Users page reflects real activity.
+    "UPDATE_LAST_LOGIN": True,
 }
 
 # ── Celery ────────────────────────────────────────────────────────────────────

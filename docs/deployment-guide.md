@@ -279,10 +279,10 @@ In addition to the PDF build pipeline, OpenChapters produces per-chapter HTML ou
 
 ### Initial Build
 
-After the first catalog sync, trigger an HTML build for all published chapters:
+After the first catalog sync, trigger an HTML build for all published chapters. The command runs in the `worker` container — that image carries the LaTeX toolchain, `pdf2svg`, and the Jinja2 renderer that the build pipeline needs. Running it in `web` fails with `No module named 'jinja2'`.
 
 ```bash
-docker compose -f docker-compose.prod.yml exec web python manage.py build_chapter_html --parallel 4
+docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_html --parallel 4
 ```
 
 `--parallel N` builds N chapters concurrently using `ProcessPoolExecutor`. Each chapter typically takes 30 seconds to a few minutes. Long or complex chapters may take longer — the per-chapter timeout is 30 minutes.
@@ -290,7 +290,7 @@ docker compose -f docker-compose.prod.yml exec web python manage.py build_chapte
 To build a single chapter by its `chabbr`:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec web python manage.py build_chapter_html --chabbr BASCRY
+docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_html --chabbr BASCRY
 ```
 
 ### Nightly Automation

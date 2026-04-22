@@ -410,8 +410,39 @@ class Command(BaseCommand):
                 f"log errors: {error_tail}"
             )
 
+    _MATHJAX_SCRIPT_RE = re.compile(
+        r"<script>\s*\n\s*// Lwarp MathJax emulation code.*?</script>",
+        re.DOTALL,
+    )
+
+    def _externalize_mathjax_config(self, workdir: Path) -> None:
+        """Extract lwarp's inline MathJax <script> to lwarp_mathjax.js so the
+        production CSP (no script-src 'unsafe-inline') does not block it.
+        Without this, MathJax falls back to tags='none' and equation numbers
+        don't render in the View Online viewer.
+        """
+        external_js = workdir / "lwarp_mathjax.js"
+        replacement = '<script src="lwarp_mathjax.js"></script>'
+        wrote_js = False
+        for html_file in workdir.glob("*.html"):
+            content = html_file.read_text(encoding="utf-8", errors="replace")
+            match = self._MATHJAX_SCRIPT_RE.search(content)
+            if not match:
+                continue
+            if not wrote_js:
+                inner = match.group(0)
+                inner = inner[len("<script>"):-len("</script>")].strip("\n")
+                external_js.write_text(inner + "\n", encoding="utf-8")
+                wrote_js = True
+            html_file.write_text(
+                content[: match.start()] + replacement + content[match.end():],
+                encoding="utf-8",
+            )
+
     def _postprocess_html(self, workdir: Path, chapter: Chapter) -> None:
-        """Inject custom CSS into generated HTML files after lwarp build."""
+        """Inject custom CSS into generated HTML files after lwarp build,
+        and externalize lwarp's inline MathJax config to satisfy prod CSP."""
+        self._externalize_mathjax_config(workdir)
         css_link = '<link rel="stylesheet" type="text/css" href="ocweb_overrides.css" />'
         cover_style = (
             f'<style>.sidetoctitle::before {{ '
@@ -444,6 +475,10 @@ class Command(BaseCommand):
             # Copy CSS files
             for css_file in workdir.glob("*.css"):
                 shutil.copy2(css_file, tmp_dir / css_file.name)
+
+            # Copy JS files (lwarp_mathjax.js — externalized MathJax config)
+            for js_file in workdir.glob("*.js"):
+                shutil.copy2(js_file, tmp_dir / js_file.name)
 
             # Copy SVG images from ImageFolder
             img_src = workdir / "ImageFolder"

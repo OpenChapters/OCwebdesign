@@ -524,13 +524,53 @@ def _convert_pdfs_to_svg(image_dir: Path, log_fn) -> None:
     log_fn(f"Converted {count} PDF figures to SVG")
 
 
-def _postprocess_book_html(workdir: Path, log_fn) -> None:
-    """Link the ocweb_overrides stylesheet + sidetoc JS into every HTML file.
+_MATHJAX_SCRIPT_RE = re.compile(
+    r"<script>\s*\n\s*// Lwarp MathJax emulation code.*?</script>",
+    re.DOTALL,
+)
 
-    Both assets are referenced by external URL (not inlined) so the
+
+def _externalize_mathjax_config(workdir: Path, log_fn) -> None:
+    """Extract lwarp's inline MathJax <script> block to lwarp_mathjax.js.
+
+    lwarp emits the MathJax setup (tags="ams", tagformat, \\seteqnumber
+    handler, custom delimiters) as an inline <script> at the top of every
+    generated HTML file. Production CSP omits script-src 'unsafe-inline',
+    so the browser blocks that block — MathJax then starts with defaults
+    (tags='none') and equations render without numbers. Moving the block
+    to an external file keeps the same config while satisfying CSP.
+    """
+    external_js = workdir / "lwarp_mathjax.js"
+    replacement = '<script src="lwarp_mathjax.js"></script>'
+    wrote_js = False
+    rewritten = 0
+    for html_file in workdir.glob("*.html"):
+        content = html_file.read_text(encoding="utf-8", errors="replace")
+        match = _MATHJAX_SCRIPT_RE.search(content)
+        if not match:
+            continue
+        if not wrote_js:
+            inner = match.group(0)
+            inner = inner[len("<script>"):-len("</script>")].strip("\n")
+            external_js.write_text(inner + "\n", encoding="utf-8")
+            wrote_js = True
+        html_file.write_text(
+            content[: match.start()] + replacement + content[match.end():],
+            encoding="utf-8",
+        )
+        rewritten += 1
+    log_fn(f"Externalized MathJax config into lwarp_mathjax.js across {rewritten} HTML file(s)")
+
+
+def _postprocess_book_html(workdir: Path, log_fn) -> None:
+    """Link the ocweb_overrides stylesheet + sidetoc JS into every HTML file,
+    and externalize lwarp's inline MathJax config.
+
+    All assets are referenced by external URL (not inlined) so the
     production CSP — which omits ``script-src 'unsafe-inline'`` — does
     not block them.
     """
+    _externalize_mathjax_config(workdir, log_fn)
     css_link = '<link rel="stylesheet" type="text/css" href="ocweb_overrides.css" />'
     js_link = '<script defer src="ocweb_sidetoc.js"></script>'
     injection = css_link + "\n" + js_link

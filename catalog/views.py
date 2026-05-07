@@ -1,5 +1,6 @@
 import logging
 import mimetypes
+import re
 import tempfile
 from pathlib import Path
 
@@ -205,8 +206,20 @@ class ChapterSearchView(APIView):
         except (ValueError, TypeError):
             limit = 20
 
-        # Use websearch syntax so users can type "rotation matrix" or "quaternion OR euler"
-        query = SearchQuery(query_text, config="english", search_type="websearch")
+        # Default to prefix matching ("sym" -> "sym:*") so users get hits as
+        # they type — Postgres' English stemmer doesn't match prefixes on its
+        # own, so a bare "sym" never finds "symbol" or "symmetry". Fall back
+        # to websearch syntax when the query uses quoted phrases, OR, or "-"
+        # exclusion, since the raw-prefix form can't express those.
+        if re.search(r'"|\bOR\b|(?:^|\s)-\w', query_text, re.IGNORECASE):
+            query = SearchQuery(query_text, config="english", search_type="websearch")
+        else:
+            tokens = [t for t in re.split(r"[^\w]+", query_text) if t]
+            if tokens:
+                raw = " & ".join(f"{t}:*" for t in tokens)
+                query = SearchQuery(raw, config="english", search_type="raw")
+            else:
+                query = SearchQuery(query_text, config="english", search_type="websearch")
 
         qs = (
             ChapterSearchIndex.objects

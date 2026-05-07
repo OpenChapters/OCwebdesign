@@ -1,3 +1,4 @@
+import csv
 import logging
 import mimetypes
 import re
@@ -48,6 +49,56 @@ class ChapterDetailView(generics.RetrieveAPIView):
     queryset = Chapter.objects.filter(published=True)
     serializer_class = ChapterSerializer
     permission_classes = [AllowAny]
+
+
+class ChapterCatalogCsvView(APIView):
+    """GET /api/chapters/catalog.csv — public CSV of all published chapters.
+
+    Used by the public Catalog page so prospective authors can pull a
+    complete inventory of what's already in the collection without
+    creating an account.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        chapters = (
+            Chapter.objects
+            .filter(published=True)
+            .select_related("discipline")
+            .order_by("discipline__order", "discipline__name", "title")
+        )
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            'attachment; filename="openchapters-catalog.csv"'
+        )
+        # UTF-8 BOM so Excel opens accented characters correctly
+        response.write("﻿")
+        writer = csv.writer(response)
+        writer.writerow([
+            "chabbr",
+            "title",
+            "discipline",
+            "type",
+            "authors",
+            "last_updated",
+            "html_built",
+            "url",
+        ])
+        for c in chapters:
+            writer.writerow([
+                c.chabbr or "",
+                c.title,
+                c.discipline.name if c.discipline else "",
+                c.chapter_type,
+                "; ".join(c.authors) if c.authors else "",
+                c.last_updated.date().isoformat() if c.last_updated else "",
+                c.html_built_at.date().isoformat() if c.html_built_at else "",
+                request.build_absolute_uri(f"/chapters/{c.id}"),
+            ])
+        return response
 
 
 class ChapterCoverView(APIView):

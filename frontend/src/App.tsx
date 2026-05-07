@@ -10,6 +10,7 @@ import ChapterBrowserPage from './pages/ChapterBrowserPage';
 import ChapterDetailPage from './pages/ChapterDetailPage';
 import ChapterReadPage from './pages/ChapterReadPage';
 import SearchPage from './pages/SearchPage';
+import CatalogPage from './pages/CatalogPage';
 import MyBooksPage from './pages/MyBooksPage';
 import BookEditorPage from './pages/BookEditorPage';
 import BookReadPage from './pages/BookReadPage';
@@ -78,6 +79,14 @@ export default function App() {
         element={
           <Layout>
             <SearchPage />
+          </Layout>
+        }
+      />
+      <Route
+        path="/catalog"
+        element={
+          <Layout>
+            <CatalogPage />
           </Layout>
         }
       />

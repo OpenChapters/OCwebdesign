@@ -34,6 +34,14 @@ export default function Navbar() {
         >
           Search
         </NavLink>
+        <NavLink
+          to="/catalog"
+          className={({ isActive }) =>
+            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+          }
+        >
+          Catalog
+        </NavLink>
         {isAuthenticated && (
           <>
             <NavLink

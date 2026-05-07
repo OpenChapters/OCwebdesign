@@ -69,6 +69,49 @@ class BookSerializer(serializers.ModelSerializer):
         ]
 
 
+class PublicChapterRefSerializer(serializers.ModelSerializer):
+    """Minimal chapter info shown in community library entries."""
+
+    class Meta:
+        model = Chapter
+        fields = ["id", "title", "chabbr"]
+        read_only_fields = fields
+
+
+class PublicBookPartSerializer(serializers.ModelSerializer):
+    chapters = serializers.SerializerMethodField()
+
+    def get_chapters(self, obj):
+        chapters = [bc.chapter for bc in obj.book_chapters.all()]
+        return PublicChapterRefSerializer(chapters, many=True).data
+
+    class Meta:
+        model = BookPart
+        fields = ["title", "order", "chapters"]
+        read_only_fields = fields
+
+
+class PublicBookSerializer(serializers.ModelSerializer):
+    """Slim, no-attribution-by-default book payload for the community page.
+
+    Excludes any user-identifying field except a display name (full_name
+    falls back to "Anonymous" when blank). No build artifacts are exposed
+    — community sharing is listing-only in this phase.
+    """
+
+    parts = PublicBookPartSerializer(many=True, read_only=True)
+    author_display = serializers.SerializerMethodField()
+
+    def get_author_display(self, obj):
+        name = (obj.user.full_name or "").strip()
+        return name or "Anonymous"
+
+    class Meta:
+        model = Book
+        fields = ["id", "title", "author_display", "updated_at", "parts"]
+        read_only_fields = fields
+
+
 class BookListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list view (no nested parts)."""
 

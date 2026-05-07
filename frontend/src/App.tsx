@@ -11,6 +11,7 @@ import ChapterDetailPage from './pages/ChapterDetailPage';
 import ChapterReadPage from './pages/ChapterReadPage';
 import SearchPage from './pages/SearchPage';
 import CatalogPage from './pages/CatalogPage';
+import CommunityPage from './pages/CommunityPage';
 import MyBooksPage from './pages/MyBooksPage';
 import BookEditorPage from './pages/BookEditorPage';
 import BookReadPage from './pages/BookReadPage';
@@ -87,6 +88,14 @@ export default function App() {
         element={
           <Layout>
             <CatalogPage />
+          </Layout>
+        }
+      />
+      <Route
+        path="/community"
+        element={
+          <Layout>
+            <CommunityPage />
           </Layout>
         }
       />

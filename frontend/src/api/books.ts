@@ -93,4 +93,32 @@ export const booksApi = {
   // Library
   library: () =>
     client.get('/library/').then((r) => (Array.isArray(r.data) ? r.data : r.data.results ?? []) as BookListItem[]),
+
+  publicLibrary: () =>
+    client
+      .get('/library/public/')
+      .then((r) => (Array.isArray(r.data) ? r.data : r.data.results ?? []) as PublicBook[]),
+
+  clonePublicBook: (id: number) =>
+    client.post<{ id: number }>(`/library/public/${id}/clone/`).then((r) => r.data),
 };
+
+export interface PublicBookChapterRef {
+  id: number;
+  title: string;
+  chabbr: string;
+}
+
+export interface PublicBookPart {
+  title: string;
+  order: number;
+  chapters: PublicBookChapterRef[];
+}
+
+export interface PublicBook {
+  id: number;
+  title: string;
+  author_display: string;
+  updated_at: string;
+  parts: PublicBookPart[];
+}

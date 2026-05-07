@@ -30,6 +30,11 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=300, blank=True)
 
+    # Opt-in: when True, this user's completed books appear in the public
+    # Community library. Off by default — book/part titles are user-defined
+    # and may carry personal info, so visibility is the user's choice.
+    share_builds = models.BooleanField(default=False)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 

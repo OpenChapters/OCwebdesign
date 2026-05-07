@@ -12,6 +12,7 @@ interface Profile {
   is_staff: boolean;
   date_joined: string;
   last_login: string | null;
+  share_builds: boolean;
 }
 
 export default function ProfilePage() {
@@ -155,6 +156,44 @@ export default function ProfilePage() {
             </div>
           )}
         </dl>
+      </div>
+
+      {/* Visibility */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Visibility</h2>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={profile.share_builds}
+            onChange={async (e) => {
+              const next = e.target.checked;
+              try {
+                await client.patch('/auth/profile/', { share_builds: next });
+                queryClient.invalidateQueries({ queryKey: ['profile'] });
+                toast(
+                  next
+                    ? 'Your completed books are now visible in the Community library.'
+                    : 'Your books are no longer visible in the Community library.',
+                  'success',
+                );
+              } catch {
+                toast('Failed to update setting.', 'error');
+              }
+            }}
+            className="mt-1"
+          />
+          <div className="text-sm">
+            <div className="text-gray-900 font-medium">
+              Make my completed books visible in the Community library
+            </div>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              When on, every completed book you build is listed publicly with its title,
+              parts, and chapter list. Your full name (if set) is shown as the author —
+              otherwise the entry is attributed to "Anonymous". Your email is never shown.
+              No PDFs or HTML downloads are exposed.
+            </p>
+          </div>
+        </label>
       </div>
 
       {/* Change password */}

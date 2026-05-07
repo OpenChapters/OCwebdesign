@@ -142,31 +142,34 @@ class ProfileView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        u = request.user
-        return Response({
+    def _payload(self, u):
+        return {
             "id": u.id,
             "email": u.email,
             "full_name": u.full_name,
             "is_staff": u.is_staff,
             "date_joined": u.date_joined,
             "last_login": u.last_login,
-        })
+            "share_builds": u.share_builds,
+        }
+
+    def get(self, request):
+        return Response(self._payload(request.user))
 
     def patch(self, request):
         u = request.user
+        update_fields = []
         full_name = request.data.get("full_name")
         if full_name is not None:
             u.full_name = full_name
-            u.save(update_fields=["full_name"])
-        return Response({
-            "id": u.id,
-            "email": u.email,
-            "full_name": u.full_name,
-            "is_staff": u.is_staff,
-            "date_joined": u.date_joined,
-            "last_login": u.last_login,
-        })
+            update_fields.append("full_name")
+        share_builds = request.data.get("share_builds")
+        if share_builds is not None:
+            u.share_builds = bool(share_builds)
+            update_fields.append("share_builds")
+        if update_fields:
+            u.save(update_fields=update_fields)
+        return Response(self._payload(u))
 
     def delete(self, request):
         request.user.delete()

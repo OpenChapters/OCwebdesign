@@ -31,6 +31,7 @@ from .serializers import (
     BookPartSerializer,
     BookSerializer,
     BuildJobSerializer,
+    PublicBookSerializer,
 )
 from .tasks import build_book, build_book_html
 
@@ -391,6 +392,80 @@ class LibraryView(generics.ListAPIView):
                 Q(status=Book.Status.COMPLETE)
                 | Q(html_built_at__isnull=False)
             )
+        )
+
+
+class PublicLibraryCloneView(APIView):
+    """POST /api/library/public/<id>/clone/ — copy a shared book into the
+    requesting user's drafts.
+
+    Parts and chapter references are duplicated in their original order.
+    Cover image, DOI, build artifacts, and build metadata are NOT copied
+    — the cloning user adds their own. Title is prefixed with "Copy of".
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            source = (
+                Book.objects.select_related("user")
+                .prefetch_related("parts__book_chapters")
+                .get(
+                    pk=pk,
+                    user__share_builds=True,
+                    status=Book.Status.COMPLETE,
+                )
+            )
+        except Book.DoesNotExist:
+            return Response(
+                {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        new_book = Book.objects.create(
+            user=request.user,
+            title=f"Copy of {source.title}",
+            status=Book.Status.DRAFT,
+        )
+        for src_part in source.parts.all():
+            new_part = BookPart.objects.create(
+                book=new_book,
+                title=src_part.title,
+                order=src_part.order,
+            )
+            for src_bc in src_part.book_chapters.all():
+                BookChapter.objects.create(
+                    part=new_part,
+                    chapter_id=src_bc.chapter_id,
+                    order=src_bc.order,
+                )
+
+        return Response({"id": new_book.id}, status=status.HTTP_201_CREATED)
+
+
+class PublicLibraryView(generics.ListAPIView):
+    """GET /api/library/public/ — completed books from users who opted in.
+
+    Public, listing-only: no PDF or HTML download links are exposed via
+    this endpoint. Author identity surfaces only as a display name
+    (full_name, falling back to "Anonymous"), never email.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    serializer_class = PublicBookSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return (
+            Book.objects.filter(
+                user__share_builds=True,
+                status=Book.Status.COMPLETE,
+            )
+            .select_related("user")
+            .prefetch_related("parts__book_chapters__chapter")
+            .order_by("-updated_at")
         )
 
 

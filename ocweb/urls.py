@@ -26,6 +26,8 @@ from books.views import (
     PartChapterReorderView,
     PartDetailView,
     PartListCreateView,
+    PublicLibraryCloneView,
+    PublicLibraryView,
 )
 from catalog.views import ChapterCatalogCsvView, ChapterCoverView, ChapterDetailView, ChapterHtmlView, ChapterListView, ChapterPdfLabelsView, ChapterSearchView, DisciplineListView
 from users.views import (
@@ -137,6 +139,8 @@ urlpatterns = [
 
     # ── Library ───────────────────────────────────────────────────────────────
     path("api/library/", LibraryView.as_view(), name="library"),
+    path("api/library/public/", PublicLibraryView.as_view(), name="library-public"),
+    path("api/library/public/<int:pk>/clone/", PublicLibraryCloneView.as_view(), name="library-public-clone"),
 
     # ── Admin API ──────────────────────────────────────────────────────────────
     path("api/admin/", include("admin_api.urls")),

@@ -165,6 +165,22 @@ After each successful HTML build, the chapter's search index is refreshed so the
 
 **About cross-chapter references.** Per-chapter HTML builds only see their own chapter's source. Any `\ref{...}` pointing to a label in a different chapter (e.g., a chapter listed in `depends_on`) cannot be resolved. In PDF these render as bold `??`; in the HTML reader they render as the label name in italics (e.g., *NUMSYS:sec:quaternions*), which gives readers a hint about the target. Cross-chapter linking will become possible in per-book HTML builds (planned feature).
 
+### Building Foundational Labels-PDFs
+
+For each foundational chapter, the platform builds a separate PDF that has every `\label{...}` printed next to its anchor (via the `showkeys` package, dropped to `\tiny` so long keys stay on the page). Prospective authors download this from the chapter detail page to discover the exact label keys they should target with `\ref{...}` in their own chapters.
+
+There is no admin button for this build (the artifact is not surfaced in the admin Chapters list). Instead, the build is triggered automatically:
+
+- **Nightly**, when `HTML_BUILD_ENABLED=True` is set in `.env.prod`. The `sync_chapters` task fans out a `build_chapter_pdf_labels` task for every published foundational chapter after dispatching the stale-HTML rebuilds.
+- **Manually**, by running the management command on the worker:
+  ```bash
+  docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_pdf_labels
+  # or for a single chapter:
+  docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_pdf_labels --chabbr NUMSYS
+  ```
+
+The artifacts land under `media/pdf_labels/<chabbr>.pdf` (a shared named volume mounted on both `web` and `worker`). The `Download PDF (with labels)` button only appears on a foundational chapter's detail page when the artifact exists on disk — the chapter serializer reports `has_pdf_labels` based on a filesystem check.
+
 ### Chapter Detail
 
 **Path:** `/admin-panel/chapters/:id`

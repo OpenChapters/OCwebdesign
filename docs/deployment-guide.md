@@ -67,6 +67,7 @@ Internet
        │ worker  │  - On-demand custom PDF books (build_book)
        │         │  - Per-chapter HTML via lwarp (build_chapter_html)
        │         │  - Per-book HTML via lwarp (build_book_html)
+       │         │  - Foundational labels-PDF (build_chapter_pdf_labels)
        └─────────┘
 ```
 
@@ -75,9 +76,10 @@ All services run as Docker containers managed by `docker-compose.prod.yml`. Buil
 - **PDFs** — user-requested custom books, stored under `media/pdfs/` (shared via the `media_pdfs` named volume between web and worker)
 - **HTML (chapters)** — per-chapter lwarp output, stored under `media/html/<chabbr>/` (shared via the `media_html` named volume between web and worker), served at `/api/chapters/<id>/html/`
 - **HTML (books)** — per-book lwarp output plus a pre-built zip archive, stored under `media/html_books/book_<id>/` (shared via the `media_html_books` named volume between web and worker), served at `/api/books/<id>/html/` and `/api/books/<id>/download-html/`
+- **Labels-PDF** — per-chapter PDF with `\showkeys` enabled, stored under `media/pdf_labels/<chabbr>.pdf` (shared via the `media_pdf_labels` named volume between web and worker), served at `/api/chapters/<id>/pdf-labels/` for foundational chapters only
 - **Search index** — PostgreSQL table (`catalog_chaptersearchindex`) populated after each HTML build, queried via `/api/chapters/search/`
 
-All three media volumes are mounted on the web and worker services so the worker can write build output and the web service can serve it.
+All four media volumes are mounted on the web and worker services so the worker can write build output and the web service can serve it.
 
 ## Initial Server Setup
 
@@ -325,6 +327,44 @@ The index is used by the public `/api/chapters/search/` endpoint and the Search 
 - **Undefined control sequence** errors usually mean a chapter uses a LaTeX command that `OpenChaptersHTML.sty` / `preambleHTML.ins` does not provide. Either add the missing package to `Build/template_html/` or modify the chapter source.
 - **Missing figure file** errors mean a figure was not collected into `ImageFolder/` or was not converted to SVG. The build script auto-converts PDF figures via `pdf2svg`; verify the PDF exists in the chapter's `pdf/` directory on GitHub.
 - **Builds that time out** typically indicate pdflatex is waiting on an error prompt. The build workspace under `/tmp/ochtml-<uuid>/` is preserved on failure; inspect `main_html.log` for the actual error. See the similar section in the admin guide for more detail.
+
+## Foundational Labels-PDF Builds
+
+Each foundational chapter is also typeset as a standalone PDF with `\usepackage{showkeys}` enabled, so every `\label{...}` is printed next to its anchor. The artifact backs the public **Download PDF (with labels)** button on the chapter detail page and is intended as a label-key reference for prospective authors.
+
+### Storage
+
+Output lives in `/app/media/pdf_labels/<chabbr>.pdf` inside the containers. The directory is a named volume `media_pdf_labels` mounted on both `web` (which serves the file via `/api/chapters/<id>/pdf-labels/`) and `worker` (which writes it). Ownership is set inside each Dockerfile (`ocweb` for web, `texlive` for worker) so the volume picks up the right user on first mount; if you change runtime users, recreate the volume so the ownership re-propagates.
+
+### Initial Backfill
+
+After the first deploy of this feature, build all foundational labels-PDFs once to populate the volume:
+
+```bash
+docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_pdf_labels
+```
+
+To rebuild a single chapter:
+
+```bash
+docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_pdf_labels --chabbr NUMSYS
+```
+
+Each chapter typically completes in 1–3 minutes. The per-chapter timeout is 15 minutes.
+
+### Nightly Automation
+
+When `HTML_BUILD_ENABLED=True`, the nightly `sync_chapters` task (03:00 UTC) also fans out a `build_chapter_pdf_labels` task for every published foundational chapter, alongside the stale-HTML rebuilds. There is no separate enable flag — labels-PDFs and HTML share one nightly switch.
+
+### Troubleshooting
+
+- The `Download PDF (with labels)` button is hidden until the artifact exists on disk. If a foundational chapter shows no button after a successful build, verify the file is visible from inside the `web` container:
+  ```bash
+  docker compose -f docker-compose.prod.yml exec web ls /app/media/pdf_labels/
+  ```
+  The list should match what the worker wrote.
+- A "Permission denied" error when writing the artifact almost always means the named volume was created before the Dockerfile chowned `/app/media/pdf_labels`. Stop `web`/`worker`, `docker volume rm <project>_media_pdf_labels`, rebuild, and bring them back up — Docker copies the now-correctly-owned directory from the image into a fresh volume on the next mount.
+- The build workspace under `/tmp/ocpdflabels-<uuid>/` is preserved on failure; inspect `main.log` for the LaTeX error.
 
 ## Per-Book HTML Builds
 

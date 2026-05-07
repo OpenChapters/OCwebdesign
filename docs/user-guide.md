@@ -9,11 +9,12 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
 1. [Creating an Account](#creating-an-account)
 2. [Signing In](#signing-in)
 3. [Browsing Chapters](#browsing-chapters)
-4. [Searching Chapter Content](#searching-chapter-content)
-5. [Reading a Chapter Online](#reading-a-chapter-online)
-6. [Chapter Details](#chapter-details)
-7. [Creating a Book](#creating-a-book)
-8. [The Book Editor](#the-book-editor)
+4. [Chapter Catalog](#chapter-catalog)
+5. [Searching Chapter Content](#searching-chapter-content)
+6. [Reading a Chapter Online](#reading-a-chapter-online)
+7. [Chapter Details](#chapter-details)
+8. [Creating a Book](#creating-a-book)
+9. [The Book Editor](#the-book-editor)
    - [Adding Parts](#adding-parts)
    - [Adding Chapters](#adding-chapters)
    - [Reordering Chapters](#reordering-chapters)
@@ -21,13 +22,14 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
    - [Moving Chapters Between Parts](#moving-chapters-between-parts)
    - [Removing Chapters and Parts](#removing-chapters-and-parts)
    - [Auto-Include Foundational Chapters](#auto-include-foundational-chapters)
-9. [Building Your Book](#building-your-book)
-10. [Build Status](#build-status)
-11. [Your Library](#your-library)
-12. [Managing Your Books](#managing-your-books)
-13. [Your Profile](#your-profile)
-14. [Resetting Your Password](#resetting-your-password)
-15. [Feature Requests and Bug Reports](#feature-requests-and-bug-reports)
+10. [Building Your Book](#building-your-book)
+11. [Build Status](#build-status)
+12. [Your Library](#your-library)
+13. [Community Library](#community-library)
+14. [Managing Your Books](#managing-your-books)
+15. [Your Profile](#your-profile)
+16. [Resetting Your Password](#resetting-your-password)
+17. [Feature Requests and Bug Reports](#feature-requests-and-bug-reports)
 
 ---
 
@@ -86,12 +88,21 @@ Use the search box in the top-right of the Browse page to filter chapter cards b
 
 Hover your mouse over any chapter card to see a **table of contents** popover listing the sections within that chapter. This lets you quickly assess whether a chapter covers the topics you need.
 
+## Chapter Catalog
+
+Click **Catalog** in the top navigation bar to open a flat, read-only inventory of every published chapter. The catalog page is public — no account is required — and is intended as a quick reference for prospective authors who want to see what is already in the collection before contributing.
+
+Each row shows the chapter title, abbreviation (`chabbr`), discipline, type (foundational or topical), authors, and the date of the most recent commit touching the chapter's source. A **discipline** filter at the top lets you narrow the view.
+
+Click **Download CSV** to download the same data as a spreadsheet (`openchapters-catalog.csv`). The file is UTF-8 encoded with a byte-order mark, so accented characters open correctly in Excel and Numbers, and includes a `url` column that links each row to its public chapter detail page.
+
 ## Searching Chapter Content
 
 Click **Search** in the top navigation bar to open the full-text search page. Type a query and results appear as you type:
 
 - Each result shows the chapter, the section heading that contains the match, and a short snippet with the matching term(s) highlighted in yellow.
-- Supports phrases in quotes (`"rotation matrix"`), required terms (`+quaternion euler`), and boolean OR.
+- Each whitespace-separated word is matched as a **prefix** by default, so typing `sym` finds `symbol`, `symmetry`, `symmetric`, etc.
+- Supports phrases in quotes (`"rotation matrix"`), required terms (`+quaternion euler`), and boolean OR. When a quoted phrase, an `OR`, or a `-` exclusion appears in the query, prefix expansion is turned off and the query is parsed as a strict PostgreSQL `websearch` expression.
 - Clicking a result opens that chapter's HTML reader and jumps directly to the matching section.
 
 The search index covers every published chapter that has an HTML version available. Chapters without an HTML build are excluded from search results.
@@ -119,6 +130,7 @@ Each chapter card has two buttons:
   - Chapter type (foundational or topical)
   - Dependencies on other foundational chapters
   - A **Read Online** button (if the chapter has an HTML version)
+  - A **Download PDF (with labels)** button — appears only on **foundational** chapters that have a labels-PDF artifact built. The PDF is the chapter typeset with `\showkeys`, so every section, equation, figure, and table label is printed next to its anchor. Useful when writing a new chapter that needs to cross-reference foundational material — you can copy the exact label key from the PDF.
   - An **+ Add to Book** button
 
 - **+ Add to Book** — opens the chapter detail page with the book picker already visible. You can:
@@ -299,6 +311,28 @@ Click **Library** in the navigation bar to see all your completed books. Each en
 
 The **View Online** link opens the full book in the browser with clickable table of contents, search-friendly text, and MathJax-rendered equations. **Download HTML** gives you a zip archive of the complete site (HTML pages, CSS, SVG figures, MathJax configuration) that you can open locally with any web browser — no server required.
 
+## Community Library
+
+Click **Community** in the top navigation bar to see books that other contributors have chosen to share. The page is public — anyone can view it.
+
+Each entry shows:
+
+- The book title and the author's display name (full name, or "Anonymous" if not set). Email addresses are never shown.
+- The build date.
+- The full part-and-chapter structure of the book, with each chapter title linking to its detail page so you can read or borrow individual chapters.
+
+Sharing is **listing-only**: PDFs and HTML readers are not exposed publicly. Instead, every entry has a **Clone to my books** button (when you are signed in). Clicking it:
+
+1. Copies the book's parts and chapters into a new draft owned by you, titled `Copy of <original>`.
+2. Drops you into the Book Editor for the new draft.
+3. Leaves the original alone — the cover image, DOI, and build artifacts of the source are not copied.
+
+You can then edit the title, set your own cover, add or remove chapters, and build it under your own identity (your name appears on the cover, your gitinfo footer, your library). To see a build you cloned, look in **My Books**.
+
+If you are not signed in, the Clone button is replaced with a **Sign in to clone** link.
+
+To make your own completed books visible on this page, enable the **Visibility** option on your [profile](#your-profile).
+
 ## Managing Your Books
 
 The **My Books** page (accessible from the navigation bar) lists all your books with their current status:
@@ -327,6 +361,15 @@ The profile page shows:
 - Account creation date
 - Last login date
 - Staff role (if applicable)
+
+### Visibility
+
+The **Visibility** section controls whether your completed books appear in the public [Community Library](#community-library).
+
+- Off (default): nothing about your books is exposed publicly.
+- On: every book you have built (and every future build) is listed on `/community` with its title, parts, and chapter list. Your full name, if you have set one, is shown as the author; otherwise the entry is attributed to **Anonymous**. Your email is never shown. PDFs and HTML downloads remain private.
+
+You can toggle the setting at any time. Turning it off removes all your books from the community page immediately.
 
 ### Changing Your Password
 

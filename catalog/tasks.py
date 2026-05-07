@@ -31,6 +31,7 @@ def sync_chapters_task():
     from django.conf import settings as django_settings
     if getattr(django_settings, "HTML_BUILD_ENABLED", False):
         dispatch_stale_html_builds.delay()
+        dispatch_foundational_pdf_labels.delay()
 
 
 @shared_task(
@@ -82,6 +83,52 @@ def build_chapter_html_task(chabbr=None):
     output = out.getvalue()
     logger.info("build_chapter_html completed:\n%s", output)
     return {"output": output}
+
+
+@shared_task(
+    name="catalog.build_chapter_pdf_labels",
+    time_limit=1200,
+    soft_time_limit=900,
+)
+def build_chapter_pdf_labels_task(chabbr=None):
+    """Build the labels-PDF for one foundational chapter (or all when chabbr
+    is None). Runs on the worker (TeX Live + arara).
+    """
+    from io import StringIO
+
+    out = StringIO()
+    kwargs = {"stdout": out}
+    if chabbr:
+        kwargs["chabbr"] = chabbr
+
+    call_command("build_chapter_pdf_labels", **kwargs)
+    output = out.getvalue()
+    logger.info("build_chapter_pdf_labels completed:\n%s", output)
+    return {"output": output}
+
+
+@shared_task(name="catalog.dispatch_foundational_pdf_labels", time_limit=60)
+def dispatch_foundational_pdf_labels():
+    """Fan out one labels-PDF build per published foundational chapter.
+
+    Called nightly after sync_chapters; worker concurrency controls
+    parallelism. Skips chapters without a chabbr.
+    """
+    from catalog.models import Chapter
+
+    foundational = (
+        Chapter.objects.filter(
+            published=True,
+            chapter_type=Chapter.ChapterType.FOUNDATIONAL,
+        )
+        .exclude(chabbr="")
+    )
+    count = 0
+    for ch in foundational:
+        build_chapter_pdf_labels_task.delay(chabbr=ch.chabbr)
+        count += 1
+    logger.info("Dispatched labels-PDF builds for %d foundational chapter(s)", count)
+    return {"dispatched": count}
 
 
 @shared_task(

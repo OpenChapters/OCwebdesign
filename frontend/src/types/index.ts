@@ -27,6 +27,7 @@ export interface Chapter {
   reviewed_at: string | null;
   html_built_at: string | null;
   cached_at: string;
+  has_pdf_labels: boolean;
 }
 
 export interface BookChapter {

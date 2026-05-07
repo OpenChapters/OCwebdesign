@@ -159,14 +159,27 @@ export default function ChapterDetailPage() {
             <p className="text-sm text-gray-600 mt-4 leading-relaxed">{chapter.description}</p>
           )}
 
-          {chapter.html_built_at && (
-            <div className="mt-4">
-              <button
-                onClick={() => navigate(`/chapters/${chapter.id}/read`)}
-                className="text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Read Online
-              </button>
+          {(chapter.html_built_at ||
+            (chapter.chapter_type === 'foundational' && chapter.has_pdf_labels)) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {chapter.html_built_at && (
+                <button
+                  onClick={() => navigate(`/chapters/${chapter.id}/read`)}
+                  className="text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Read Online
+                </button>
+              )}
+              {chapter.chapter_type === 'foundational' && chapter.has_pdf_labels && (
+                <a
+                  href={`/api/chapters/${chapter.id}/pdf-labels/`}
+                  download
+                  className="text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+                  title="PDF typeset with showkeys so labels are visible — useful for cross-referencing in your own chapter"
+                >
+                  Download PDF (with labels)
+                </a>
+              )}
             </div>
           )}
 

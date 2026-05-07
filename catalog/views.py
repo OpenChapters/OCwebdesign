@@ -24,6 +24,9 @@ COVER_CACHE_DIR = Path(settings.BASE_DIR) / "media" / "covers"
 # Directory where per-chapter HTML output is stored
 HTML_DIR = Path(settings.BASE_DIR) / "media" / "html"
 
+# Directory where per-chapter labels-PDF artifacts live (foundational only)
+PDF_LABELS_DIR = Path(settings.BASE_DIR) / "media" / "pdf_labels"
+
 
 class DisciplineListView(generics.ListAPIView):
     """GET /api/disciplines/ — list all published disciplines."""
@@ -231,6 +234,41 @@ class ChapterHtmlView(APIView):
         response = FileResponse(open(target, "rb"), content_type=content_type)
         response["Cache-Control"] = "public, max-age=3600"
         response["X-Frame-Options"] = "SAMEORIGIN"
+        return response
+
+
+class ChapterPdfLabelsView(APIView):
+    """GET /api/chapters/<id>/pdf-labels/ — labels-PDF for foundational chapters.
+
+    Serves the per-chapter PDF typeset with showkeys enabled, so
+    prospective authors can see the existing label scheme. 404 when
+    the chapter is not foundational or the artifact has not been built.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, pk):
+        try:
+            chapter = Chapter.objects.get(pk=pk, published=True)
+        except Chapter.DoesNotExist:
+            return HttpResponse(status=404)
+
+        if (
+            chapter.chapter_type != Chapter.ChapterType.FOUNDATIONAL
+            or not chapter.chabbr
+        ):
+            return HttpResponse(status=404)
+
+        pdf_path = PDF_LABELS_DIR / f"{chapter.chabbr}.pdf"
+        if not pdf_path.is_file():
+            return HttpResponse(status=404)
+
+        response = FileResponse(open(pdf_path, "rb"), content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="{chapter.chabbr}-labels.pdf"'
+        )
+        response["Cache-Control"] = "public, max-age=3600"
         return response
 
 

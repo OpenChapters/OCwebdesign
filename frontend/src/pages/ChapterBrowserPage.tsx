@@ -231,20 +231,23 @@ export default function ChapterBrowserPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Announcement banner */}
-      {announcementBanner && (
-        <div
-          className="mb-6 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800"
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(announcementBanner) }}
-        />
-      )}
-
       {/* Welcome banner */}
       {welcomeMessage && (
-        <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl px-6 py-5">
+        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl px-6 py-5">
           <div
             className="text-gray-700 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(welcomeMessage) }}
+          />
+        </div>
+      )}
+
+      {/* Announcement banner */}
+      {announcementBanner && (
+        <div className="mb-8 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+          <h2 className="font-semibold text-amber-900 mb-1">Announcements</h2>
+          <div
+            className="[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(announcementBanner) }}
           />
         </div>
       )}

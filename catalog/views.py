@@ -7,14 +7,21 @@ from pathlib import Path
 
 import httpx
 from django.conf import settings
+from django.db.models import Q
 from django.http import FileResponse, HttpResponse
-from rest_framework import generics
-from rest_framework.permissions import AllowAny
+from rest_framework import generics, status
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Chapter, ChapterSearchIndex, Discipline
-from .serializers import ChapterSerializer, DisciplineSerializer
+from .models import Chapter, ChapterSearchIndex, Discipline, Example
+from .serializers import (
+    ChapterSerializer,
+    DisciplineSerializer,
+    ExampleDetailSerializer,
+    ExampleListSerializer,
+    ExampleWriteSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -350,3 +357,221 @@ class ChapterSearchView(APIView):
             })
 
         return Response({"results": results, "count": len(results)})
+
+
+# ── Examples (worked-examples library, todo #5 phase 1) ──────────────────────
+
+def _example_base_qs():
+    return (
+        Example.objects
+        .select_related("primary_chapter", "author")
+        .prefetch_related("chapters")
+    )
+
+
+class ExamplePublicListCreateView(generics.ListCreateAPIView):
+    """
+    GET  /api/examples/ — list PUBLISHED examples (AllowAny).
+    POST /api/examples/ — create as DRAFT (IsAuthenticated).
+
+    List filters: ?chapter=<chabbr> (matches any tagged chapter, not
+    just primary), ?difficulty=, ?search= (icontains on text fields).
+    """
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return ExampleWriteSerializer
+        return ExampleListSerializer
+
+    def get_queryset(self):
+        qs = _example_base_qs().filter(status=Example.Status.PUBLISHED)
+        chabbr = self.request.query_params.get("chapter", "").strip()
+        if chabbr:
+            qs = qs.filter(chapters__chabbr=chabbr).distinct()
+        difficulty = self.request.query_params.get("difficulty", "").strip()
+        if difficulty in Example.Difficulty.values:
+            qs = qs.filter(difficulty=difficulty)
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            qs = qs.filter(
+                Q(statement_tex__icontains=search)
+                | Q(solution_tex__icontains=search)
+            )
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user, status=Example.Status.DRAFT)
+
+    def create(self, request, *args, **kwargs):
+        # Override to return the detail serializer's payload after create
+        # rather than the write serializer's flat representation.
+        ser = self.get_serializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        self.perform_create(ser)
+        return Response(
+            ExampleDetailSerializer(ser.instance).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ExamplePublicDetailView(generics.RetrieveAPIView):
+    """GET /api/examples/<id>/ — published example detail."""
+    serializer_class = ExampleDetailSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return _example_base_qs().filter(status=Example.Status.PUBLISHED)
+
+
+class ExampleMineView(generics.ListAPIView):
+    """GET /api/examples/mine/ — author's own examples across all statuses."""
+    serializer_class = ExampleListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return _example_base_qs().filter(author=self.request.user)
+
+
+class ExampleAuthorManageView(APIView):
+    """
+    GET    /api/examples/<id>/manage/ — view own example (any status).
+    PATCH  /api/examples/<id>/manage/ — update own DRAFT or REJECTED.
+    DELETE /api/examples/<id>/manage/ — delete own DRAFT.
+
+    Editing a REJECTED example moves it back to DRAFT so the author
+    can iterate before re-submitting.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_own(self, pk):
+        try:
+            return _example_base_qs().get(pk=pk, author=self.request.user)
+        except Example.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        ex = self._get_own(pk)
+        if ex is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(ExampleDetailSerializer(ex).data)
+
+    def patch(self, request, pk):
+        ex = self._get_own(pk)
+        if ex is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.status not in (Example.Status.DRAFT, Example.Status.REJECTED):
+            return Response(
+                {"detail": "Only drafts and rejected examples can be edited."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ser = ExampleWriteSerializer(ex, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        # Editing a rejected example moves it back to DRAFT so the author
+        # can iterate and re-submit.
+        save_kwargs = {}
+        if ex.status == Example.Status.REJECTED:
+            save_kwargs["status"] = Example.Status.DRAFT
+            save_kwargs["rejection_reason"] = ""
+        ex = ser.save(**save_kwargs)
+        return Response(ExampleDetailSerializer(ex).data)
+
+    def delete(self, request, pk):
+        ex = self._get_own(pk)
+        if ex is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.status != Example.Status.DRAFT:
+            return Response(
+                {"detail": "Only drafts can be deleted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ex.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ExampleSubmitView(APIView):
+    """POST /api/examples/<id>/submit/ — DRAFT or REJECTED → PENDING.
+
+    Phase 1: no preview-freshness gate yet (snippet compile lands in
+    Phase 2). For now any author can submit.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            ex = Example.objects.get(pk=pk, author=request.user)
+        except Example.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.status not in (Example.Status.DRAFT, Example.Status.REJECTED):
+            return Response(
+                {"detail": "Only drafts and rejected examples can be submitted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ex.status = Example.Status.PENDING
+        ex.rejection_reason = ""
+        ex.save(update_fields=["status", "rejection_reason", "updated_at"])
+        return Response(ExampleDetailSerializer(ex).data)
+
+
+class ExampleAdminQueueView(generics.ListAPIView):
+    """GET /api/admin/examples/?status=pending — review queue."""
+    serializer_class = ExampleDetailSerializer
+    permission_classes = [IsAdminUser]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = _example_base_qs()
+        st = self.request.query_params.get("status", Example.Status.PENDING).strip()
+        if st in Example.Status.values:
+            qs = qs.filter(status=st)
+        return qs
+
+
+class ExampleAdminApproveView(APIView):
+    """POST /api/admin/examples/<id>/approve/ — PENDING → PUBLISHED."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.status != Example.Status.PENDING:
+            return Response(
+                {"detail": "Only pending examples can be approved."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ex.status = Example.Status.PUBLISHED
+        ex.rejection_reason = ""
+        ex.save(update_fields=["status", "rejection_reason", "updated_at"])
+        return Response(ExampleDetailSerializer(ex).data)
+
+
+class ExampleAdminRejectView(APIView):
+    """POST /api/admin/examples/<id>/reject/ — PENDING → REJECTED with reason."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.status != Example.Status.PENDING:
+            return Response(
+                {"detail": "Only pending examples can be rejected."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        reason = (request.data.get("rejection_reason") or "").strip()
+        if not reason:
+            return Response(
+                {"rejection_reason": "A rejection reason is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ex.status = Example.Status.REJECTED
+        ex.rejection_reason = reason
+        ex.save(update_fields=["status", "rejection_reason", "updated_at"])
+        return Response(ExampleDetailSerializer(ex).data)

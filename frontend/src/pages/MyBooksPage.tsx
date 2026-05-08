@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { booksApi } from '../api/books';
+import { useToast } from '../components/Toast';
 import { SkeletonTable } from '../components/Skeleton';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -15,6 +16,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function MyBooksPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [newTitle, setNewTitle] = useState('');
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -43,6 +45,22 @@ export default function MyBooksPage() {
     if (!confirm('Delete this book?')) return;
     await booksApi.delete(id);
     queryClient.invalidateQueries({ queryKey: ['books'] });
+  }
+
+  async function handleDownloadPDF(id: number) {
+    try {
+      await booksApi.downloadPDF(id);
+    } catch {
+      toast('Download failed.', 'error');
+    }
+  }
+
+  async function handleDownloadHTML(id: number) {
+    try {
+      await booksApi.downloadHtmlZip(id);
+    } catch {
+      toast('Download failed.', 'error');
+    }
   }
 
   return (
@@ -102,51 +120,73 @@ export default function MyBooksPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        {books.map((book) => (
-          <div
-            key={book.id}
-            className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex items-center gap-4"
-          >
-            <div className="flex-1 min-w-0">
-              <Link
-                to={`/books/${book.id}`}
-                className="font-semibold text-gray-900 hover:text-blue-600"
+        {books.map((book) => {
+          const isActive = book.status === 'queued' || book.status === 'building';
+          const isComplete = book.status === 'complete';
+          return (
+            <div
+              key={book.id}
+              className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex items-center gap-3 flex-wrap"
+            >
+              <div className="flex-1 min-w-[180px]">
+                <Link
+                  to={`/books/${book.id}`}
+                  className="font-semibold text-gray-900 hover:text-blue-600"
+                >
+                  {book.title}
+                </Link>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Updated {new Date(book.updated_at).toLocaleDateString()}
+                </p>
+              </div>
+              <span
+                className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLORS[book.status] ?? STATUS_COLORS.draft}`}
               >
-                {book.title}
-              </Link>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {new Date(book.created_at).toLocaleDateString()}
-              </p>
+                {book.status}
+              </span>
+              {isComplete && book.has_html && (
+                <Link
+                  to={`/books/${book.id}/read`}
+                  className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700"
+                >
+                  View Online
+                </Link>
+              )}
+              {isComplete && book.has_pdf && (
+                <button
+                  onClick={() => handleDownloadPDF(book.id)}
+                  className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
+                >
+                  Download PDF
+                </button>
+              )}
+              {isComplete && book.has_html && (
+                <button
+                  onClick={() => handleDownloadHTML(book.id)}
+                  className="text-xs bg-gray-700 text-white px-3 py-1.5 rounded hover:bg-gray-800"
+                >
+                  Download HTML
+                </button>
+              )}
+              {(isActive || isComplete || book.status === 'failed') && (
+                <Link
+                  to={`/books/${book.id}/status`}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Build info
+                </Link>
+              )}
+              {!isActive && (
+                <button
+                  onClick={() => handleDelete(book.id)}
+                  className="text-xs text-gray-400 hover:text-red-500"
+                >
+                  Delete
+                </button>
+              )}
             </div>
-            <span
-              className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLORS[book.status] ?? STATUS_COLORS.draft}`}
-            >
-              {book.status}
-            </span>
-            {book.status === 'complete' && (
-              <Link
-                to="/library"
-                className="text-xs text-blue-600 hover:underline"
-              >
-                Download
-              </Link>
-            )}
-            {(book.status === 'queued' || book.status === 'building') && (
-              <Link
-                to={`/books/${book.id}/status`}
-                className="text-xs text-blue-600 hover:underline"
-              >
-                Status
-              </Link>
-            )}
-            <button
-              onClick={() => handleDelete(book.id)}
-              className="text-xs text-gray-400 hover:text-red-500"
-            >
-              Delete
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

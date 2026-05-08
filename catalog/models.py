@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.core.exceptions import ValidationError
@@ -170,3 +171,81 @@ class ChapterSearchIndex(models.Model):
 
     def __str__(self):
         return f"{self.chapter.chabbr}: {self.section_title or '(intro)'}"
+
+
+class Example(models.Model):
+    """
+    A worked example: a LaTeX problem statement plus its solution,
+    tagged to one or more chapters. Authors submit drafts; an admin
+    reviews and publishes. Published examples appear on the public
+    /examples browse page, on each tagged chapter's detail page, and
+    can be appended at book build time per the include_examples /
+    include_solutions flags on the build.
+    """
+
+    class Difficulty(models.TextChoices):
+        INTRODUCTORY = "introductory", "Introductory"
+        STANDARD = "standard", "Standard"
+        ADVANCED = "advanced", "Advanced"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PENDING = "pending", "Pending review"
+        PUBLISHED = "published", "Published"
+        REJECTED = "rejected", "Rejected"
+
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="examples",
+    )
+
+    # All chapters this example is relevant to (M2M).
+    chapters = models.ManyToManyField(
+        Chapter,
+        related_name="examples",
+    )
+
+    # The chapter whose preamble drives the snippet compile in Phase 2.
+    # Must be one of `chapters` (validated in the serializer, since M2M
+    # values aren't available at model.clean() time before save).
+    primary_chapter = models.ForeignKey(
+        Chapter,
+        on_delete=models.PROTECT,
+        related_name="primary_examples",
+    )
+
+    statement_tex = models.TextField()
+    solution_tex = models.TextField()
+
+    difficulty = models.CharField(
+        max_length=16,
+        choices=Difficulty.choices,
+        default=Difficulty.STANDARD,
+    )
+
+    license = models.CharField(max_length=64, default="CC BY-NC-SA 4.0")
+
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+    rejection_reason = models.TextField(blank=True)
+
+    # Set when the snippet preview compile succeeds (Phase 2).
+    preview_built_at = models.DateTimeField(null=True, blank=True)
+    preview_build_log = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status"]),
+            models.Index(fields=["status", "primary_chapter"]),
+        ]
+
+    def __str__(self):
+        return f"Example #{self.pk} ({self.get_status_display()})"

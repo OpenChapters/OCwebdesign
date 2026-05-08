@@ -50,25 +50,23 @@ export default function Navbar() {
         >
           Community
         </NavLink>
+        <NavLink
+          to="/examples"
+          className={({ isActive }) =>
+            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+          }
+        >
+          Examples
+        </NavLink>
         {isAuthenticated && (
-          <>
-            <NavLink
-              to="/books"
-              className={({ isActive }) =>
-                `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
-              }
-            >
-              My Books
-            </NavLink>
-            <NavLink
-              to="/library"
-              className={({ isActive }) =>
-                `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
-              }
-            >
-              Library
-            </NavLink>
-          </>
+          <NavLink
+            to="/books"
+            className={({ isActive }) =>
+              `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+            }
+          >
+            My Books
+          </NavLink>
         )}
         <NavLink
           to="/guide"

@@ -86,3 +86,39 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+export type ExampleDifficulty = 'introductory' | 'standard' | 'advanced';
+export type ExampleStatus = 'draft' | 'pending' | 'published' | 'rejected';
+
+export interface ExampleChapterRef {
+  id: number;
+  title: string;
+  chabbr: string;
+}
+
+export interface ExampleListItem {
+  id: number;
+  primary_chapter: ExampleChapterRef;
+  chapters: ExampleChapterRef[];
+  statement_tex: string;
+  difficulty: ExampleDifficulty;
+  status: ExampleStatus;
+  author_display: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExampleDetail extends ExampleListItem {
+  solution_tex: string;
+  license: string;
+  rejection_reason: string;
+  preview_built_at: string | null;
+}
+
+export interface ExampleWritePayload {
+  primary_chapter: number;
+  chapters: number[];
+  statement_tex: string;
+  solution_tex: string;
+  difficulty: ExampleDifficulty;
+}

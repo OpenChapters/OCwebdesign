@@ -90,10 +90,6 @@ export const booksApi = {
       window.URL.revokeObjectURL(url);
     }),
 
-  // Library
-  library: () =>
-    client.get('/library/').then((r) => (Array.isArray(r.data) ? r.data : r.data.results ?? []) as BookListItem[]),
-
   publicLibrary: () =>
     client
       .get('/library/public/')

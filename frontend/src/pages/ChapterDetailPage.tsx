@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { chaptersApi } from '../api/chapters';
 import { booksApi } from '../api/books';
+import { examplesApi } from '../api/examples';
 import { useAuth } from '../contexts/AuthContext';
 import type { BookListItem } from '../types';
 import { useToast } from '../components/Toast';
@@ -26,6 +27,13 @@ export default function ChapterDetailPage() {
     queryFn: booksApi.list,
     enabled: isAuthenticated,
   });
+
+  const { data: examplesData } = useQuery({
+    queryKey: ['examples-for-chapter', id],
+    queryFn: () => examplesApi.list({ chapter: chapter?.chabbr }),
+    enabled: !!chapter?.chabbr,
+  });
+  const taggedExamples = examplesData?.results ?? [];
 
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -215,6 +223,47 @@ export default function ChapterDetailPage() {
               <p className="text-xs text-gray-500">
                 {chapter.depends_on.join(', ')}
               </p>
+            </div>
+          )}
+
+          {taggedExamples.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-gray-700">
+                  Worked examples
+                  <span className="ml-2 text-xs font-normal text-gray-400">
+                    ({taggedExamples.length})
+                  </span>
+                </h2>
+                <Link
+                  to={`/examples?chapter=${chapter.chabbr}`}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Browse all →
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {taggedExamples.slice(0, 5).map((ex) => (
+                  <Link
+                    key={ex.id}
+                    to={`/examples/${ex.id}`}
+                    className="block bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 transition"
+                  >
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                      <span className="font-medium text-gray-700">
+                        {ex.difficulty.charAt(0).toUpperCase() + ex.difficulty.slice(1)}
+                      </span>
+                      <span>·</span>
+                      <span>by {ex.author_display}</span>
+                    </div>
+                    <p className="font-mono text-xs text-gray-700 line-clamp-2 whitespace-pre-wrap">
+                      {ex.statement_tex.length > 180
+                        ? ex.statement_tex.slice(0, 180) + '…'
+                        : ex.statement_tex}
+                    </p>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
 

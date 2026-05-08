@@ -29,7 +29,24 @@ from books.views import (
     PublicLibraryCloneView,
     PublicLibraryView,
 )
-from catalog.views import ChapterCatalogCsvView, ChapterCoverView, ChapterDetailView, ChapterHtmlView, ChapterListView, ChapterPdfLabelsView, ChapterSearchView, DisciplineListView
+from catalog.views import (
+    ChapterCatalogCsvView,
+    ChapterCoverView,
+    ChapterDetailView,
+    ChapterHtmlView,
+    ChapterListView,
+    ChapterPdfLabelsView,
+    ChapterSearchView,
+    DisciplineListView,
+    ExampleAdminApproveView,
+    ExampleAdminQueueView,
+    ExampleAdminRejectView,
+    ExampleAuthorManageView,
+    ExampleMineView,
+    ExamplePublicDetailView,
+    ExamplePublicListCreateView,
+    ExampleSubmitView,
+)
 from users.views import (
     ChangePasswordView,
     ForgotPasswordView,
@@ -100,6 +117,16 @@ urlpatterns = [
     path("api/chapters/<int:pk>/html/", ChapterHtmlView.as_view(), name="chapter-html"),
     path("api/chapters/<int:pk>/html/<path:filename>", ChapterHtmlView.as_view(), name="chapter-html-file"),
     path("api/chapters/<int:pk>/pdf-labels/", ChapterPdfLabelsView.as_view(), name="chapter-pdf-labels"),
+
+    # ── Examples (worked-examples library, todo #5) ──────────────────────────
+    path("api/examples/", ExamplePublicListCreateView.as_view(), name="example-list-create"),
+    path("api/examples/mine/", ExampleMineView.as_view(), name="example-mine"),
+    path("api/examples/<int:pk>/", ExamplePublicDetailView.as_view(), name="example-detail"),
+    path("api/examples/<int:pk>/manage/", ExampleAuthorManageView.as_view(), name="example-manage"),
+    path("api/examples/<int:pk>/submit/", ExampleSubmitView.as_view(), name="example-submit"),
+    path("api/admin/examples/", ExampleAdminQueueView.as_view(), name="example-admin-queue"),
+    path("api/admin/examples/<int:pk>/approve/", ExampleAdminApproveView.as_view(), name="example-admin-approve"),
+    path("api/admin/examples/<int:pk>/reject/", ExampleAdminRejectView.as_view(), name="example-admin-reject"),
 
     # ── Books ─────────────────────────────────────────────────────────────────
     path("api/books/", BookListCreateView.as_view(), name="book-list"),

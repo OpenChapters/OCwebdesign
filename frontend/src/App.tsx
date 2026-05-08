@@ -12,11 +12,13 @@ import ChapterReadPage from './pages/ChapterReadPage';
 import SearchPage from './pages/SearchPage';
 import CatalogPage from './pages/CatalogPage';
 import CommunityPage from './pages/CommunityPage';
+import ExamplesPage from './pages/ExamplesPage';
+import ExampleDetailPage from './pages/ExampleDetailPage';
+import ExampleEditorPage from './pages/ExampleEditorPage';
 import MyBooksPage from './pages/MyBooksPage';
 import BookEditorPage from './pages/BookEditorPage';
 import BookReadPage from './pages/BookReadPage';
 import BuildStatusPage from './pages/BuildStatusPage';
-import LibraryPage from './pages/LibraryPage';
 import AboutPage from './pages/AboutPage';
 import UserGuidePage from './pages/UserGuidePage';
 
@@ -35,6 +37,7 @@ import SystemPage from './admin/pages/SystemPage';
 import SettingsPage from './admin/pages/SettingsPage';
 import AuditLogPage from './admin/pages/AuditLogPage';
 import AnalyticsPage from './admin/pages/AnalyticsPage';
+import ExamplesQueuePage from './admin/pages/ExamplesQueuePage';
 import PlaceholderPage from './admin/pages/PlaceholderPage';
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -99,6 +102,22 @@ export default function App() {
           </Layout>
         }
       />
+      <Route
+        path="/examples"
+        element={
+          <Layout>
+            <ExamplesPage />
+          </Layout>
+        }
+      />
+      <Route
+        path="/examples/:id"
+        element={
+          <Layout>
+            <ExampleDetailPage />
+          </Layout>
+        }
+      />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
@@ -107,6 +126,22 @@ export default function App() {
           element={
             <Layout>
               <ProfilePage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/examples/new"
+          element={
+            <Layout>
+              <ExampleEditorPage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/examples/:id/edit"
+          element={
+            <Layout>
+              <ExampleEditorPage />
             </Layout>
           }
         />
@@ -130,14 +165,7 @@ export default function App() {
             </Layout>
           }
         />
-        <Route
-          path="/library"
-          element={
-            <Layout>
-              <LibraryPage />
-            </Layout>
-          }
-        />
+        <Route path="/library" element={<Navigate to="/books" replace />} />
       </Route>
 
       {/* Admin panel (staff only) */}
@@ -151,6 +179,7 @@ export default function App() {
           <Route path="chapters/:id" element={<ChapterAdminDetailPage />} />
           <Route path="builds" element={<BuildsAdminPage />} />
           <Route path="builds/:id" element={<BuildAdminDetailPage />} />
+          <Route path="examples" element={<ExamplesQueuePage />} />
           <Route path="system" element={<SystemPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="audit" element={<AuditLogPage />} />

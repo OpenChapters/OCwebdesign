@@ -41,8 +41,8 @@ export default function BookReadPage() {
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <p className="text-gray-500 mb-4">HTML version not available for this book.</p>
-          <Link to="/library" className="text-blue-600 hover:underline text-sm">
-            Back to library
+          <Link to="/books" className="text-blue-600 hover:underline text-sm">
+            Back to my books
           </Link>
         </div>
       </div>
@@ -56,8 +56,8 @@ export default function BookReadPage() {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-4 shrink-0">
-        <Link to="/library" className="text-sm text-gray-500 hover:text-gray-700">
-          &larr; Library
+        <Link to="/books" className="text-sm text-gray-500 hover:text-gray-700">
+          &larr; My Books
         </Link>
         <h1 className="text-sm font-semibold text-gray-900 truncate">{book.title}</h1>
       </div>

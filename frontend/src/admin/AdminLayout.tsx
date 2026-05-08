@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { to: '/admin-panel/users', label: 'Users' },
   { to: '/admin-panel/disciplines', label: 'Disciplines' },
   { to: '/admin-panel/chapters', label: 'Chapters' },
+  { to: '/admin-panel/examples', label: 'Examples' },
   { to: '/admin-panel/builds', label: 'Builds' },
   { to: '/admin-panel/system', label: 'System' },
   { to: '/admin-panel/settings', label: 'Settings' },

@@ -10,7 +10,12 @@ export const booksApi = {
   create: (title: string) =>
     client.post<Book>('/books/', { title }).then((r) => r.data),
 
-  update: (id: number, data: { title?: string; doi?: string }) =>
+  update: (id: number, data: {
+    title?: string;
+    doi?: string;
+    include_examples?: boolean;
+    include_solutions?: boolean;
+  }) =>
     client.patch<Book>(`/books/${id}/`, data).then((r) => r.data),
 
   delete: (id: number) => client.delete(`/books/${id}/`),

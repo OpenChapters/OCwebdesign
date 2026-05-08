@@ -309,6 +309,15 @@ export default function BookEditorPage() {
     }
   }, [book?.status]);
 
+  async function toggleExamplesFlag(field: 'include_examples' | 'include_solutions', value: boolean) {
+    try {
+      await booksApi.update(bookId, { [field]: value });
+      queryClient.invalidateQueries({ queryKey: ['book', bookId] });
+    } catch {
+      toast('Could not update build options.', 'error');
+    }
+  }
+
   async function triggerBuild() {
     const confirmMsg =
       buildFormat === 'pdf'
@@ -404,6 +413,35 @@ export default function BookEditorPage() {
           <Link to={`/books/${bookId}/status`} className="text-xs bg-red-100 text-red-800 px-3 py-1.5 rounded-full font-medium hover:bg-red-200">
             Build Failed — View
           </Link>
+        )}
+
+        {book.examples_count > 0 && (
+          <label
+            className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"
+            title="When checked, the build appends published worked examples after each tagged chapter."
+          >
+            <input
+              type="checkbox"
+              checked={book.include_examples}
+              onChange={(e) => toggleExamplesFlag('include_examples', e.target.checked)}
+              disabled={building || buildStatus === 'queued' || buildStatus === 'building'}
+            />
+            Include {book.examples_count} example{book.examples_count === 1 ? '' : 's'}
+          </label>
+        )}
+        {book.examples_count > 0 && book.include_examples && (
+          <label
+            className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"
+            title="When unchecked, statements appear without solutions — useful as a problem-only handout."
+          >
+            <input
+              type="checkbox"
+              checked={book.include_solutions}
+              onChange={(e) => toggleExamplesFlag('include_solutions', e.target.checked)}
+              disabled={building || buildStatus === 'queued' || buildStatus === 'building'}
+            />
+            with solutions
+          </label>
         )}
 
         <button

@@ -45,6 +45,7 @@ class BookSerializer(serializers.ModelSerializer):
     has_cover_image = serializers.SerializerMethodField()
     has_pdf = serializers.SerializerMethodField()
     has_html = serializers.SerializerMethodField()
+    examples_count = serializers.SerializerMethodField()
 
     def get_has_cover_image(self, obj):
         return bool(obj.cover_image)
@@ -55,17 +56,38 @@ class BookSerializer(serializers.ModelSerializer):
     def get_has_html(self, obj):
         return bool(obj.html_built_at and obj.html_path)
 
+    def get_examples_count(self, obj):
+        # Distinct PUBLISHED Examples tagged to any chapter in the book.
+        # Each renders exactly once at build time (earliest-in-book host),
+        # so this also matches what will actually appear in the artifact.
+        from catalog.models import Example
+
+        chapter_ids = list(
+            obj.parts.values_list("book_chapters__chapter_id", flat=True).distinct()
+        )
+        if not chapter_ids:
+            return 0
+        return (
+            Example.objects.filter(
+                status=Example.Status.PUBLISHED,
+                chapters__in=chapter_ids,
+            )
+            .distinct()
+            .count()
+        )
+
     class Meta:
         model = Book
         fields = [
             "id", "title", "doi", "status", "created_at", "updated_at",
             "parts", "build_job", "has_cover_image", "html_built_at",
             "has_pdf", "has_html", "last_build_format",
+            "include_examples", "include_solutions", "examples_count",
         ]
         read_only_fields = [
             "id", "status", "created_at", "updated_at", "parts",
             "build_job", "has_cover_image", "html_built_at",
-            "has_pdf", "has_html", "last_build_format",
+            "has_pdf", "has_html", "last_build_format", "examples_count",
         ]
 
 

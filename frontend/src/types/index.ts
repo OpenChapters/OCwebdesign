@@ -65,6 +65,9 @@ export interface Book {
   has_pdf: boolean;
   has_html: boolean;
   last_build_format: BuildFormat;
+  include_examples: boolean;
+  include_solutions: boolean;
+  examples_count: number;
 }
 
 export interface BookListItem {

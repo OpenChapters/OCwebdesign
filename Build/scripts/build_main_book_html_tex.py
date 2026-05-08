@@ -53,6 +53,7 @@ def render(workdir: Path, build_id: str, book_author: str) -> None:
                 "repo": ch["repo"],
                 "entry_file": ch["entry_file"],
                 "include_path": include_path(ch["repo"], ch["entry_file"]),
+                "examples": ch.get("examples", []),
             })
         parts.append({"title": part["title"], "chapters": chapters})
 
@@ -61,6 +62,8 @@ def render(workdir: Path, build_id: str, book_author: str) -> None:
     has_postmatter = (matter_dir / "Postmatter.tex").is_file()
 
     build_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    include_examples = bool(request.get("include_examples", True))
+    include_solutions = bool(request.get("include_solutions", True))
 
     template_dir = Path(__file__).parent
     env = jinja2.Environment(
@@ -83,6 +86,8 @@ def render(workdir: Path, build_id: str, book_author: str) -> None:
         build_date=build_date,
         has_frontmatter=has_frontmatter,
         has_postmatter=has_postmatter,
+        include_examples=include_examples,
+        include_solutions=include_solutions,
     )
 
     (workdir / "main.tex").write_text(rendered, encoding="utf-8")

@@ -60,6 +60,14 @@ class Book(models.Model):
         help_text="Format selected for the most recent build; used by Retry.",
     )
 
+    # ── Worked-examples integration (todo #5 Phase 3) ────────────────────────
+    # When include_examples is True, the build pipeline appends a "Worked
+    # Examples" section to each chapter for which there are PUBLISHED
+    # Examples tagged. include_solutions=False renders statements only,
+    # producing a problems-only handout from the same corpus.
+    include_examples = models.BooleanField(default=True)
+    include_solutions = models.BooleanField(default=True)
+
     class Meta:
         ordering = ["-created_at"]
 

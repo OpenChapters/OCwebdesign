@@ -79,6 +79,20 @@
 % ----------------------------------------------------------------
 (% for chapter in part.chapters %)
 \include{(( chapter.include_path ))}
+(% if include_examples and chapter.examples %)
+% ── Worked examples for this chapter ────────────────────────────
+\section*{Worked examples}
+\addcontentsline{toc}{section}{Worked examples}
+(% for ex in chapter.examples %)
+\subsection*{Example (( loop.index )) — (( ex.difficulty ))}
+(( ex.statement_tex ))
+(% if include_solutions %)
+\paragraph{Solution.}
+(( ex.solution_tex ))
+(% endif %)
+
+(% endfor %)
+(% endif %)
 (% endfor %)
 
 (% endfor %)

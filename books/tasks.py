@@ -59,11 +59,19 @@ def _build_request_data(book) -> dict:
     ``depends_on`` by the selected chapters but not already present in the
     book.  These are prepended as a "Foundations" part so that their
     ``\\label`` commands are available for cross-chapter ``\\ref`` resolution.
+
+    When ``book.include_examples`` is True, attaches a list of PUBLISHED
+    Examples to each chapter that has them, deduplicated so a multi-tag
+    Example only renders under the earliest in-book chapter that includes
+    it. ``book.include_solutions`` is propagated as a top-level flag for
+    the template to consume.
     """
-    from catalog.models import Chapter
+    from catalog.models import Chapter, Example
 
     parts = []
     included_chabbrs: set[str] = set()
+    # ordered list of chapter_id by book position; index gives "earliest" rank
+    book_chapter_order: list[int] = []
 
     for part in book.parts.order_by("order"):
         chapters = []
@@ -73,7 +81,9 @@ def _build_request_data(book) -> dict:
                 "repo": ch.github_repo,
                 "chapter_subdir": ch.chapter_subdir,
                 "entry_file": ch.latex_entry_file,
+                "_chapter_id": ch.id,
             })
+            book_chapter_order.append(ch.id)
             if ch.chabbr:
                 included_chabbrs.add(ch.chabbr)
         parts.append({"title": part.title, "chapters": chapters})
@@ -102,13 +112,60 @@ def _build_request_data(book) -> dict:
                 "repo": ch.github_repo,
                 "chapter_subdir": ch.chapter_subdir,
                 "entry_file": ch.latex_entry_file,
+                "_chapter_id": ch.id,
             })
+            book_chapter_order.insert(0, ch.id)
         if dep_entries:
             # Prepend a Foundations part so labels are defined before
             # they are referenced by topical chapters.
             parts.insert(0, {"title": "Foundations", "chapters": dep_entries})
+            # Foundations chapters precede everything else in book order.
+            book_chapter_order = [
+                e["_chapter_id"] for e in dep_entries
+            ] + book_chapter_order[len(dep_entries):]
 
-    return {"book_title": book.title, "parts": parts}
+    # ── Worked-examples integration ─────────────────────────────────────
+    # Build a chapter_id -> [example dict] map honoring the
+    # earliest-in-book rule for cross-chapter examples.
+    chapter_examples: dict[int, list[dict]] = {cid: [] for cid in book_chapter_order}
+
+    if getattr(book, "include_examples", True) and book_chapter_order:
+        rank = {cid: i for i, cid in enumerate(book_chapter_order)}
+        candidate_examples = (
+            Example.objects.filter(
+                status=Example.Status.PUBLISHED,
+                chapters__in=book_chapter_order,
+            )
+            .prefetch_related("chapters")
+            .distinct()
+            .order_by("difficulty", "id")
+        )
+        for ex in candidate_examples:
+            tagged_in_book = [
+                ch.id for ch in ex.chapters.all() if ch.id in rank
+            ]
+            if not tagged_in_book:
+                continue
+            host = min(tagged_in_book, key=lambda cid: rank[cid])
+            chapter_examples[host].append({
+                "id": ex.id,
+                "difficulty": ex.difficulty,
+                "statement_tex": ex.statement_tex,
+                "solution_tex": ex.solution_tex,
+            })
+
+    # Strip private _chapter_id, swap in the resolved examples list
+    for part in parts:
+        for ch in part["chapters"]:
+            cid = ch.pop("_chapter_id")
+            ch["examples"] = chapter_examples.get(cid, [])
+
+    return {
+        "book_title": book.title,
+        "include_examples": bool(getattr(book, "include_examples", True)),
+        "include_solutions": bool(getattr(book, "include_solutions", True)),
+        "parts": parts,
+    }
 
 
 def _run(cmd: list[str], log_fn, cwd: Path | None = None) -> subprocess.CompletedProcess:

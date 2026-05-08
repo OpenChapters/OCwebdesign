@@ -247,13 +247,24 @@ class BuildTriggerView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Per-build overrides for the worked-examples flags. Persisted on
+        # the Book so a Retry uses the same settings without resending.
+        update_kwargs = {
+            "status": Book.Status.QUEUED,
+            "last_build_format": fmt,
+        }
+        if "include_examples" in request.data:
+            update_kwargs["include_examples"] = bool(request.data["include_examples"])
+        if "include_solutions" in request.data:
+            update_kwargs["include_solutions"] = bool(request.data["include_solutions"])
+
         # Atomic update: only transition from draft/complete/failed to queued.
         # Prevents duplicate builds from concurrent requests.
         updated = Book.objects.filter(
             pk=book_pk,
             user=request.user,
             status__in=[Book.Status.DRAFT, Book.Status.COMPLETE, Book.Status.FAILED],
-        ).update(status=Book.Status.QUEUED, last_build_format=fmt)
+        ).update(**update_kwargs)
 
         if not updated:
             book = Book.objects.filter(pk=book_pk, user=request.user).first()

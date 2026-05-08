@@ -137,16 +137,26 @@ export default function ExampleEditorPage() {
     if (err) { toast(err, 'error'); return; }
     setSaving(true);
     try {
+      if (action === 'submit') {
+        // The Preview button already saved the draft and produced a
+        // fresh preview. Saving again here would bump updated_at past
+        // preview_built_at and trip the server's freshness gate.
+        // Submit is only enabled when previewFresh is True, so the
+        // persisted content already matches the previewed snapshot.
+        if (previewExampleId === null) {
+          toast('Run Preview first, then submit.', 'error');
+          return;
+        }
+        const submitted = await examplesApi.submit(previewExampleId);
+        toast('Submitted for review.', 'success');
+        navigate(`/examples/${submitted.id}`);
+        return;
+      }
       const payload = buildPayload();
       const saved = isEdit
         ? await examplesApi.update(exampleId as number, payload)
         : await examplesApi.create(payload);
-      if (action === 'submit') {
-        await examplesApi.submit(saved.id);
-        toast('Submitted for review.', 'success');
-      } else {
-        toast(isEdit ? 'Draft updated.' : 'Draft saved.', 'success');
-      }
+      toast(isEdit ? 'Draft updated.' : 'Draft saved.', 'success');
       navigate(`/examples/${saved.id}`);
     } catch (e: any) {
       toast(errorMessage(e, 'Could not save.'), 'error');

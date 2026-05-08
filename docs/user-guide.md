@@ -26,10 +26,11 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
 11. [Build Status](#build-status)
 12. [Your Library](#your-library)
 13. [Community Library](#community-library)
-14. [Managing Your Books](#managing-your-books)
-15. [Your Profile](#your-profile)
-16. [Resetting Your Password](#resetting-your-password)
-17. [Feature Requests and Bug Reports](#feature-requests-and-bug-reports)
+14. [Worked Examples](#worked-examples)
+15. [Managing Your Books](#managing-your-books)
+16. [Your Profile](#your-profile)
+17. [Resetting Your Password](#resetting-your-password)
+18. [Feature Requests and Bug Reports](#feature-requests-and-bug-reports)
 
 ---
 
@@ -92,9 +93,9 @@ Hover your mouse over any chapter card to see a **table of contents** popover li
 
 Click **Catalog** in the top navigation bar to open a flat, read-only inventory of every published chapter. The catalog page is public — no account is required — and is intended as a quick reference for prospective authors who want to see what is already in the collection before contributing.
 
-Each row shows the chapter title, abbreviation (`chabbr`), discipline, type (foundational or topical), authors, and the date of the most recent commit touching the chapter's source. A **discipline** filter at the top lets you narrow the view.
+Each row shows the chapter title, abbreviation (`chabbr`), discipline, type (foundational or topical), authors, the date of the most recent commit touching the chapter's source, and the number of published [worked examples](#worked-examples) tagged to the chapter (click the count to jump to those examples). A **discipline** filter at the top lets you narrow the view.
 
-Click **Download CSV** to download the same data as a spreadsheet (`openchapters-catalog.csv`). The file is UTF-8 encoded with a byte-order mark, so accented characters open correctly in Excel and Numbers, and includes a `url` column that links each row to its public chapter detail page.
+Click **Download CSV** to download the same data as a spreadsheet (`openchapters-catalog.csv`). The file is UTF-8 encoded with a byte-order mark, so accented characters open correctly in Excel and Numbers, and includes both an `examples` column with the count and a `url` column that links each row to its public chapter detail page.
 
 ## Searching Chapter Content
 
@@ -272,8 +273,11 @@ Once your book has at least one chapter:
    - **PDF** — a professionally typeset PDF (default)
    - **HTML** — an interactive, browser-based version with side-panel table of contents, MathJax-rendered equations, and SVG figures
    - **PDF + HTML** — run both builds one after the other in a single request
-2. Click the **Build** button in the top-right corner of the Book Editor.
-3. Confirm the build in the dialog.
+2. *(Optional, when at least one [worked example](#worked-examples) is tagged to a chapter in your book)* Toggle the example checkboxes:
+   - **Include N examples** — appends a "Worked examples" section to each chapter that has tagged examples. On by default. The number reflects distinct published examples that will appear; cross-chapter examples render once, under whichever tagged chapter appears earliest in the book.
+   - **with solutions** — when off, statements appear without solutions, producing a problem-only handout from the same corpus. Greyed out when "Include N examples" is off.
+3. Click the **Build** button in the top-right corner of the Book Editor.
+4. Confirm the build in the dialog.
 
 The build process typically takes 1–3 minutes per format depending on the number of chapters and figures. During a build, the server:
 
@@ -333,6 +337,57 @@ If you are not signed in, the Clone button is replaced with a **Sign in to clone
 
 To make your own completed books visible on this page, enable the **Visibility** option on your [profile](#your-profile).
 
+## Worked Examples
+
+The **worked examples library** is a community-contributed corpus of LaTeX problems with full solutions, each tagged to one or more chapters. Click **Examples** in the navigation bar to browse them, or look for an "Examples" section on any chapter detail page that has tagged entries.
+
+### Browsing
+
+The `/examples` page lists every published example as a single column of cards. Each card shows the difficulty (introductory / standard / advanced), the chapter abbreviations the example is tagged to, the contributor's display name, and a short preview of the statement. Filters at the top of the page narrow the list:
+
+- **Chapter** — restrict to examples tagged to a specific chapter (by chabbr).
+- **Difficulty** — introductory, standard, or advanced.
+- **Search** — case-insensitive substring match against the statement and solution text.
+
+Click any card to open the detail page.
+
+### Reading an Example
+
+The detail page renders both the statement and the solution. Inline math (`$..$`, `\(..\)`) and display math (`$$..$$`, `\[..\]`) is rendered in-browser via KaTeX; everything else is shown verbatim. KaTeX is best-effort — custom OpenChapters macros and complex environments will not render but will not crash the page either; in those cases the source falls through highlighted in amber.
+
+For full-fidelity rendering (the same LaTeX pipeline used to build chapters), click **Open preview PDF** to fetch the typeset version.
+
+A **Show / Hide** toggle on the solution lets you read the statement first and try the problem yourself before revealing the solution.
+
+### Submitting an Example
+
+Anyone with an account can submit an example.
+
+1. Click **Submit an example** on the `/examples` page (or **+ New example** from your [profile](#your-profile)).
+2. Pick the **chapters** the example applies to. At least one is required; you may tag several.
+3. Choose a **primary chapter** from the chapters you tagged. The primary chapter determines which preamble is used to compile the snippet preview, and (in book builds) which chapter the example renders under when more than one of its tags ends up in the same book.
+4. Pick a **difficulty**.
+5. Paste the LaTeX source for the **statement** and **solution** into the two textareas. The form does not constrain the LaTeX — anything that compiles in a standard OpenChapters preamble will work.
+6. Click **Preview**. The server compiles the snippet on the build worker and shows the resulting PDF in an iframe below the form. If the compile fails, an error block appears below the form with the relevant lines of the arara log so you can fix the issue and try again.
+7. Once the preview compiles cleanly, click **Save & submit for review**. The example moves to **Pending review** and an admin will look at it.
+
+Editing the form after a successful preview marks the preview stale; the **Save & submit for review** button is disabled until you click **Preview** again. (The same check is enforced server-side, so a stale preview cannot accidentally be submitted.)
+
+### Lifecycle
+
+| State | Meaning |
+|---|---|
+| **Draft** | You have saved an example but not submitted it. Visible only to you. |
+| **Pending review** | Submitted, waiting for an admin. You cannot edit a pending example — wait for approval or rejection. |
+| **Published** | Approved by an admin. Visible on `/examples` and on each tagged chapter's detail page; eligible for inclusion in book builds. |
+| **Rejected** | An admin asked for changes. The rejection reason appears at the top of the editor. Editing the example moves it back to **Draft** with the reason cleared, so you can iterate and re-submit. |
+
+### Where Examples Appear
+
+- **`/examples`** — public browse with filters.
+- **Each chapter detail page** — a "Worked examples" panel listing up to five tagged examples with a "Browse all →" link.
+- **Inside a book build** — when you build a book that contains a chapter with tagged examples, the build pipeline appends a "Worked examples" section to that chapter (controlled by the per-build flags in [Building Your Book](#building-your-book)).
+
 ## Managing Your Books
 
 The **My Books** page (accessible from the navigation bar) lists all your books with their current status:
@@ -370,6 +425,12 @@ The **Visibility** section controls whether your completed books appear in the p
 - On: every book you have built (and every future build) is listed on `/community` with its title, parts, and chapter list. Your full name, if you have set one, is shown as the author; otherwise the entry is attributed to **Anonymous**. Your email is never shown. PDFs and HTML downloads remain private.
 
 You can toggle the setting at any time. Turning it off removes all your books from the community page immediately.
+
+### My Worked Examples
+
+A **My worked examples** section lists every [example](#worked-examples) you have created, grouped by status (Drafts, Rejected, Pending review, Published). Each entry shows the example id, the primary chapter, and a one-line preview of the statement. Drafts and rejected entries link to the editor so you can iterate; pending and published entries open the public detail page.
+
+Click **+ New example** at the top of the section to start a new submission.
 
 ### Changing Your Password
 

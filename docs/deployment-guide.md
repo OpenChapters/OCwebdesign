@@ -77,9 +77,10 @@ All services run as Docker containers managed by `docker-compose.prod.yml`. Buil
 - **HTML (chapters)** — per-chapter lwarp output, stored under `media/html/<chabbr>/` (shared via the `media_html` named volume between web and worker), served at `/api/chapters/<id>/html/`
 - **HTML (books)** — per-book lwarp output plus a pre-built zip archive, stored under `media/html_books/book_<id>/` (shared via the `media_html_books` named volume between web and worker), served at `/api/books/<id>/html/` and `/api/books/<id>/download-html/`
 - **Labels-PDF** — per-chapter PDF with `\showkeys` enabled, stored under `media/pdf_labels/<chabbr>.pdf` (shared via the `media_pdf_labels` named volume between web and worker), served at `/api/chapters/<id>/pdf-labels/` for foundational chapters only
+- **Worked-example previews** — snippet PDFs for the [worked-examples library](#worked-example-previews), stored under `media/examples/<id>.pdf` (shared via the `media_examples` named volume between web and worker), served at `/api/examples/<id>/preview.pdf`
 - **Search index** — PostgreSQL table (`catalog_chaptersearchindex`) populated after each HTML build, queried via `/api/chapters/search/`
 
-All four media volumes are mounted on the web and worker services so the worker can write build output and the web service can serve it.
+All five media volumes are mounted on the web and worker services so the worker can write build output and the web service can serve it.
 
 ## Initial Server Setup
 
@@ -365,6 +366,45 @@ When `HTML_BUILD_ENABLED=True`, the nightly `sync_chapters` task (03:00 UTC) als
   The list should match what the worker wrote.
 - A "Permission denied" error when writing the artifact almost always means the named volume was created before the Dockerfile chowned `/app/media/pdf_labels`. Stop `web`/`worker`, `docker volume rm <project>_media_pdf_labels`, rebuild, and bring them back up — Docker copies the now-correctly-owned directory from the image into a fresh volume on the next mount.
 - The build workspace under `/tmp/ocpdflabels-<uuid>/` is preserved on failure; inspect `main.log` for the LaTeX error.
+
+## Worked-Example Previews
+
+When an author clicks **Preview** in the example editor, the web service enqueues a `catalog.build_example_preview` task on the worker queue. The worker:
+
+1. Creates a temp workspace under `/tmp/ocexample-<uuid>/`
+2. Copies `Build/template/` (`OpenChapters.sty`, `preamble.ins`, etc.) into the workspace
+3. Renders `Build/scripts/main_example.tex.j2` with the example's statement and solution inline (no chapter clone needed; the shared OpenChapters preamble is enough for the snippet)
+4. Runs `arara -v main.tex` (90 s soft / 120 s hard timeout)
+5. Atomically writes `media/examples/<id>.pdf`, sets `Example.preview_built_at`, and clears `preview_build_log`
+6. On failure, captures the last 8 KB of arara stderr + LaTeX log lines starting with `!` to `Example.preview_build_log` for the author to read in the editor
+
+### Storage
+
+Output lives in `/app/media/examples/<id>.pdf` inside the containers. The directory is a named volume `media_examples` mounted on both `web` (which serves the file via `/api/examples/<id>/preview.pdf`) and `worker` (which writes it). Ownership is set inside each Dockerfile (`ocweb` for web, `texlive` for worker) so the volume picks up the right user on first mount; if you change runtime users, recreate the volume so the ownership re-propagates.
+
+### Manual Builds
+
+Build a single example's preview from the worker:
+
+```bash
+docker compose -f docker-compose.prod.yml exec worker \
+  python manage.py build_example_preview --id 17
+```
+
+Useful for re-running a build after an OpenChapters preamble change, or for debugging compile failures by preserving the workspace.
+
+### URL Signing
+
+The PDF endpoint accepts an optional `?t=<token>` query parameter so iframes and external links can render non-published previews without carrying the JWT. The serializer at `catalog.serializers.ExampleDetailSerializer.get_preview_pdf_url` mints a 30-minute `TimestampSigner` token (salt `catalog.example-preview`) on every detail render — the frontend just uses the URL it gets back from the API. PUBLISHED examples skip the token entirely (the preview endpoint admits anonymous reads for them).
+
+The view also sets `X-Frame-Options: SAMEORIGIN` on the response so the editor's iframe can render the artifact (Django's default `XFrameOptionsMiddleware` would otherwise emit `DENY`).
+
+### Troubleshooting
+
+- The Preview iframe shows blank but "Open in new tab" works → the response carries `X-Frame-Options: DENY`. Verify the response on the host: `curl -I https://<host>/api/examples/<id>/preview.pdf`. The header should be `SAMEORIGIN`.
+- Preview returns 404 for the author / admin → the cached PDF doesn't exist yet. Inspect `Example.preview_build_log` from `manage.py shell` to see if the build failed; check the worker logs for the task outcome.
+- "Permission denied" writing `/app/media/examples/.tmp-…` → the same volume-ownership trap as the labels-PDF rollout. Stop `web`/`worker`, `docker volume rm <project>_media_examples`, rebuild, bring them back up.
+- Stale code in the worker after editing `catalog/tasks.py`, `catalog/management/commands/build_example_preview.py`, or any imported module: a plain `restart` keeps the old code in Celery's import cache. Always use `docker compose -f docker-compose.prod.yml up -d --force-recreate worker` after rebuilds that change worker-imported Python.
 
 ## Per-Book HTML Builds
 
@@ -862,12 +902,19 @@ cd OCwebdesign
 # Pull latest code
 git pull origin main
 
-# Rebuild and restart (zero-downtime for the database)
-docker compose -f docker-compose.prod.yml up --build -d
-
-# Apply any new migrations
+# Apply any new migrations BEFORE swapping the new container in
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
+
+# Rebuild and restart
+docker compose -f docker-compose.prod.yml build web worker nginx
+docker compose -f docker-compose.prod.yml up -d --force-recreate web worker nginx
 ```
+
+A few subtleties worth following on every deploy:
+
+- **Migrations first.** Run `migrate` (no app argument) before bringing the new web container up. Plain `migrate` catches every app's drift in one go — easy to skip an app-specific argument and end up with a missing table on prod (the exact thing that hid `0013_example` from the worked-examples library).
+- **`--force-recreate` is not a default.** Without it, `up -d` is a no-op against a running container even when the underlying image has been rebuilt. The web container survives this most of the time because gunicorn re-imports per request, but **Celery workers cache imports at process start** — a `restart` (or unforced `up -d`) keeps the old `tasks.py` / management-command code in memory. Always `--force-recreate worker` after touching Python that the worker imports.
+- **Which services to rebuild.** A backend-only change needs `web worker`. A frontend-only change needs `nginx`. A LaTeX template change needs `worker` (templates are baked into the worker image). When in doubt, rebuild all three — the rebuild is fast because the layers are cached.
 
 ## Database Backups
 

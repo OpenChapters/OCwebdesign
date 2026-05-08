@@ -21,6 +21,7 @@ The OpenChapters API is a RESTful JSON API built with Django REST Framework. All
    - [Build](#build)
    - [Library](#library)
    - [Community Library](#community-library)
+   - [Worked Examples](#worked-examples)
    - [Cover Images](#cover-images)
 
 ---
@@ -405,6 +406,7 @@ Returns all published chapters. No authentication required.
 | `html_built_at` | datetime/null | Timestamp of the last successful HTML build (null if no HTML is available) |
 | `cached_at` | datetime | Last sync timestamp |
 | `has_pdf_labels` | bool | True when a labels-PDF artifact has been built for this chapter (foundational chapters only). See [Get Chapter Labels-PDF](#get-chapter-labels-pdf). |
+| `examples_count` | integer | Number of distinct PUBLISHED [worked examples](#worked-examples) tagged to this chapter. List/detail views annotate the queryset; nested or non-list contexts fall back to a per-row count. |
 
 #### Download Chapter Catalog (CSV)
 
@@ -414,7 +416,7 @@ GET /api/chapters/catalog.csv
 
 Returns all published chapters as a CSV file. No authentication required. Useful for prospective authors who want a complete inventory of the collection without creating an account.
 
-**Columns:** `chabbr, title, discipline, type, authors, last_updated, html_built, url`
+**Columns:** `chabbr, title, discipline, type, authors, last_updated, html_built, examples, url`
 
 **Response (200):** `text/csv; charset=utf-8` with `Content-Disposition: attachment; filename="openchapters-catalog.csv"`. The file begins with a UTF-8 BOM so Excel opens accented characters correctly. Authors are joined with `; `; dates are ISO `YYYY-MM-DD`; `url` is the absolute link to the chapter's detail page.
 
@@ -602,11 +604,18 @@ PATCH /api/books/<id>/
 ```json
 {
   "title": "New Title",
-  "doi": "10.1234/openchapters.2026"
+  "doi": "10.1234/openchapters.2026",
+  "include_examples": true,
+  "include_solutions": true
 }
 ```
 
-Both fields are optional in a PATCH request.
+All fields are optional in a PATCH request.
+
+- `include_examples` (bool, default True) — when set, builds of this book append a "Worked examples" section after each tagged chapter using the published [examples corpus](#worked-examples). Cross-chapter examples render once, under the earliest tagged chapter in the book.
+- `include_solutions` (bool, default True) — when off (and `include_examples` is on), statements appear without solutions, producing a problem-only handout from the same corpus. Ignored when `include_examples` is off.
+
+The book detail response also exposes a derived `examples_count` (distinct PUBLISHED examples tagged to any chapter in the book) for the builder UI to surface.
 
 **Response (200):** Updated book object (includes `has_cover_image` boolean).
 
@@ -819,6 +828,18 @@ Enqueues a Celery task to typeset the book. The build format is selected via the
 { "format": "both" }         // chain: PDF first, then HTML
 ```
 
+The body can additionally carry `include_examples` and `include_solutions` overrides; both default to the values currently stored on the Book and are persisted before the task is launched, so a Retry replays the same settings without resending the body:
+
+```json
+{
+  "format": "pdf",
+  "include_examples": true,
+  "include_solutions": false
+}
+```
+
+See [Worked Examples](#worked-examples) for what these flags do at build time.
+
 **Response (202):**
 ```json
 {
@@ -977,6 +998,195 @@ Creates a new **draft** book under the requesting user's account, with the sourc
 The new book's id, suitable for routing to `/books/<id>` in the editor.
 
 **Response (404):** Source book id does not exist, the source owner has not opted in (`share_builds=false`), or the source is not in `complete` status.
+
+---
+
+### Worked Examples
+
+A community-contributed corpus of LaTeX problems with solutions, each tagged to one or more chapters. See the [user guide](user-guide.md#worked-examples) for the user-facing flow and the [admin guide](admin-guide.md#worked-examples) for the moderation workflow.
+
+The full Example schema (returned by detail and admin endpoints):
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | integer | Unique identifier. |
+| `primary_chapter` | object | `{id, title, chabbr}` — the chapter whose preamble drives snippet preview compiles, and which determines book-build placement when more than one tagged chapter is in the same book. |
+| `chapters` | object[] | All tagged chapters (one or more). Each is `{id, title, chabbr}`. |
+| `statement_tex` | string | LaTeX source for the problem. |
+| `solution_tex` | string | LaTeX source for the solution. |
+| `difficulty` | string | `"introductory"`, `"standard"`, or `"advanced"`. |
+| `license` | string | License string, defaults to `"CC BY-NC-SA 4.0"`. |
+| `status` | string | `"draft"`, `"pending"`, `"published"`, or `"rejected"`. |
+| `rejection_reason` | string | Empty unless `status="rejected"`. Cleared automatically when the author edits the example. |
+| `author_display` | string | Author's full name; falls back to `"Anonymous"` when blank. |
+| `preview_built_at` | datetime/null | Set when the snippet preview compile last succeeded. |
+| `preview_build_log` | string | Last 8 KB of arara output captured on the most recent failed build. Empty after a successful build. |
+| `preview_fresh` | bool | True iff `preview_built_at >= updated_at`. The submit endpoint enforces the same invariant. |
+| `preview_pdf_url` | string/null | Short-lived signed URL for the cached preview PDF (TTL 30 minutes); for PUBLISHED examples the URL is unsigned and anonymous-readable. Null when no preview has been built. |
+| `created_at`, `updated_at` | datetime | `updated_at` reflects the last *content* edit; status transitions (submit / approve / reject) do not bump it, so the freshness check is not invalidated by a state change. |
+
+The list serializer omits `solution_tex` and the preview-related fields (the public list never shows solutions).
+
+#### List Examples
+
+```
+GET /api/examples/
+```
+
+Returns published examples. No authentication required; pagination matches the chapter list.
+
+**Query parameters:**
+
+- `page` — page number (default 1).
+- `chapter` — filter by `chabbr` (matches any tagged chapter, not just primary).
+- `difficulty` — `introductory` / `standard` / `advanced`.
+- `search` — case-insensitive substring match against `statement_tex` and `solution_tex`.
+
+**Response (200):** paginated list of examples (slim shape, no `solution_tex`).
+
+#### Get Example
+
+```
+GET /api/examples/<id>/
+```
+
+Returns a published example. No authentication required. 404 when the example exists but is not in `published` status — authors should fetch their own non-published examples via the `manage` endpoint instead.
+
+**Response (200):** Full example object including `solution_tex`, `preview_pdf_url`, and `preview_build_log`.
+
+#### Get / Manage Own Example
+
+```
+GET    /api/examples/<id>/manage/
+PATCH  /api/examples/<id>/manage/
+DELETE /api/examples/<id>/manage/
+```
+
+Authenticated. Operates on the caller's own example regardless of status; 404 for examples owned by anyone else.
+
+- `GET` returns the same shape as the public detail endpoint, including `preview_build_log` and a signed `preview_pdf_url`.
+- `PATCH` accepts the writable subset of the schema (`primary_chapter`, `chapters`, `statement_tex`, `solution_tex`, `difficulty`). Allowed only on `draft` and `rejected` examples; editing a `rejected` example moves it back to `draft` and clears `rejection_reason` automatically.
+- `DELETE` requires the example to be in `draft` status.
+
+#### List Own Examples
+
+```
+GET /api/examples/mine/
+```
+
+Authenticated. Returns the caller's examples across all statuses. Used by the **My worked examples** section on the profile page.
+
+#### Create Example
+
+```
+POST /api/examples/
+```
+
+Authenticated. Creates the example in `draft` status with the caller as author.
+
+**Request body:**
+
+```json
+{
+  "primary_chapter": 5,
+  "chapters": [5, 15],
+  "statement_tex": "Let $A$ be a $3\\times 3$ symmetric matrix...",
+  "solution_tex": "Since $A$ is symmetric...",
+  "difficulty": "standard"
+}
+```
+
+**Validation:**
+
+- `chapters` — at least one entry required.
+- `primary_chapter` — must be one of the entries in `chapters`.
+- `statement_tex`, `solution_tex` — both must be non-blank.
+
+**Response (201):** Full example object (detail shape).
+
+#### Trigger Preview Build
+
+```
+POST /api/examples/<id>/preview/
+```
+
+Authenticated. The author of the example or any staff user can trigger a rebuild. Enqueues a Celery task that compiles the snippet on the worker.
+
+**Response (202):**
+
+```json
+{ "task_id": "9ba9aa74-db73-4d79-8c97-549858380316" }
+```
+
+The frontend polls the `manage` endpoint after dispatch; when `preview_built_at` advances, the new PDF is ready. When the compile fails, `preview_build_log` is populated and `preview_built_at` is unchanged.
+
+**Errors:** `404` for non-author callers; `404` if the example does not exist.
+
+#### Get Preview PDF
+
+```
+GET /api/examples/<id>/preview.pdf[?t=<signed-token>]
+```
+
+Serves the cached snippet preview PDF. Authorization, in order:
+
+1. PUBLISHED examples are anonymous-readable.
+2. A valid `t` token is admitted regardless of status. Tokens are minted by the detail / list serializers as part of `preview_pdf_url` (TTL 30 minutes).
+3. Otherwise: author or staff via JWT.
+
+Anything else returns `404`.
+
+The frontend always uses the URL from `preview_pdf_url` rather than constructing its own — that keeps iframes, anchor tags, and `window.open` calls authorized without needing a JWT in the URL.
+
+**Response (200):** `application/pdf`, `Content-Disposition: inline`, `X-Frame-Options: SAMEORIGIN` (so the editor's iframe can render).
+
+**Response (404):** Example missing, not authorized, or the artifact has not been built yet.
+
+#### Submit for Review
+
+```
+POST /api/examples/<id>/submit/
+```
+
+Authenticated. Moves a `draft` or `rejected` example to `pending`.
+
+Requires `preview_built_at >= updated_at` — i.e., the snippet must have a successful preview compile newer than the most recent edit. The frontend disables the submit button when this invariant fails; the server returns `400` with a hint to re-run Preview.
+
+**Response (200):** Full example object (now in `pending` status).
+
+#### Admin: Review Queue
+
+```
+GET /api/admin/examples/[?status=pending]
+```
+
+Staff only. Returns a non-paginated list filtered by status (`pending` by default, accepts any of the `Status` values).
+
+#### Admin: Approve
+
+```
+POST /api/admin/examples/<id>/approve/
+```
+
+Staff only. `pending` → `published`. Returns the updated example.
+
+**Errors:** `400` if the example is not in `pending` status; `404` if missing.
+
+#### Admin: Reject
+
+```
+POST /api/admin/examples/<id>/reject/
+```
+
+Staff only. `pending` → `rejected`. Required body:
+
+```json
+{ "rejection_reason": "Please show the determinant expansion step." }
+```
+
+The reason is shown to the author at the top of the editor and on the public detail page. The author can edit the example to return it to `draft` and re-submit.
+
+**Errors:** `400` if `rejection_reason` is blank or the example is not in `pending` status; `404` if missing.
 
 ---
 

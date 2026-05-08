@@ -10,12 +10,13 @@ This guide covers the administration panel for managing the OpenChapters platfor
 2. [Dashboard](#dashboard)
 3. [User Management](#user-management)
 4. [Chapter Management](#chapter-management)
-5. [Build Management](#build-management)
-6. [System Monitoring](#system-monitoring)
-7. [Site Settings](#site-settings)
-8. [Audit Log](#audit-log)
-9. [Analytics](#analytics)
-10. [Granting Admin Access](#granting-admin-access)
+5. [Worked Examples](#worked-examples)
+6. [Build Management](#build-management)
+7. [System Monitoring](#system-monitoring)
+8. [Site Settings](#site-settings)
+9. [Audit Log](#audit-log)
+10. [Analytics](#analytics)
+11. [Granting Admin Access](#granting-admin-access)
 
 ---
 
@@ -124,6 +125,7 @@ A searchable table of all chapters, including unpublished ones.
 | **Type** | Badge: foundational or topical |
 | **Published** | Whether the chapter appears in the public catalog |
 | **Dependencies** | Foundational chapters this chapter references |
+| **Examples** | Number of published [worked examples](#worked-examples) tagged to the chapter; click to jump to those examples |
 | **Last synced** | When the chapter was last updated from GitHub |
 
 ### Syncing from GitHub
@@ -198,6 +200,61 @@ Shows full chapter metadata with two panels:
 | **Edit metadata** | Opens an inline form to change title, description, type (foundational/topical), keywords, and review information (reviewer name + review date). Changes are stored in the database and override synced values. |
 
 Chapters with a successfully built HTML version show the build timestamp in the details panel. Users can read these chapters online via the **Read Online** button on the public chapter page and search within them via the global Search page.
+
+## Worked Examples
+
+**Path:** `/admin-panel/examples`
+
+Authors submit short LaTeX problems with full solutions, each tagged to one or more chapters. Submitted examples wait in a review queue; an admin approves them to publish, or rejects with a reason that the author can read in the editor and address.
+
+### Review Queue
+
+The page is organised by status tabs:
+
+- **Pending** — examples awaiting review (the default tab).
+- **Published** — already approved.
+- **Rejected** — bounced back to the author with a reason; the entry returns to **Draft** as soon as the author edits, and can be re-submitted.
+- **Drafts** — saved but not yet submitted (rare to see here; mostly useful for diagnostic purposes).
+
+Each row shows:
+
+- The example id, the author's display name, and the submission date.
+- The chapter chabbrs the example is tagged to, with the **primary chapter** marked with an asterisk. The primary chapter determines which preamble is used to compile the snippet preview, and (for book builds) which chapter the example renders under when more than one of its tags appears in the same book.
+- The difficulty (introductory / standard / advanced).
+- A truncated preview of the statement source (raw LaTeX, ~400 characters).
+- An **Open detail →** link to the public detail page for that example.
+- **Open preview PDF ↗** when the snippet has been compiled. The link is signed and embedded in the URL, so it opens directly in a new tab without auth.
+- A small **build failed** indicator if the most recent compile produced an error log instead of a PDF (use the `Open detail` link to read the log).
+
+### Approve / Reject
+
+For each pending example, the row carries two action buttons:
+
+- **Approve** — moves the example to **Published**. It immediately appears on `/examples`, on each tagged chapter's detail page, and is eligible for inclusion in book builds (subject to the per-build flag in the [user-facing build flow](user-guide.md#building-your-book)).
+- **Reject…** — opens an inline reason input. Type a short message (e.g., "Please show intermediate steps for the determinant expansion") and click **Confirm**. The reason is shown to the author at the top of the editor and at the top of the public detail page.
+
+### Build Pipeline
+
+The snippet preview pipeline is parallel to the chapter HTML / labels-PDF pipelines:
+
+- A Celery task `catalog.build_example_preview` runs in the worker container.
+- The management command renders `Build/scripts/main_example.tex.j2` with the example's primary-chapter preamble + the inline statement / solution, runs `arara`, and writes `media/examples/<id>.pdf` atomically.
+- Successful builds set `preview_built_at` on the Example record; failures capture the last 8 KB of the arara output to `preview_build_log` (visible to author and admin).
+- The named volume `media_examples` is shared by the `web` and `worker` containers (declared in `docker-compose.prod.yml`), so the web service can stream the artifact back over `/api/examples/<id>/preview.pdf`.
+
+You can build an example's preview manually:
+
+```bash
+docker compose -f docker-compose.prod.yml exec worker python manage.py build_example_preview --id 17
+```
+
+If the build fails, the worker preserves the workspace at `/tmp/ocexample-<uuid>/` for inspection — `main.log` has the LaTeX error, `main.tex` shows the rendered template.
+
+### Submission Constraints
+
+The submit endpoint requires a fresh successful preview — the server compares `preview_built_at >= updated_at`, so any edit to the example invalidates the previous preview and the author has to rebuild it before submitting. This guarantees the queue never contains entries that don't compile.
+
+The admin queue link is also disabled for examples with no preview built yet; admins should never see "broken" entries waiting on review.
 
 ## Build Management
 

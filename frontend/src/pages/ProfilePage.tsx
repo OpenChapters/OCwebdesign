@@ -1,9 +1,11 @@
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import client from '../api/client';
+import { examplesApi } from '../api/examples';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
+import type { ExampleListItem, ExampleStatus } from '../types';
 
 interface Profile {
   id: number;
@@ -25,6 +27,12 @@ export default function ProfilePage() {
     queryKey: ['profile'],
     queryFn: () => client.get<Profile>('/auth/profile/').then((r) => r.data),
   });
+
+  const { data: myExamplesPayload } = useQuery({
+    queryKey: ['my-examples'],
+    queryFn: () => examplesApi.mine(),
+  });
+  const myExamples = myExamplesPayload?.results ?? [];
 
   // Full name editing
   const [editingName, setEditingName] = useState(false);
@@ -196,6 +204,29 @@ export default function ProfilePage() {
         </label>
       </div>
 
+      {/* My Examples */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            My worked examples
+          </h2>
+          <Link to="/examples/new" className="text-sm text-blue-600 hover:underline">
+            + New example
+          </Link>
+        </div>
+        {myExamples.length === 0 ? (
+          <p className="text-sm text-gray-400">
+            You haven't submitted any examples yet.{' '}
+            <Link to="/examples/new" className="text-blue-600 hover:underline">
+              Create one
+            </Link>{' '}
+            to share a worked problem with other authors.
+          </p>
+        ) : (
+          <MyExamplesList items={myExamples} />
+        )}
+      </div>
+
       {/* Change password */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
         <div className="flex items-center justify-between mb-3">
@@ -280,6 +311,71 @@ export default function ProfilePage() {
           Delete my account
         </button>
       </div>
+    </div>
+  );
+}
+
+const STATUS_ORDER: ExampleStatus[] = ['draft', 'rejected', 'pending', 'published'];
+const STATUS_LABEL: Record<ExampleStatus, string> = {
+  draft: 'Drafts',
+  rejected: 'Rejected',
+  pending: 'Pending review',
+  published: 'Published',
+};
+const STATUS_BADGE: Record<ExampleStatus, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  rejected: 'bg-red-100 text-red-700',
+  pending: 'bg-amber-100 text-amber-800',
+  published: 'bg-emerald-100 text-emerald-800',
+};
+
+function MyExamplesList({ items }: { items: ExampleListItem[] }) {
+  const grouped: Record<ExampleStatus, ExampleListItem[]> = {
+    draft: [], pending: [], published: [], rejected: [],
+  };
+  for (const ex of items) grouped[ex.status].push(ex);
+
+  return (
+    <div className="space-y-4">
+      {STATUS_ORDER.map((s) => {
+        const group = grouped[s];
+        if (group.length === 0) return null;
+        return (
+          <div key={s}>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+              {STATUS_LABEL[s]}{' '}
+              <span className="font-normal text-gray-400">({group.length})</span>
+            </h3>
+            <ul className="space-y-1.5">
+              {group.map((ex) => {
+                const editable = ex.status === 'draft' || ex.status === 'rejected';
+                const target = editable ? `/examples/${ex.id}/edit` : `/examples/${ex.id}`;
+                const preview = ex.statement_tex.length > 100
+                  ? ex.statement_tex.slice(0, 100) + '…'
+                  : ex.statement_tex;
+                return (
+                  <li key={ex.id}>
+                    <Link
+                      to={target}
+                      className="block px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded transition"
+                    >
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_BADGE[ex.status]}`}>
+                          #{ex.id}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {ex.primary_chapter.chabbr} · {ex.difficulty}
+                        </span>
+                      </div>
+                      <p className="font-mono text-xs text-gray-700 line-clamp-1">{preview}</p>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }

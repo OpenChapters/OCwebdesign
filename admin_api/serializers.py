@@ -59,6 +59,23 @@ class AdminDisciplineSerializer(serializers.ModelSerializer):
 
 class AdminChapterSerializer(serializers.ModelSerializer):
     discipline_name = serializers.CharField(source="discipline.name", read_only=True, default="")
+    examples_count = serializers.SerializerMethodField()
+
+    def get_examples_count(self, obj):
+        # Falls back to a per-row query if the queryset wasn't annotated
+        # (e.g. detail views that don't go through AdminChapterListView).
+        annotated = getattr(obj, "examples_count_annotated", None)
+        if annotated is not None:
+            return annotated
+        from catalog.models import Example
+        return (
+            Example.objects.filter(
+                status=Example.Status.PUBLISHED,
+                chapters=obj,
+            )
+            .distinct()
+            .count()
+        )
 
     class Meta:
         model = Chapter
@@ -68,8 +85,9 @@ class AdminChapterSerializer(serializers.ModelSerializer):
             "depends_on", "published", "discipline", "discipline_name",
             "github_repo", "chapter_subdir", "latex_entry_file",
             "reviewer_name", "reviewed_at", "html_built_at", "cached_at",
+            "examples_count",
         ]
         read_only_fields = [
             "id", "github_repo", "chapter_subdir", "latex_entry_file",
-            "cached_at", "discipline_name",
+            "cached_at", "discipline_name", "examples_count",
         ]

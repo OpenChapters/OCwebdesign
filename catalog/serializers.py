@@ -16,6 +16,7 @@ class DisciplineSerializer(serializers.ModelSerializer):
 class ChapterSerializer(serializers.ModelSerializer):
     discipline = DisciplineSerializer(read_only=True)
     has_pdf_labels = serializers.SerializerMethodField()
+    examples_count = serializers.SerializerMethodField()
 
     def get_has_pdf_labels(self, obj):
         # Foundational-only artifact; the labels-PDF is built nightly
@@ -28,6 +29,24 @@ class ChapterSerializer(serializers.ModelSerializer):
         return (
             Path(settings.BASE_DIR) / "media" / "pdf_labels" / f"{obj.chabbr}.pdf"
         ).is_file()
+
+    def get_examples_count(self, obj):
+        # The list/detail views annotate the queryset with this; if the
+        # serializer is invoked on a Chapter instance pulled outside
+        # those views (e.g. nested in another serializer), fall back to
+        # a per-row count.
+        annotated = getattr(obj, "examples_count_annotated", None)
+        if annotated is not None:
+            return annotated
+        from .models import Example
+        return (
+            Example.objects.filter(
+                status=Example.Status.PUBLISHED,
+                chapters=obj,
+            )
+            .distinct()
+            .count()
+        )
 
     class Meta:
         model = Chapter
@@ -52,6 +71,7 @@ class ChapterSerializer(serializers.ModelSerializer):
             "html_built_at",
             "cached_at",
             "has_pdf_labels",
+            "examples_count",
         ]
         read_only_fields = fields
 

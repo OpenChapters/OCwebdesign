@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { examplesApi } from '../api/examples';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
+import MathText from '../components/MathText';
 import type { ExampleDetail, ExampleDifficulty, ExampleStatus } from '../types';
 
 const DIFFICULTY_LABEL: Record<ExampleDifficulty, string> = {
@@ -184,9 +185,10 @@ export default function ExampleDetailPage() {
         <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
           Statement
         </h2>
-        <pre className="font-mono text-sm bg-gray-50 border border-gray-200 rounded-lg p-4 whitespace-pre-wrap leading-relaxed">
-          {example.statement_tex}
-        </pre>
+        <MathText
+          source={example.statement_tex}
+          className="text-sm bg-gray-50 border border-gray-200 rounded-lg p-4"
+        />
       </section>
 
       <section className="mt-6">
@@ -202,9 +204,10 @@ export default function ExampleDetailPage() {
           </button>
         </div>
         {showSolution ? (
-          <pre className="font-mono text-sm bg-gray-50 border border-gray-200 rounded-lg p-4 whitespace-pre-wrap leading-relaxed">
-            {example.solution_tex}
-          </pre>
+          <MathText
+            source={example.solution_tex}
+            className="text-sm bg-gray-50 border border-gray-200 rounded-lg p-4"
+          />
         ) : (
           <p className="text-sm text-gray-400 italic px-4 py-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg">
             Solution hidden. Click "Show" to reveal.

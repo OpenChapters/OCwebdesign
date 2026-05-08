@@ -163,12 +163,13 @@ export default function ChaptersPage() {
                 <th className="px-4 py-2 font-medium text-gray-500">Type</th>
                 <th className="px-4 py-2 font-medium text-gray-500">Published</th>
                 <th className="px-4 py-2 font-medium text-gray-500">Dependencies</th>
+                <th className="px-4 py-2 font-medium text-gray-500 text-right">Examples</th>
                 <th className="px-4 py-2 font-medium text-gray-500">Last synced</th>
               </tr>
             </thead>
             <tbody>
               {chapters.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No chapters found.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No chapters found.</td></tr>
               )}
               {chapters.map((ch) => (
                 <tr key={ch.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
@@ -196,6 +197,18 @@ export default function ChaptersPage() {
                   </td>
                   <td className="px-4 py-2 text-xs text-gray-500">
                     {ch.depends_on.length > 0 ? ch.depends_on.join(', ') : '—'}
+                  </td>
+                  <td className="px-4 py-2 text-xs text-gray-700 text-right tabular-nums">
+                    {ch.examples_count > 0 ? (
+                      <Link
+                        to={`/examples?chapter=${ch.chabbr}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {ch.examples_count}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-300">0</span>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-xs text-gray-500">
                     {new Date(ch.cached_at).toLocaleDateString()}

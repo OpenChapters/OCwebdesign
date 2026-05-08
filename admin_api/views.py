@@ -278,7 +278,13 @@ class AdminChapterListView(generics.ListAPIView):
     serializer_class = AdminChapterSerializer
 
     def get_queryset(self):
-        qs = Chapter.objects.all().order_by("title")
+        qs = Chapter.objects.all().order_by("title").annotate(
+            examples_count_annotated=Count(
+                "examples",
+                filter=Q(examples__status="published"),
+                distinct=True,
+            )
+        )
         search = self.request.query_params.get("search", "").strip()
         if search:
             qs = qs.filter(

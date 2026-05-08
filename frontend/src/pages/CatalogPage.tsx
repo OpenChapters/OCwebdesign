@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { chaptersApi } from '../api/chapters';
 
@@ -64,12 +65,13 @@ export default function CatalogPage() {
                 <th className="px-4 py-2 font-medium text-gray-500">Type</th>
                 <th className="px-4 py-2 font-medium text-gray-500">Authors</th>
                 <th className="px-4 py-2 font-medium text-gray-500">Last updated</th>
+                <th className="px-4 py-2 font-medium text-gray-500 text-right">Examples</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                     No chapters.
                   </td>
                 </tr>
@@ -97,6 +99,18 @@ export default function CatalogPage() {
                   </td>
                   <td className="px-4 py-2 text-xs text-gray-500">
                     {c.last_updated ? new Date(c.last_updated).toLocaleDateString() : '—'}
+                  </td>
+                  <td className="px-4 py-2 text-xs text-gray-700 text-right tabular-nums">
+                    {c.examples_count > 0 ? (
+                      <Link
+                        to={`/examples?chapter=${c.chabbr}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {c.examples_count}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-300">0</span>
+                    )}
                   </td>
                 </tr>
               ))}

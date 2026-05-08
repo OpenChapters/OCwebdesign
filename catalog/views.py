@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 from django.conf import settings
 from django.core.signing import BadSignature, TimestampSigner
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
@@ -72,12 +72,31 @@ class DisciplineListView(generics.ListAPIView):
     pagination_class = None  # No pagination; small list
 
 
+def _annotate_examples_count(qs):
+    """Annotate a Chapter queryset with examples_count_annotated.
+
+    The serializer reads this attribute directly to avoid the per-row
+    COUNT query on list views.
+    """
+    return qs.annotate(
+        examples_count_annotated=Count(
+            "examples",
+            filter=Q(examples__status="published"),
+            distinct=True,
+        )
+    )
+
+
 class ChapterListView(generics.ListAPIView):
     serializer_class = ChapterSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        qs = Chapter.objects.filter(published=True).select_related("discipline")
+        qs = (
+            Chapter.objects.filter(published=True)
+            .select_related("discipline")
+        )
+        qs = _annotate_examples_count(qs)
         discipline = self.request.query_params.get("discipline", "").strip()
         if discipline:
             qs = qs.filter(discipline__slug=discipline)
@@ -85,9 +104,13 @@ class ChapterListView(generics.ListAPIView):
 
 
 class ChapterDetailView(generics.RetrieveAPIView):
-    queryset = Chapter.objects.filter(published=True)
     serializer_class = ChapterSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return _annotate_examples_count(
+            Chapter.objects.filter(published=True)
+        )
 
 
 class ChapterCatalogCsvView(APIView):
@@ -102,7 +125,7 @@ class ChapterCatalogCsvView(APIView):
     authentication_classes = []
 
     def get(self, request):
-        chapters = (
+        chapters = _annotate_examples_count(
             Chapter.objects
             .filter(published=True)
             .select_related("discipline")
@@ -124,6 +147,7 @@ class ChapterCatalogCsvView(APIView):
             "authors",
             "last_updated",
             "html_built",
+            "examples",
             "url",
         ])
         for c in chapters:
@@ -135,6 +159,7 @@ class ChapterCatalogCsvView(APIView):
                 "; ".join(c.authors) if c.authors else "",
                 c.last_updated.date().isoformat() if c.last_updated else "",
                 c.html_built_at.date().isoformat() if c.html_built_at else "",
+                c.examples_count_annotated,
                 request.build_absolute_uri(f"/chapters/{c.id}"),
             ])
         return response

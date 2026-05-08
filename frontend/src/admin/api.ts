@@ -165,6 +165,7 @@ export interface AdminChapter {
   reviewed_at: string | null;
   html_built_at: string | null;
   cached_at: string;
+  examples_count: number;
 }
 
 // ── API ──────────────────────────────────────────────────────────────────────

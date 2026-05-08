@@ -50,9 +50,6 @@ export const examplesApi = {
       .post<{ task_id: string }>(`/examples/${id}/preview/`)
       .then((r) => r.data),
 
-  previewPdfUrl: (id: number, cacheBust?: string | null) =>
-    `/api/examples/${id}/preview.pdf${cacheBust ? `?v=${encodeURIComponent(cacheBust)}` : ''}`,
-
   // ── Admin ────────────────────────────────────────────────────────────────
   adminQueue: (status: ExampleStatus = 'pending') =>
     client

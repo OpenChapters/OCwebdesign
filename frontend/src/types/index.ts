@@ -118,6 +118,7 @@ export interface ExampleDetail extends ExampleListItem {
   preview_built_at: string | null;
   preview_build_log: string;
   preview_fresh: boolean;
+  preview_pdf_url: string | null;
 }
 
 export interface ExampleWritePayload {

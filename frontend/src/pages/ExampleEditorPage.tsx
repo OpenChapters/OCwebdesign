@@ -33,16 +33,16 @@ export default function ExampleEditorPage() {
   const [saving, setSaving] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Preview state. `previewExampleId` tracks which example a preview is
-  // currently being built for; `previewFresh` reflects the live state
-  // from polling. `previewBuildLog` surfaces compile errors. `pdfCacheBust`
-  // changes after each successful build to force the iframe to reload.
+  // Preview state. `previewPdfUrl` is the signed URL minted by the
+  // serializer — the iframe and "Open in new tab" link both consume it
+  // directly. `previewFresh` reflects the live state from polling and
+  // `previewBuildLog` surfaces compile errors when a build fails.
   const [previewing, setPreviewing] = useState(false);
   const [previewExampleId, setPreviewExampleId] = useState<number | null>(null);
   const [previewFresh, setPreviewFresh] = useState(false);
   const [previewBuiltAt, setPreviewBuiltAt] = useState<string | null>(null);
   const [previewBuildLog, setPreviewBuildLog] = useState('');
-  const [pdfCacheBust, setPdfCacheBust] = useState<string | null>(null);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const pollAbortRef = useRef<{ cancelled: boolean } | null>(null);
 
   const { data: chapters = [] } = useQuery({
@@ -73,9 +73,7 @@ export default function ExampleEditorPage() {
       setPreviewFresh(existing.preview_fresh);
       setPreviewBuiltAt(existing.preview_built_at);
       setPreviewBuildLog(existing.preview_build_log || '');
-      if (existing.preview_built_at) {
-        setPdfCacheBust(existing.preview_built_at);
-      }
+      setPreviewPdfUrl(existing.preview_pdf_url);
     }
   }, [existing]);
 
@@ -194,7 +192,7 @@ export default function ExampleEditorPage() {
         if (fresh.preview_built_at && fresh.preview_built_at !== baselineBuiltAt) {
           setPreviewBuiltAt(fresh.preview_built_at);
           setPreviewFresh(fresh.preview_fresh);
-          setPdfCacheBust(fresh.preview_built_at);
+          setPreviewPdfUrl(fresh.preview_pdf_url);
           toast('Preview ready.', 'success');
           return;
         }
@@ -389,14 +387,14 @@ export default function ExampleEditorPage() {
         </section>
       )}
 
-      {previewExampleId !== null && previewBuiltAt && !previewBuildLog && (
+      {previewExampleId !== null && previewPdfUrl && !previewBuildLog && (
         <section className="mt-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
               Preview
             </h2>
             <a
-              href={examplesApi.previewPdfUrl(previewExampleId, pdfCacheBust)}
+              href={previewPdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-600 hover:underline"
@@ -405,8 +403,8 @@ export default function ExampleEditorPage() {
             </a>
           </div>
           <iframe
-            key={pdfCacheBust ?? 'init'}
-            src={examplesApi.previewPdfUrl(previewExampleId, pdfCacheBust)}
+            key={previewPdfUrl}
+            src={previewPdfUrl}
             title="Example preview"
             className="w-full h-[640px] border border-gray-200 rounded-lg bg-white"
           />

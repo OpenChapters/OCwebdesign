@@ -109,9 +109,9 @@ export default function ExamplesQueuePage() {
                 >
                   Open detail →
                 </Link>
-                {ex.preview_built_at && (
+                {ex.preview_pdf_url && (
                   <a
-                    href={examplesApi.previewPdfUrl(ex.id, ex.preview_built_at)}
+                    href={ex.preview_pdf_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-amber-700 hover:underline"

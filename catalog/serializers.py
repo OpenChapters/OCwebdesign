@@ -93,14 +93,17 @@ class ExampleDetailSerializer(serializers.ModelSerializer):
     """Full detail — includes solution_tex.
 
     `preview_fresh` is True when the cached preview PDF was built after
-    the example's last edit. The submit endpoint enforces the same
-    invariant server-side; the field lets the frontend gray out the
-    Submit button without a round-trip.
+    the example's last edit.
+    `preview_pdf_url` is a short-lived signed URL that the iframe (or any
+    "open in new tab" link) can use without carrying a JWT. PUBLISHED
+    examples skip the token; everything else gets a fresh signature
+    every time the detail is serialized (TTL 30 min).
     """
     primary_chapter = _ExampleChapterRefSerializer(read_only=True)
     chapters = _ExampleChapterRefSerializer(many=True, read_only=True)
     author_display = serializers.SerializerMethodField()
     preview_fresh = serializers.SerializerMethodField()
+    preview_pdf_url = serializers.SerializerMethodField()
 
     def get_author_display(self, obj):
         return obj.author.full_name or "Anonymous"
@@ -110,6 +113,17 @@ class ExampleDetailSerializer(serializers.ModelSerializer):
             obj.preview_built_at is not None
             and obj.preview_built_at >= obj.updated_at
         )
+
+    def get_preview_pdf_url(self, obj):
+        if obj.preview_built_at is None:
+            return None
+        from .views import make_example_preview_token
+
+        cache_bust = int(obj.preview_built_at.timestamp())
+        url = f"/api/examples/{obj.id}/preview.pdf?v={cache_bust}"
+        if obj.status != Example.Status.PUBLISHED:
+            url += f"&t={make_example_preview_token(obj.id)}"
+        return url
 
     class Meta:
         model = Example
@@ -127,6 +141,7 @@ class ExampleDetailSerializer(serializers.ModelSerializer):
             "preview_built_at",
             "preview_build_log",
             "preview_fresh",
+            "preview_pdf_url",
             "created_at",
             "updated_at",
         ]

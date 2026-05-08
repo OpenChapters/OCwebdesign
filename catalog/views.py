@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 from django.conf import settings
+from django.core.signing import BadSignature, TimestampSigner
 from django.db.models import Q
 from django.http import FileResponse, HttpResponse
 from rest_framework import generics, status
@@ -36,6 +37,31 @@ PDF_LABELS_DIR = Path(settings.BASE_DIR) / "media" / "pdf_labels"
 
 # Directory where worked-example snippet preview PDFs live
 EXAMPLES_DIR = Path(settings.BASE_DIR) / "media" / "examples"
+
+# Signed-URL helper for the preview PDF. The iframe in the example editor
+# is a plain browser GET that can't carry the JWT, so for non-PUBLISHED
+# examples we mint a short-lived signed token that the URL itself
+# carries. PUBLISHED examples are already anonymous-readable; signing is
+# only needed to read drafts/pending/rejected.
+_EXAMPLE_PREVIEW_SIGNER = TimestampSigner(salt="catalog.example-preview")
+EXAMPLE_PREVIEW_TOKEN_TTL = 30 * 60  # 30 minutes
+
+
+def make_example_preview_token(example_id: int) -> str:
+    return _EXAMPLE_PREVIEW_SIGNER.sign(str(example_id))
+
+
+def verify_example_preview_token(token: str, example_id: int) -> bool:
+    try:
+        unsigned = _EXAMPLE_PREVIEW_SIGNER.unsign(
+            token, max_age=EXAMPLE_PREVIEW_TOKEN_TTL,
+        )
+    except (BadSignature, ValueError):
+        return False
+    try:
+        return int(unsigned) == int(example_id)
+    except ValueError:
+        return False
 
 
 class DisciplineListView(generics.ListAPIView):
@@ -558,11 +584,17 @@ class ExamplePreviewTriggerView(APIView):
 
 
 class ExamplePreviewPdfView(APIView):
-    """GET /api/examples/<id>/preview.pdf — serve the cached preview PDF.
+    """GET /api/examples/<id>/preview.pdf[?t=<signed-token>]
 
-    Public for PUBLISHED examples (anyone can see what's in the
-    library); for non-published, only the author and staff can fetch
-    it. 404 when the artifact has not been built yet.
+    Serves the cached preview PDF. Authorization rules, in order:
+    - PUBLISHED examples: open to anyone.
+    - A valid signed `t` token: open (used by the editor's iframe and
+      "Open in new tab" links, which can't attach the JWT).
+    - Author or staff via JWT: open.
+    - Otherwise: 404.
+
+    Tokens are minted by ExampleDetailSerializer.preview_pdf_url so the
+    frontend uses the URL straight from the API response.
     """
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -574,8 +606,15 @@ class ExamplePreviewPdfView(APIView):
             return HttpResponse(status=404)
 
         if ex.status != Example.Status.PUBLISHED:
-            user = request.user if request.user.is_authenticated else None
-            if user is None or (user.id != ex.author_id and not user.is_staff):
+            authorized = False
+            token = request.query_params.get("t", "")
+            if token and verify_example_preview_token(token, ex.id):
+                authorized = True
+            else:
+                user = request.user if request.user.is_authenticated else None
+                if user is not None and (user.id == ex.author_id or user.is_staff):
+                    authorized = True
+            if not authorized:
                 return HttpResponse(status=404)
 
         pdf_path = EXAMPLES_DIR / f"{ex.id}.pdf"

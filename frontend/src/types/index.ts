@@ -113,6 +113,8 @@ export interface ExampleDetail extends ExampleListItem {
   license: string;
   rejection_reason: string;
   preview_built_at: string | null;
+  preview_build_log: string;
+  preview_fresh: boolean;
 }
 
 export interface ExampleWritePayload {

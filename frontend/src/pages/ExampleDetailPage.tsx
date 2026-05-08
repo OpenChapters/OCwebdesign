@@ -154,6 +154,32 @@ export default function ExampleDetailPage() {
         </div>
       )}
 
+      {example.preview_built_at && (
+        <div className="mt-4">
+          <a
+            href={examplesApi.previewPdfUrl(example.id, example.preview_built_at)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700"
+          >
+            Open preview PDF ↗
+          </a>
+        </div>
+      )}
+
+      {/* Build log only ever surfaces here for the author/admin paths
+          (the public detail endpoint is reached only for PUBLISHED). */}
+      {example.preview_build_log && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-1">
+            Last preview build failed
+          </p>
+          <pre className="font-mono text-xs text-red-900 bg-red-50 border border-red-200 rounded-lg p-3 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+            {example.preview_build_log}
+          </pre>
+        </div>
+      )}
+
       <section className="mt-6">
         <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
           Statement

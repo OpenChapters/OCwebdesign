@@ -132,6 +132,28 @@ def dispatch_foundational_pdf_labels():
 
 
 @shared_task(
+    name="catalog.build_example_preview",
+    time_limit=120,
+    soft_time_limit=90,
+)
+def build_example_preview_task(example_id):
+    """Build the snippet preview PDF for a single Example.
+
+    Errors raised by the management command are caught there and stored
+    on the Example record (preview_build_log). Re-raise so Celery marks
+    the task FAILED — the frontend polls preview_built_at and a non-null
+    preview_build_log to surface failures.
+    """
+    from io import StringIO
+
+    out = StringIO()
+    call_command("build_example_preview", id=example_id, stdout=out)
+    output = out.getvalue()
+    logger.info("build_example_preview(%s):\n%s", example_id, output)
+    return {"output": output, "example_id": example_id}
+
+
+@shared_task(
     name="catalog.build_all_chapter_html",
     time_limit=60,
 )

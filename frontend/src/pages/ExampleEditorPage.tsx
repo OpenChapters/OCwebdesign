@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examplesApi } from '../api/examples';
@@ -33,6 +33,18 @@ export default function ExampleEditorPage() {
   const [saving, setSaving] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
+  // Preview state. `previewExampleId` tracks which example a preview is
+  // currently being built for; `previewFresh` reflects the live state
+  // from polling. `previewBuildLog` surfaces compile errors. `pdfCacheBust`
+  // changes after each successful build to force the iframe to reload.
+  const [previewing, setPreviewing] = useState(false);
+  const [previewExampleId, setPreviewExampleId] = useState<number | null>(null);
+  const [previewFresh, setPreviewFresh] = useState(false);
+  const [previewBuiltAt, setPreviewBuiltAt] = useState<string | null>(null);
+  const [previewBuildLog, setPreviewBuildLog] = useState('');
+  const [pdfCacheBust, setPdfCacheBust] = useState<string | null>(null);
+  const pollAbortRef = useRef<{ cancelled: boolean } | null>(null);
+
   const { data: chapters = [] } = useQuery({
     queryKey: ['chapters-all-for-example-editor'],
     queryFn: () => chaptersApi.listAll(),
@@ -57,8 +69,24 @@ export default function ExampleEditorPage() {
       if (existing.status === 'rejected' && existing.rejection_reason) {
         setRejectionReason(existing.rejection_reason);
       }
+      setPreviewExampleId(existing.id);
+      setPreviewFresh(existing.preview_fresh);
+      setPreviewBuiltAt(existing.preview_built_at);
+      setPreviewBuildLog(existing.preview_build_log || '');
+      if (existing.preview_built_at) {
+        setPdfCacheBust(existing.preview_built_at);
+      }
     }
   }, [existing]);
+
+  // Cancel any in-flight poll when the page unmounts.
+  useEffect(() => () => { if (pollAbortRef.current) pollAbortRef.current.cancelled = true; }, []);
+
+  // Editing the form invalidates any prior fresh preview signal locally;
+  // the freshness gate on submit is enforced server-side too.
+  function markPreviewStale() {
+    setPreviewFresh(false);
+  }
 
   const validChapters = useMemo(
     () => chapters.filter((c) => c.chabbr),
@@ -76,29 +104,42 @@ export default function ExampleEditorPage() {
     });
   }
 
+  function validateForm(): string | null {
+    if (form.chapters.length === 0) return 'Tag at least one chapter.';
+    if (form.primary_chapter === null) return 'Pick a primary chapter.';
+    if (!form.statement_tex.trim() || !form.solution_tex.trim()) {
+      return 'Statement and solution cannot be empty.';
+    }
+    return null;
+  }
+
+  function buildPayload(): ExampleWritePayload {
+    return {
+      primary_chapter: form.primary_chapter as number,
+      chapters: form.chapters,
+      statement_tex: form.statement_tex,
+      solution_tex: form.solution_tex,
+      difficulty: form.difficulty,
+    };
+  }
+
+  function errorMessage(err: any, fallback: string): string {
+    const detail = err?.response?.data;
+    if (typeof detail === 'string') return detail;
+    return (
+      detail?.detail ||
+      Object.values(detail || {})[0]?.toString() ||
+      fallback
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent, action: 'save' | 'submit') {
     e.preventDefault();
-    if (form.chapters.length === 0) {
-      toast('Tag at least one chapter.', 'error');
-      return;
-    }
-    if (form.primary_chapter === null) {
-      toast('Pick a primary chapter.', 'error');
-      return;
-    }
-    if (!form.statement_tex.trim() || !form.solution_tex.trim()) {
-      toast('Statement and solution cannot be empty.', 'error');
-      return;
-    }
+    const err = validateForm();
+    if (err) { toast(err, 'error'); return; }
     setSaving(true);
     try {
-      const payload: ExampleWritePayload = {
-        primary_chapter: form.primary_chapter,
-        chapters: form.chapters,
-        statement_tex: form.statement_tex,
-        solution_tex: form.solution_tex,
-        difficulty: form.difficulty,
-      };
+      const payload = buildPayload();
       const saved = isEdit
         ? await examplesApi.update(exampleId as number, payload)
         : await examplesApi.create(payload);
@@ -109,18 +150,70 @@ export default function ExampleEditorPage() {
         toast(isEdit ? 'Draft updated.' : 'Draft saved.', 'success');
       }
       navigate(`/examples/${saved.id}`);
-    } catch (err: any) {
-      const detail = err?.response?.data;
-      const msg =
-        typeof detail === 'string'
-          ? detail
-          : detail?.detail ||
-            Object.values(detail || {})[0]?.toString() ||
-            'Could not save.';
-      toast(msg, 'error');
+    } catch (e: any) {
+      toast(errorMessage(e, 'Could not save.'), 'error');
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handlePreview() {
+    const err = validateForm();
+    if (err) { toast(err, 'error'); return; }
+    setPreviewing(true);
+    setPreviewBuildLog('');
+    if (pollAbortRef.current) pollAbortRef.current.cancelled = true;
+    const abort = { cancelled: false };
+    pollAbortRef.current = abort;
+    try {
+      const payload = buildPayload();
+      const saved = isEdit
+        ? await examplesApi.update(exampleId as number, payload)
+        : await examplesApi.create(payload);
+      // For new examples, the URL changes to /examples/<id>/edit so a
+      // refresh keeps the preview state intact.
+      if (!isEdit) {
+        navigate(`/examples/${saved.id}/edit`, { replace: true });
+      }
+      setPreviewExampleId(saved.id);
+      const baselineBuiltAt = saved.preview_built_at;
+      await examplesApi.preview(saved.id);
+      // Poll the manage endpoint until preview_built_at advances or a
+      // non-empty preview_build_log appears (= build failed). Cap at ~2 min.
+      const start = Date.now();
+      while (!abort.cancelled && Date.now() - start < 120_000) {
+        await new Promise((r) => setTimeout(r, 1500));
+        if (abort.cancelled) return;
+        const fresh = await examplesApi.manage(saved.id);
+        if (fresh.preview_build_log) {
+          setPreviewBuildLog(fresh.preview_build_log);
+          setPreviewFresh(false);
+          toast('Preview build failed — see error log below.', 'error');
+          return;
+        }
+        if (fresh.preview_built_at && fresh.preview_built_at !== baselineBuiltAt) {
+          setPreviewBuiltAt(fresh.preview_built_at);
+          setPreviewFresh(fresh.preview_fresh);
+          setPdfCacheBust(fresh.preview_built_at);
+          toast('Preview ready.', 'success');
+          return;
+        }
+      }
+      if (!abort.cancelled) {
+        toast('Preview is taking longer than expected — try again or check the worker.', 'error');
+      }
+    } catch (e: any) {
+      toast(errorMessage(e, 'Could not start preview.'), 'error');
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  // Any form edit invalidates the local fresh signal (server enforces this
+  // via the preview_built_at vs updated_at gate).
+  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+    markPreviewStale();
   }
 
   return (
@@ -181,9 +274,9 @@ export default function ExampleEditorPage() {
           </label>
           <select
             value={form.primary_chapter ?? ''}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, primary_chapter: e.target.value ? Number(e.target.value) : null }))
-            }
+            onChange={(e) => {
+              updateField('primary_chapter', e.target.value ? Number(e.target.value) : null);
+            }}
             disabled={form.chapters.length === 0}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
           >
@@ -210,7 +303,7 @@ export default function ExampleEditorPage() {
                   name="difficulty"
                   value={d}
                   checked={form.difficulty === d}
-                  onChange={() => setForm((f) => ({ ...f, difficulty: d }))}
+                  onChange={() => updateField('difficulty', d)}
                 />
                 {d.charAt(0).toUpperCase() + d.slice(1)}
               </label>
@@ -224,7 +317,7 @@ export default function ExampleEditorPage() {
           </label>
           <textarea
             value={form.statement_tex}
-            onChange={(e) => setForm((f) => ({ ...f, statement_tex: e.target.value }))}
+            onChange={(e) => updateField('statement_tex', e.target.value)}
             rows={10}
             required
             className="w-full font-mono text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -238,7 +331,7 @@ export default function ExampleEditorPage() {
           </label>
           <textarea
             value={form.solution_tex}
-            onChange={(e) => setForm((f) => ({ ...f, solution_tex: e.target.value }))}
+            onChange={(e) => updateField('solution_tex', e.target.value)}
             rows={14}
             required
             className="w-full font-mono text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -246,18 +339,27 @@ export default function ExampleEditorPage() {
           />
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 items-center">
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || previewing}
             className="text-sm bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 disabled:opacity-50"
           >
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Save draft'}
           </button>
           <button
             type="button"
+            onClick={handlePreview}
+            disabled={saving || previewing}
+            className="text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 disabled:opacity-50"
+          >
+            {previewing ? 'Building preview…' : 'Preview'}
+          </button>
+          <button
+            type="button"
             onClick={(e) => handleSubmit(e, 'submit')}
-            disabled={saving}
+            disabled={saving || previewing || !previewFresh}
+            title={!previewFresh ? 'Click Preview and wait for a successful build before submitting.' : undefined}
             className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
             {saving ? 'Working…' : 'Save & submit for review'}
@@ -268,8 +370,48 @@ export default function ExampleEditorPage() {
           >
             Cancel
           </Link>
+          {!previewFresh && previewBuiltAt && !previewing && (
+            <span className="text-xs text-amber-700">
+              Preview is stale — click Preview again before submitting.
+            </span>
+          )}
         </div>
       </form>
+
+      {previewBuildLog && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-red-800 uppercase tracking-wide mb-2">
+            Last build failed
+          </h2>
+          <pre className="font-mono text-xs text-red-900 bg-red-50 border border-red-200 rounded-lg p-3 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+            {previewBuildLog}
+          </pre>
+        </section>
+      )}
+
+      {previewExampleId !== null && previewBuiltAt && !previewBuildLog && (
+        <section className="mt-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              Preview
+            </h2>
+            <a
+              href={examplesApi.previewPdfUrl(previewExampleId, pdfCacheBust)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Open in new tab ↗
+            </a>
+          </div>
+          <iframe
+            key={pdfCacheBust ?? 'init'}
+            src={examplesApi.previewPdfUrl(previewExampleId, pdfCacheBust)}
+            title="Example preview"
+            className="w-full h-[640px] border border-gray-200 rounded-lg bg-white"
+          />
+        </section>
+      )}
     </div>
   );
 }

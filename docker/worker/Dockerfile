@@ -101,7 +101,7 @@ ENV DJANGO_SETTINGS_MODULE=ocweb.settings.dev
 # this; in prod, the baked-in copy is what the worker runs.
 WORKDIR /app
 COPY . /app
-RUN mkdir -p /app/media/html /app/media/html_books /app/media/pdfs /app/media/pdf_labels \
+RUN mkdir -p /app/media/html /app/media/html_books /app/media/pdfs /app/media/pdf_labels /app/media/examples \
  && chown -R texlive:texlive /app
 
 # texlive user (UID 1000) already exists in the base image

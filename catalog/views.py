@@ -34,6 +34,9 @@ HTML_DIR = Path(settings.BASE_DIR) / "media" / "html"
 # Directory where per-chapter labels-PDF artifacts live (foundational only)
 PDF_LABELS_DIR = Path(settings.BASE_DIR) / "media" / "pdf_labels"
 
+# Directory where worked-example snippet preview PDFs live
+EXAMPLES_DIR = Path(settings.BASE_DIR) / "media" / "examples"
+
 
 class DisciplineListView(generics.ListAPIView):
     """GET /api/disciplines/ — list all published disciplines."""
@@ -496,8 +499,9 @@ class ExampleAuthorManageView(APIView):
 class ExampleSubmitView(APIView):
     """POST /api/examples/<id>/submit/ — DRAFT or REJECTED → PENDING.
 
-    Phase 1: no preview-freshness gate yet (snippet compile lands in
-    Phase 2). For now any author can submit.
+    Requires a fresh preview compile: preview_built_at must be set and
+    no older than the example's last edit. Authors are responsible for
+    clicking "Preview" again after every edit (no auto-rebuild).
     """
     permission_classes = [IsAuthenticated]
 
@@ -511,10 +515,77 @@ class ExampleSubmitView(APIView):
                 {"detail": "Only drafts and rejected examples can be submitted."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if ex.preview_built_at is None:
+            return Response(
+                {"detail": "Click Preview and wait for a successful compile before submitting."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if ex.preview_built_at < ex.updated_at:
+            return Response(
+                {"detail": "Preview is stale. Click Preview again before submitting."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         ex.status = Example.Status.PENDING
         ex.rejection_reason = ""
-        ex.save(update_fields=["status", "rejection_reason", "updated_at"])
+        # Omit updated_at — auto_now=True only fires when listed in
+        # update_fields. Keeping it out preserves "updated_at = last edit"
+        # semantics so the preview-freshness check doesn't go stale on a
+        # mere status transition.
+        ex.save(update_fields=["status", "rejection_reason"])
         return Response(ExampleDetailSerializer(ex).data)
+
+
+class ExamplePreviewTriggerView(APIView):
+    """POST /api/examples/<id>/preview/ — enqueue a snippet preview build.
+
+    Available to the example's author for any status; admins can also
+    trigger preview rebuilds (e.g., to re-verify a published example
+    against an updated preamble). Returns the Celery task ID.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.author_id != request.user.id and not request.user.is_staff:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        from catalog.tasks import build_example_preview_task
+        task = build_example_preview_task.delay(ex.id)
+        return Response({"task_id": task.id}, status=status.HTTP_202_ACCEPTED)
+
+
+class ExamplePreviewPdfView(APIView):
+    """GET /api/examples/<id>/preview.pdf — serve the cached preview PDF.
+
+    Public for PUBLISHED examples (anyone can see what's in the
+    library); for non-published, only the author and staff can fetch
+    it. 404 when the artifact has not been built yet.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, pk):
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return HttpResponse(status=404)
+
+        if ex.status != Example.Status.PUBLISHED:
+            user = request.user if request.user.is_authenticated else None
+            if user is None or (user.id != ex.author_id and not user.is_staff):
+                return HttpResponse(status=404)
+
+        pdf_path = EXAMPLES_DIR / f"{ex.id}.pdf"
+        if not pdf_path.is_file():
+            return HttpResponse(status=404)
+
+        response = FileResponse(open(pdf_path, "rb"), content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="example-{ex.id}.pdf"'
+        response["Cache-Control"] = "private, max-age=60"
+        return response
 
 
 class ExampleAdminQueueView(generics.ListAPIView):
@@ -547,7 +618,11 @@ class ExampleAdminApproveView(APIView):
             )
         ex.status = Example.Status.PUBLISHED
         ex.rejection_reason = ""
-        ex.save(update_fields=["status", "rejection_reason", "updated_at"])
+        # Omit updated_at — auto_now=True only fires when listed in
+        # update_fields. Keeping it out preserves "updated_at = last edit"
+        # semantics so the preview-freshness check doesn't go stale on a
+        # mere status transition.
+        ex.save(update_fields=["status", "rejection_reason"])
         return Response(ExampleDetailSerializer(ex).data)
 
 
@@ -573,5 +648,9 @@ class ExampleAdminRejectView(APIView):
             )
         ex.status = Example.Status.REJECTED
         ex.rejection_reason = reason
-        ex.save(update_fields=["status", "rejection_reason", "updated_at"])
+        # Omit updated_at — auto_now=True only fires when listed in
+        # update_fields. Keeping it out preserves "updated_at = last edit"
+        # semantics so the preview-freshness check doesn't go stale on a
+        # mere status transition.
+        ex.save(update_fields=["status", "rejection_reason"])
         return Response(ExampleDetailSerializer(ex).data)

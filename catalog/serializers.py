@@ -90,13 +90,26 @@ class ExampleListSerializer(serializers.ModelSerializer):
 
 
 class ExampleDetailSerializer(serializers.ModelSerializer):
-    """Full detail — includes solution_tex."""
+    """Full detail — includes solution_tex.
+
+    `preview_fresh` is True when the cached preview PDF was built after
+    the example's last edit. The submit endpoint enforces the same
+    invariant server-side; the field lets the frontend gray out the
+    Submit button without a round-trip.
+    """
     primary_chapter = _ExampleChapterRefSerializer(read_only=True)
     chapters = _ExampleChapterRefSerializer(many=True, read_only=True)
     author_display = serializers.SerializerMethodField()
+    preview_fresh = serializers.SerializerMethodField()
 
     def get_author_display(self, obj):
         return obj.author.full_name or "Anonymous"
+
+    def get_preview_fresh(self, obj):
+        return (
+            obj.preview_built_at is not None
+            and obj.preview_built_at >= obj.updated_at
+        )
 
     class Meta:
         model = Example
@@ -112,6 +125,8 @@ class ExampleDetailSerializer(serializers.ModelSerializer):
             "rejection_reason",
             "author_display",
             "preview_built_at",
+            "preview_build_log",
+            "preview_fresh",
             "created_at",
             "updated_at",
         ]

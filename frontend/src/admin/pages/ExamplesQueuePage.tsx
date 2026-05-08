@@ -102,12 +102,27 @@ export default function ExamplesQueuePage() {
                   ))}
                 </div>
               </div>
-              <Link
-                to={`/examples/${ex.id}`}
-                className="text-xs text-blue-600 hover:underline shrink-0"
-              >
-                Open detail →
-              </Link>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <Link
+                  to={`/examples/${ex.id}`}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Open detail →
+                </Link>
+                {ex.preview_built_at && (
+                  <a
+                    href={examplesApi.previewPdfUrl(ex.id, ex.preview_built_at)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-amber-700 hover:underline"
+                  >
+                    Open preview PDF ↗
+                  </a>
+                )}
+                {ex.preview_build_log && (
+                  <span className="text-xs text-red-600">build failed</span>
+                )}
+              </div>
             </div>
 
             <pre className="font-mono text-xs text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 border border-gray-200 rounded p-2 max-h-32 overflow-y-auto">

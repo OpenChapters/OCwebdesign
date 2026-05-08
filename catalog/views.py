@@ -624,6 +624,9 @@ class ExamplePreviewPdfView(APIView):
         response = FileResponse(open(pdf_path, "rb"), content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="example-{ex.id}.pdf"'
         response["Cache-Control"] = "private, max-age=60"
+        # Django's default XFrameOptionsMiddleware adds DENY, which would
+        # block the editor's iframe from rendering the PDF. Override.
+        response["X-Frame-Options"] = "SAMEORIGIN"
         return response
 
 

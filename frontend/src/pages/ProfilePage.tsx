@@ -336,7 +336,7 @@ function MyExamplesList({ items }: { items: ExampleListItem[] }) {
   for (const ex of items) grouped[ex.status].push(ex);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
       {STATUS_ORDER.map((s) => {
         const group = grouped[s];
         if (group.length === 0) return null;

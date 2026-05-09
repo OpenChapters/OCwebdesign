@@ -26,38 +26,6 @@ export default function Navbar() {
         >
           Browse
         </NavLink>
-        <NavLink
-          to="/search"
-          className={({ isActive }) =>
-            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
-          }
-        >
-          Search
-        </NavLink>
-        <NavLink
-          to="/catalog"
-          className={({ isActive }) =>
-            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
-          }
-        >
-          Catalog
-        </NavLink>
-        <NavLink
-          to="/community"
-          className={({ isActive }) =>
-            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
-          }
-        >
-          Community
-        </NavLink>
-        <NavLink
-          to="/examples"
-          className={({ isActive }) =>
-            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
-          }
-        >
-          Examples
-        </NavLink>
         {isAuthenticated && (
           <NavLink
             to="/books"
@@ -68,6 +36,30 @@ export default function Navbar() {
             My Books
           </NavLink>
         )}
+        <NavLink
+          to="/examples"
+          className={({ isActive }) =>
+            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+          }
+        >
+          Examples
+        </NavLink>
+        <NavLink
+          to="/community"
+          className={({ isActive }) =>
+            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+          }
+        >
+          Community
+        </NavLink>
+        <NavLink
+          to="/catalog"
+          className={({ isActive }) =>
+            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+          }
+        >
+          Catalog
+        </NavLink>
         <NavLink
           to="/guide"
           className={({ isActive }) =>
@@ -95,6 +87,14 @@ export default function Navbar() {
             Admin
           </Link>
         )}
+        <NavLink
+          to="/search"
+          className={({ isActive }) =>
+            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+          }
+        >
+          Search
+        </NavLink>
         {isAuthenticated ? (
           <>
             <Link to="/profile" className="text-sm text-gray-600 hover:text-gray-900">

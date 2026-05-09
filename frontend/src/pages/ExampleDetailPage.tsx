@@ -97,6 +97,15 @@ export default function ExampleDetailPage() {
     onError: () => toast('Could not reject.', 'error'),
   });
 
+  const adminDeleteMut = useMutation({
+    mutationFn: () => examplesApi.adminDelete(exampleId),
+    onSuccess: () => {
+      toast('Example deleted.', 'success');
+      navigate('/examples');
+    },
+    onError: () => toast('Could not delete.', 'error'),
+  });
+
   if (isLoading) return <div className="max-w-4xl mx-auto px-6 py-8 text-gray-500">Loading…</div>;
   if (error || !example) {
     return (
@@ -280,13 +289,13 @@ export default function ExampleDetailPage() {
       )}
 
       {/* Admin actions */}
-      {isStaff && example.status === 'pending' && (
+      {isStaff && (
         <div className="mt-6 border-t border-gray-200 pt-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Admin review
+            Admin
           </p>
-          {!showReject ? (
-            <div className="flex gap-2">
+          {example.status === 'pending' && !showReject ? (
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => approveMut.mutate()}
                 disabled={approveMut.isPending}
@@ -300,8 +309,19 @@ export default function ExampleDetailPage() {
               >
                 Reject…
               </button>
+              <button
+                onClick={() => {
+                  if (confirm('Permanently delete this example, including any attached figures and the preview PDF? This cannot be undone.')) {
+                    adminDeleteMut.mutate();
+                  }
+                }}
+                disabled={adminDeleteMut.isPending}
+                className="text-sm text-red-700 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50 ml-auto"
+              >
+                {adminDeleteMut.isPending ? 'Deleting…' : 'Delete'}
+              </button>
             </div>
-          ) : (
+          ) : example.status === 'pending' && showReject ? (
             <div className="space-y-2">
               <textarea
                 value={rejectReason}
@@ -325,6 +345,20 @@ export default function ExampleDetailPage() {
                   Cancel
                 </button>
               </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (confirm('Permanently delete this example, including any attached figures and the preview PDF? This cannot be undone.')) {
+                    adminDeleteMut.mutate();
+                  }
+                }}
+                disabled={adminDeleteMut.isPending}
+                className="text-sm text-red-700 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
+              >
+                {adminDeleteMut.isPending ? 'Deleting…' : 'Delete example'}
+              </button>
             </div>
           )}
         </div>

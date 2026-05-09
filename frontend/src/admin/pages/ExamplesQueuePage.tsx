@@ -45,6 +45,21 @@ export default function ExamplesQueuePage() {
     onError: () => toast('Could not reject.', 'error'),
   });
 
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => examplesApi.adminDelete(id),
+    onSuccess: () => {
+      toast('Example deleted.', 'success');
+      queryClient.invalidateQueries({ queryKey: ['admin-examples'] });
+    },
+    onError: () => toast('Could not delete.', 'error'),
+  });
+
+  function handleDelete(id: number) {
+    if (confirm('Permanently delete this example, including any attached figures and the preview PDF? This cannot be undone.')) {
+      deleteMut.mutate(id);
+    }
+  }
+
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Worked examples</h1>
@@ -177,8 +192,27 @@ export default function ExamplesQueuePage() {
                     >
                       Reject…
                     </button>
+                    <button
+                      onClick={() => handleDelete(ex.id)}
+                      disabled={deleteMut.isPending}
+                      className="text-xs text-red-700 border border-red-300 px-3 py-1.5 rounded hover:bg-red-50 disabled:opacity-50 ml-auto"
+                    >
+                      Delete
+                    </button>
                   </>
                 )}
+              </div>
+            )}
+
+            {tab !== 'pending' && (
+              <div className="mt-3 flex justify-end">
+                <button
+                  onClick={() => handleDelete(ex.id)}
+                  disabled={deleteMut.isPending}
+                  className="text-xs text-red-700 border border-red-300 px-3 py-1.5 rounded hover:bg-red-50 disabled:opacity-50"
+                >
+                  Delete
+                </button>
               </div>
             )}
           </div>

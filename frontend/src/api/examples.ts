@@ -81,4 +81,7 @@ export const examplesApi = {
     client
       .post<ExampleDetail>(`/admin/examples/${id}/reject/`, { rejection_reason })
       .then((r) => r.data),
+
+  adminDelete: (id: number) =>
+    client.delete(`/admin/examples/${id}/`).then((r) => r.data),
 };

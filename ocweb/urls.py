@@ -39,6 +39,7 @@ from catalog.views import (
     ChapterSearchView,
     DisciplineListView,
     ExampleAdminApproveView,
+    ExampleAdminDeleteView,
     ExampleAdminQueueView,
     ExampleAdminRejectView,
     ExampleAuthorManageView,
@@ -135,6 +136,7 @@ urlpatterns = [
     path("api/examples/<int:pk>/figures/<int:figure_id>/", ExampleFigureDeleteView.as_view(), name="example-figure-delete"),
     path("api/examples/<int:pk>/figures/<int:figure_id>/file", ExampleFigureFileView.as_view(), name="example-figure-file"),
     path("api/admin/examples/", ExampleAdminQueueView.as_view(), name="example-admin-queue"),
+    path("api/admin/examples/<int:pk>/", ExampleAdminDeleteView.as_view(), name="example-admin-delete"),
     path("api/admin/examples/<int:pk>/approve/", ExampleAdminApproveView.as_view(), name="example-admin-approve"),
     path("api/admin/examples/<int:pk>/reject/", ExampleAdminRejectView.as_view(), name="example-admin-reject"),
 

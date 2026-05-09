@@ -856,3 +856,33 @@ class ExampleAdminRejectView(APIView):
         # mere status transition.
         ex.save(update_fields=["status", "rejection_reason"])
         return Response(ExampleDetailSerializer(ex).data)
+
+
+class ExampleAdminDeleteView(APIView):
+    """DELETE /api/admin/examples/<id>/ — remove an example in any state.
+
+    Cascades to figures (ExampleFigure.example has on_delete=CASCADE) and
+    cleans up the snippet preview PDF on disk. Existing book builds are
+    unaffected because example content is embedded at build time.
+    """
+    permission_classes = [IsAdminUser]
+
+    def delete(self, request, pk):
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        # Best-effort removal of figure files; the row delete cascades
+        # via FK but FieldFile cleanup is not automatic.
+        for fig in ex.figures.all():
+            try:
+                fig.file.delete(save=False)
+            except Exception:
+                logger.warning("Failed to delete figure file for figure %s", fig.pk, exc_info=True)
+        pdf_path = EXAMPLES_DIR / f"{ex.id}.pdf"
+        try:
+            pdf_path.unlink(missing_ok=True)
+        except Exception:
+            logger.warning("Failed to delete preview PDF for example %s", ex.pk, exc_info=True)
+        ex.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -33,10 +33,22 @@
 \chapter*{Worked example (( example_id ))}
 \addcontentsline{toc}{chapter}{Worked example (( example_id ))}
 
+% Wrap the example body so the per-example figure path is local.
+% OpenChapters.sty uses `\chaptergraphicspath` as the (lazily-expanded)
+% search path inside graphics package's \Ginput@path list, so swapping
+% it within a group is enough to redirect \includegraphics lookups for
+% the duration of this example's body.
+\begingroup
+(% if has_figures %)
+\renewcommand{\chaptergraphicspath}{example_figures/(( example_id ))/}
+(% endif %)
+
 \section*{Statement}
 (( statement_tex ))
 
 \section*{Solution}
 (( solution_tex ))
+
+\endgroup
 
 \end{document}

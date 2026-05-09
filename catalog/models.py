@@ -249,3 +249,44 @@ class Example(models.Model):
 
     def __str__(self):
         return f"Example #{self.pk} ({self.get_status_display()})"
+
+
+def _example_figure_upload_to(instance, filename):
+    return f"example_figures/{instance.example_id}/{filename}"
+
+
+class ExampleFigure(models.Model):
+    """
+    A figure attached to a worked example. The file is referenced from
+    the example's LaTeX source as \\includegraphics{filename} (no path)
+    — the build pipeline copies the file into the build dir and emits a
+    per-example \\graphicspath so the reference resolves cleanly without
+    filename collisions across examples.
+    """
+
+    ALLOWED_EXTENSIONS = (".pdf", ".png", ".jpg", ".jpeg", ".eps")
+    MAX_BYTES = 5 * 1024 * 1024
+
+    example = models.ForeignKey(
+        Example,
+        on_delete=models.CASCADE,
+        related_name="figures",
+    )
+    file = models.FileField(upload_to=_example_figure_upload_to)
+    # Original filename as referenced from the LaTeX source. Stored
+    # separately because Django may suffix uploaded files when names
+    # collide; \includegraphics{...} must match the actual on-disk name
+    # we copy into the build dir.
+    original_filename = models.CharField(max_length=255)
+    caption = models.CharField(max_length=500, blank=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["example_id", "order", "id"]
+        indexes = [
+            models.Index(fields=["example"]),
+        ]
+
+    def __str__(self):
+        return f"Figure {self.original_filename} for Example #{self.example_id}"

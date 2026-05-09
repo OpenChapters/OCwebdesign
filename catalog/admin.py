@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Chapter, Discipline, Example
+from .models import Chapter, Discipline, Example, ExampleFigure
 
 
 @admin.register(Discipline)
@@ -19,6 +19,13 @@ class ChapterAdmin(admin.ModelAdmin):
     list_per_page = 50
 
 
+class ExampleFigureInline(admin.TabularInline):
+    model = ExampleFigure
+    extra = 0
+    fields = ["original_filename", "caption", "order", "file"]
+    readonly_fields = ["created_at"]
+
+
 @admin.register(Example)
 class ExampleAdmin(admin.ModelAdmin):
     list_display = ["id", "primary_chapter", "author", "difficulty", "status", "created_at"]
@@ -26,4 +33,5 @@ class ExampleAdmin(admin.ModelAdmin):
     search_fields = ["statement_tex", "solution_tex"]
     autocomplete_fields = ["primary_chapter", "chapters", "author"]
     readonly_fields = ["created_at", "updated_at", "preview_built_at"]
+    inlines = [ExampleFigureInline]
     list_per_page = 50

@@ -15,11 +15,12 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Chapter, ChapterSearchIndex, Discipline, Example
+from .models import Chapter, ChapterSearchIndex, Discipline, Example, ExampleFigure
 from .serializers import (
     ChapterSerializer,
     DisciplineSerializer,
     ExampleDetailSerializer,
+    ExampleFigureSerializer,
     ExampleListSerializer,
     ExampleWriteSerializer,
 )
@@ -419,7 +420,7 @@ def _example_base_qs():
     return (
         Example.objects
         .select_related("primary_chapter", "author")
-        .prefetch_related("chapters")
+        .prefetch_related("chapters", "figures")
     )
 
 
@@ -606,6 +607,140 @@ class ExamplePreviewTriggerView(APIView):
         from catalog.tasks import build_example_preview_task
         task = build_example_preview_task.delay(ex.id)
         return Response({"task_id": task.id}, status=status.HTTP_202_ACCEPTED)
+
+
+class ExampleFigureFileView(APIView):
+    """GET /api/examples/<id>/figures/<figure_id>/file
+    Serves the figure file. PUBLISHED examples are anonymous-readable;
+    everything else requires the example's author or staff.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk, figure_id):
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return HttpResponse(status=404)
+        if ex.status != Example.Status.PUBLISHED:
+            user = request.user if request.user.is_authenticated else None
+            if user is None or (user.id != ex.author_id and not user.is_staff):
+                return HttpResponse(status=404)
+        try:
+            figure = ex.figures.get(pk=figure_id)
+        except ExampleFigure.DoesNotExist:
+            return HttpResponse(status=404)
+        try:
+            fh = figure.file.open("rb")
+        except FileNotFoundError:
+            return HttpResponse(status=404)
+        content_type = mimetypes.guess_type(figure.original_filename)[0] or "application/octet-stream"
+        response = FileResponse(fh, content_type=content_type)
+        response["Content-Disposition"] = f'inline; filename="{figure.original_filename}"'
+        response["Cache-Control"] = "private, max-age=300"
+        return response
+
+
+class ExampleFigureUploadView(APIView):
+    """POST /api/examples/<id>/figures/ — upload a figure (multipart).
+
+    Only the example's author or staff can upload, and only when the
+    example is in DRAFT or REJECTED state. Validates extension and size.
+    The original filename is what \\includegraphics{...} must match in
+    the LaTeX source — the on-disk path is namespaced under the example
+    id so collisions across examples don't matter.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.author_id != request.user.id and not request.user.is_staff:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.status not in (Example.Status.DRAFT, Example.Status.REJECTED):
+            return Response(
+                {"detail": "Figures can only be added to drafts and rejected examples."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"file": "A file upload is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        original = upload.name or ""
+        ext = Path(original).suffix.lower()
+        if ext not in ExampleFigure.ALLOWED_EXTENSIONS:
+            allowed = ", ".join(ExampleFigure.ALLOWED_EXTENSIONS)
+            return Response(
+                {"file": f"Unsupported extension {ext!r}. Allowed: {allowed}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if upload.size > ExampleFigure.MAX_BYTES:
+            cap_mb = ExampleFigure.MAX_BYTES // (1024 * 1024)
+            return Response(
+                {"file": f"File exceeds the {cap_mb} MB cap."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Reject duplicate filenames within the same example — \includegraphics
+        # references the basename, so two figures with the same name would
+        # collide at build time.
+        if ex.figures.filter(original_filename=original).exists():
+            return Response(
+                {"file": "A figure with this filename is already attached."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        caption = (request.data.get("caption") or "").strip()
+        figure = ExampleFigure.objects.create(
+            example=ex,
+            file=upload,
+            original_filename=original,
+            caption=caption,
+            order=ex.figures.count(),
+        )
+        # Adding figures invalidates any prior preview compile.
+        ex.preview_built_at = None
+        ex.save(update_fields=["preview_built_at"])
+        return Response(
+            ExampleFigureSerializer(figure).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ExampleFigureDeleteView(APIView):
+    """DELETE /api/examples/<id>/figures/<figure_id>/ — remove a figure."""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk, figure_id):
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.author_id != request.user.id and not request.user.is_staff:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.status not in (Example.Status.DRAFT, Example.Status.REJECTED):
+            return Response(
+                {"detail": "Figures can only be removed from drafts and rejected examples."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            figure = ex.figures.get(pk=figure_id)
+        except ExampleFigure.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        # Best-effort file removal; the row drives the LaTeX build.
+        try:
+            figure.file.delete(save=False)
+        except Exception:
+            logger.warning("Failed to delete figure file for figure %s", figure.pk, exc_info=True)
+        figure.delete()
+        ex.preview_built_at = None
+        ex.save(update_fields=["preview_built_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ExamplePreviewPdfView(APIView):

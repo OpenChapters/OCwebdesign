@@ -1,6 +1,7 @@
 import client from './client';
 import type {
   ExampleDetail,
+  ExampleFigure,
   ExampleListItem,
   ExampleStatus,
   ExampleWritePayload,
@@ -49,6 +50,21 @@ export const examplesApi = {
     client
       .post<{ task_id: string }>(`/examples/${id}/preview/`)
       .then((r) => r.data),
+
+  // ── Figures ──────────────────────────────────────────────────────────────
+  uploadFigure: (id: number, file: File, caption = '') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (caption) fd.append('caption', caption);
+    return client
+      .post<ExampleFigure>(`/examples/${id}/figures/`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
+
+  deleteFigure: (id: number, figureId: number) =>
+    client.delete(`/examples/${id}/figures/${figureId}/`).then((r) => r.data),
 
   // ── Admin ────────────────────────────────────────────────────────────────
   adminQueue: (status: ExampleStatus = 'pending') =>

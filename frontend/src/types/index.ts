@@ -112,6 +112,15 @@ export interface ExampleListItem {
   updated_at: string;
 }
 
+export interface ExampleFigure {
+  id: number;
+  original_filename: string;
+  caption: string;
+  order: number;
+  file_url: string;
+  created_at: string;
+}
+
 export interface ExampleDetail extends ExampleListItem {
   solution_tex: string;
   license: string;
@@ -120,6 +129,7 @@ export interface ExampleDetail extends ExampleListItem {
   preview_build_log: string;
   preview_fresh: boolean;
   preview_pdf_url: string | null;
+  figures: ExampleFigure[];
 }
 
 export interface ExampleWritePayload {

@@ -3,7 +3,7 @@ from pathlib import Path
 from django.conf import settings
 from rest_framework import serializers
 
-from .models import Chapter, Discipline, Example
+from .models import Chapter, Discipline, Example, ExampleFigure
 
 
 class DisciplineSerializer(serializers.ModelSerializer):
@@ -76,6 +76,27 @@ class ChapterSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ExampleFigureSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    def get_file_url(self, obj):
+        # Routed through an authorized API endpoint rather than raw MEDIA;
+        # nginx only proxies /api/, /admin/, and /static/.
+        return f"/api/examples/{obj.example_id}/figures/{obj.id}/file"
+
+    class Meta:
+        model = ExampleFigure
+        fields = [
+            "id",
+            "original_filename",
+            "caption",
+            "order",
+            "file_url",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
 class _ExampleChapterRefSerializer(serializers.ModelSerializer):
     """Compact chapter ref nested inside Example payloads."""
     class Meta:
@@ -121,6 +142,7 @@ class ExampleDetailSerializer(serializers.ModelSerializer):
     """
     primary_chapter = _ExampleChapterRefSerializer(read_only=True)
     chapters = _ExampleChapterRefSerializer(many=True, read_only=True)
+    figures = ExampleFigureSerializer(many=True, read_only=True)
     author_display = serializers.SerializerMethodField()
     preview_fresh = serializers.SerializerMethodField()
     preview_pdf_url = serializers.SerializerMethodField()
@@ -151,6 +173,7 @@ class ExampleDetailSerializer(serializers.ModelSerializer):
             "id",
             "primary_chapter",
             "chapters",
+            "figures",
             "statement_tex",
             "solution_tex",
             "difficulty",

@@ -215,6 +215,30 @@ export default function ExampleDetailPage() {
         )}
       </section>
 
+      {example.figures && example.figures.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+            Figures
+          </h2>
+          <ul className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+            {example.figures.map((f) => (
+              <li key={f.id} className="flex items-center gap-3 px-3 py-2">
+                <span className="font-mono text-xs text-gray-700 flex-1 truncate">{f.original_filename}</span>
+                {f.caption && <span className="text-xs text-gray-500 truncate">{f.caption}</span>}
+                <a
+                  href={f.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  view
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <p className="mt-6 text-xs text-gray-400">
         License: {example.license}
       </p>

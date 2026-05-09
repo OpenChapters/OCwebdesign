@@ -74,6 +74,7 @@ class Command(BaseCommand):
         workdir.mkdir(parents=True)
         try:
             self._setup_workspace(workdir)
+            self._copy_figures(workdir, example)
             self._render_template(workdir, example)
             self._run_arara(workdir)
             self._collect_output(workdir, example)
@@ -96,6 +97,22 @@ class Command(BaseCommand):
             encoding="utf-8",
         )
 
+    def _copy_figures(self, workdir: Path, example: Example) -> None:
+        figures = list(example.figures.all())
+        if not figures:
+            return
+        target_dir = workdir / "example_figures" / str(example.id)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for fig in figures:
+            try:
+                src = Path(fig.file.path)
+            except (ValueError, NotImplementedError):
+                continue
+            if not src.is_file():
+                logger.warning("Figure file missing on disk: %s", src)
+                continue
+            shutil.copy2(src, target_dir / fig.original_filename)
+
     def _render_template(self, workdir: Path, example: Example) -> None:
         import jinja2 as j2
 
@@ -115,6 +132,7 @@ class Command(BaseCommand):
             primary_chabbr=example.primary_chapter.chabbr or "—",
             statement_tex=example.statement_tex,
             solution_tex=example.solution_tex,
+            has_figures=example.figures.exists(),
             build_date=timezone.now().strftime("%Y-%m-%d"),
         )
         (workdir / "main.tex").write_text(rendered, encoding="utf-8")

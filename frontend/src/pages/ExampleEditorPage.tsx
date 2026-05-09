@@ -4,7 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { examplesApi } from '../api/examples';
 import { chaptersApi } from '../api/chapters';
 import { useToast } from '../components/Toast';
-import type { ExampleDifficulty, ExampleWritePayload } from '../types';
+import type { ExampleDifficulty, ExampleFigure, ExampleWritePayload } from '../types';
+
+const FIGURE_MAX_BYTES = 5 * 1024 * 1024;
+const FIGURE_ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.eps'];
 
 interface FormState {
   primary_chapter: number | null;
@@ -43,6 +46,9 @@ export default function ExampleEditorPage() {
   const [previewBuiltAt, setPreviewBuiltAt] = useState<string | null>(null);
   const [previewBuildLog, setPreviewBuildLog] = useState('');
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [figures, setFigures] = useState<ExampleFigure[]>([]);
+  const [uploadingFigure, setUploadingFigure] = useState(false);
+  const figureInputRef = useRef<HTMLInputElement>(null);
   const pollAbortRef = useRef<{ cancelled: boolean } | null>(null);
 
   const { data: chapters = [] } = useQuery({
@@ -74,6 +80,7 @@ export default function ExampleEditorPage() {
       setPreviewBuiltAt(existing.preview_built_at);
       setPreviewBuildLog(existing.preview_build_log || '');
       setPreviewPdfUrl(existing.preview_pdf_url);
+      setFigures(existing.figures || []);
     }
   }, [existing]);
 
@@ -224,6 +231,54 @@ export default function ExampleEditorPage() {
     markPreviewStale();
   }
 
+  async function handleFigureUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (previewExampleId === null || files.length === 0) return;
+    setUploadingFigure(true);
+    let successCount = 0;
+    for (const file of files) {
+      const ext = ('.' + (file.name.split('.').pop() || '')).toLowerCase();
+      if (!FIGURE_ALLOWED_EXTENSIONS.includes(ext)) {
+        toast(`${file.name}: unsupported extension. Allowed: ${FIGURE_ALLOWED_EXTENSIONS.join(', ')}`, 'error');
+        continue;
+      }
+      if (file.size > FIGURE_MAX_BYTES) {
+        toast(`${file.name}: exceeds 5 MB cap.`, 'error');
+        continue;
+      }
+      try {
+        const fig = await examplesApi.uploadFigure(previewExampleId, file);
+        setFigures((prev) => [...prev, fig]);
+        successCount += 1;
+      } catch (err: any) {
+        toast(errorMessage(err, `Could not upload ${file.name}.`), 'error');
+      }
+    }
+    if (successCount > 0) {
+      toast(`Uploaded ${successCount} figure${successCount === 1 ? '' : 's'}.`, 'success');
+      // Server invalidates preview on figure change.
+      markPreviewStale();
+      setPreviewBuiltAt(null);
+      setPreviewPdfUrl(null);
+    }
+    setUploadingFigure(false);
+  }
+
+  async function handleFigureDelete(figureId: number, label: string) {
+    if (previewExampleId === null) return;
+    if (!confirm(`Remove figure "${label}"?`)) return;
+    try {
+      await examplesApi.deleteFigure(previewExampleId, figureId);
+      setFigures((prev) => prev.filter((f) => f.id !== figureId));
+      markPreviewStale();
+      setPreviewBuiltAt(null);
+      setPreviewPdfUrl(null);
+    } catch (err: any) {
+      toast(errorMessage(err, 'Could not remove figure.'), 'error');
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       <Link to="/examples" className="text-sm text-blue-600 hover:underline">
@@ -345,6 +400,61 @@ export default function ExampleEditorPage() {
             className="w-full font-mono text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder={'Begin by noting that...'}
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Figures
+          </label>
+          <p className="text-xs text-gray-500 mb-2">
+            Reference each figure from the LaTeX above by its filename only,
+            e.g. <code className="bg-gray-100 px-1 rounded">{'\\includegraphics[width=0.6\\textwidth]{fig1.png}'}</code>.
+            Allowed: {FIGURE_ALLOWED_EXTENSIONS.join(', ')} · 5 MB cap per file.
+          </p>
+          {previewExampleId === null ? (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Save the draft first — figures attach to the saved example.
+            </p>
+          ) : (
+            <>
+              {figures.length > 0 && (
+                <ul className="border border-gray-200 rounded-lg divide-y divide-gray-100 mb-2">
+                  {figures.map((f) => (
+                    <li key={f.id} className="flex items-center gap-3 px-3 py-2">
+                      <span className="font-mono text-xs text-gray-700 flex-1 truncate">{f.original_filename}</span>
+                      <a
+                        href={f.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        view
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleFigureDelete(f.id, f.original_filename)}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <input
+                ref={figureInputRef}
+                type="file"
+                multiple
+                accept={FIGURE_ALLOWED_EXTENSIONS.join(',')}
+                onChange={handleFigureUpload}
+                disabled={uploadingFigure}
+                className="text-sm"
+              />
+              {uploadingFigure && (
+                <span className="ml-2 text-xs text-gray-500">Uploading…</span>
+              )}
+            </>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 items-center">

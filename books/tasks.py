@@ -136,7 +136,7 @@ def _build_request_data(book) -> dict:
                 status=Example.Status.PUBLISHED,
                 chapters__in=book_chapter_order,
             )
-            .prefetch_related("chapters")
+            .prefetch_related("chapters", "figures")
             .distinct()
             .order_by("difficulty", "id")
         )
@@ -152,6 +152,14 @@ def _build_request_data(book) -> dict:
                 "difficulty": ex.difficulty,
                 "statement_tex": ex.statement_tex,
                 "solution_tex": ex.solution_tex,
+                "figures": [
+                    {
+                        "id": fig.id,
+                        "original_filename": fig.original_filename,
+                        "file_path": str(Path(fig.file.path)) if fig.file else "",
+                    }
+                    for fig in ex.figures.all()
+                ],
             })
 
     # Strip private _chapter_id, swap in the resolved examples list
@@ -166,6 +174,32 @@ def _build_request_data(book) -> dict:
         "include_solutions": bool(getattr(book, "include_solutions", True)),
         "parts": parts,
     }
+
+
+def _copy_example_figures(workdir: Path, request_data: dict, log_fn) -> None:
+    """Copy each example's figures from media/example_figures/<id>/ into
+    workdir/example_figures/<id>/ so the main.tex \\graphicspath wrap
+    resolves \\includegraphics{filename} references at compile time.
+    """
+    target_root = workdir / "example_figures"
+    count = 0
+    for part in request_data.get("parts", []):
+        for ch in part.get("chapters", []):
+            for ex in ch.get("examples", []):
+                figs = ex.get("figures") or []
+                if not figs:
+                    continue
+                ex_dir = target_root / str(ex["id"])
+                ex_dir.mkdir(parents=True, exist_ok=True)
+                for fig in figs:
+                    src = Path(fig["file_path"]) if fig.get("file_path") else None
+                    if src is None or not src.is_file():
+                        log_fn(f"  ! example {ex['id']} figure missing: {src}")
+                        continue
+                    shutil.copy2(src, ex_dir / fig["original_filename"])
+                    count += 1
+    if count:
+        log_fn(f"Copied {count} example figure(s) into example_figures/")
 
 
 def _run(cmd: list[str], log_fn, cwd: Path | None = None) -> subprocess.CompletedProcess:
@@ -339,6 +373,9 @@ def build_book(self, book_id: int) -> None:
 
         # 7. Collect figures → ImageFolder/
         _run_script(scripts_dir / "collect_images.py", workdir, log)
+
+        # 7a. Copy worked-example figures → example_figures/<id>/
+        _copy_example_figures(workdir, request_data, log)
 
         # 8. Render main.tex from Jinja2 template
         _run_script(
@@ -795,6 +832,15 @@ def build_book_html(self, book_id: int) -> None:
         # 7a. Convert PDF figures to SVG (required for lwarp HTML output)
         _convert_pdfs_to_svg(img_folder, log)
 
+        # 7b. Copy worked-example figures → example_figures/<id>/
+        _copy_example_figures(workdir, request_data, log)
+        # PDF figures inside example_figures/ also need SVG counterparts
+        # for the HTML build.
+        if (workdir / "example_figures").is_dir():
+            for ex_subdir in (workdir / "example_figures").iterdir():
+                if ex_subdir.is_dir():
+                    _convert_pdfs_to_svg(ex_subdir, log)
+
         # 8. Render main.tex + main_html.tex from Jinja2 template
         author = book.user.full_name or book.user.email
         _run_script(
@@ -875,6 +921,23 @@ def build_book_html(self, book_id: int) -> None:
                 for f in img_src.iterdir():
                     if f.suffix.lower() in (".svg", ".png") and f.is_file():
                         shutil.copy2(f, img_dest / f.name)
+
+            # Worked-example figures are emitted under example_figures/<id>/
+            # by main_book_html.tex.j2's \chaptergraphicspath swap; lwarp
+            # references them at the same relative path, so the subtree
+            # needs to land alongside index.html in the output.
+            ex_figures_src = workdir / "example_figures"
+            if ex_figures_src.is_dir():
+                ex_figures_dest = tmp_dir / "example_figures"
+                ex_figures_dest.mkdir()
+                for ex_dir in ex_figures_src.iterdir():
+                    if not ex_dir.is_dir():
+                        continue
+                    out_dir = ex_figures_dest / ex_dir.name
+                    out_dir.mkdir()
+                    for f in ex_dir.iterdir():
+                        if f.suffix.lower() in (".svg", ".png", ".jpg", ".jpeg") and f.is_file():
+                            shutil.copy2(f, out_dir / f.name)
 
             mathjax_txt = workdir / "lwarp_mathjax.txt"
             if mathjax_txt.exists():

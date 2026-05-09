@@ -105,12 +105,17 @@
 \section*{Worked examples}
 \addcontentsline{toc}{section}{Worked examples}
 (% for ex in chapter.examples %)
+\begingroup
+(% if ex.figures %)
+\renewcommand{\chaptergraphicspath}{example_figures/(( ex.id ))/}
+(% endif %)
 \subsection*{Example (( loop.index )) — (( ex.difficulty ))}
 (( ex.statement_tex ))
 (% if include_solutions %)
 \paragraph{Solution.}
 (( ex.solution_tex ))
 (% endif %)
+\endgroup
 
 (% endfor %)
 (% endif %)

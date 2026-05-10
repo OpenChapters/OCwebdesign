@@ -726,18 +726,27 @@ class AdminBuildRetryView(APIView):
         job.book.last_build_format = fmt
         job.book.save(update_fields=["status", "last_build_format"])
 
-        if fmt == "pdf":
-            build_book.delay(job.book.id)
-        elif fmt == "html":
+        # PDF-only retries also rebuild HTML when the book had an HTML
+        # build before, mirroring BuildTriggerView so "View Online"
+        # stays in sync with the latest PDF.
+        auto_html = fmt == "pdf" and job.book.html_built_at is not None
+
+        if fmt == "html":
             build_book_html.delay(job.book.id)
+        elif fmt == "both" or auto_html:
+            # Suppress the HTML email; the PDF email covers this build.
+            chain(
+                build_book.si(job.book.id),
+                build_book_html.si(job.book.id, send_email=False),
+            ).delay()
         else:
-            chain(build_book.si(job.book.id), build_book_html.si(job.book.id)).delay()
+            build_book.delay(job.book.id)
 
         AuditEntry.log(
             request, "build.retry", "BuildJob", job.id,
-            {"book": job.book.title, "format": fmt},
+            {"book": job.book.title, "format": fmt, "auto_html": auto_html},
         )
-        return Response({"detail": "Build re-queued.", "format": fmt})
+        return Response({"detail": "Build re-queued.", "format": fmt, "auto_html": auto_html})
 
 
 class AdminBuildDownloadView(APIView):

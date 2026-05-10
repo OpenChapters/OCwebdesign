@@ -329,14 +329,15 @@ export default function BookEditorPage() {
 
     setBuilding(true);
     try {
-      await booksApi.triggerBuild(bookId, buildFormat);
+      const resp = await booksApi.triggerBuild(bookId, buildFormat);
       setBuildStatus('queued');
+      const autoHtml = Boolean((resp as { auto_html?: boolean })?.auto_html);
       const queuedMsg =
-        buildFormat === 'pdf'
-          ? 'PDF build queued.'
-          : buildFormat === 'html'
-            ? 'HTML build queued — this may take several minutes.'
-            : 'PDF + HTML build queued — the HTML pass will take several minutes.';
+        buildFormat === 'html'
+          ? 'HTML build queued — this may take several minutes.'
+          : buildFormat === 'both' || autoHtml
+            ? 'PDF + HTML build queued — the HTML pass will take several minutes.'
+            : 'PDF build queued.';
       toast(queuedMsg, 'info');
     } catch (err: any) {
       toast(err?.response?.data?.detail ?? 'Build failed to start.', 'error');

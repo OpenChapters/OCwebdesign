@@ -728,7 +728,7 @@ def _zip_directory(source_dir: Path, zip_path: Path) -> None:
     time_limit=1800,
     soft_time_limit=1500,
 )
-def build_book_html(self, book_id: int) -> None:
+def build_book_html(self, book_id: int, send_email: bool = True) -> None:
     """
     Per-book HTML build pipeline via lwarp.
 
@@ -736,6 +736,10 @@ def build_book_html(self, book_id: int) -> None:
     and collects lwarp output (HTML files + SVG assets) into
     ``<BUILD_HTML_OUTPUT_DIR>/book_<id>/``. A zip archive of that output
     is written alongside so it can be downloaded as a single file.
+
+    ``send_email=False`` suppresses the deliver_book_html notification —
+    used when this task is chained after ``build_book`` so the user only
+    gets the PDF email (the View Online link is already in the UI).
     """
     from books.models import Book, BuildJob
 
@@ -976,8 +980,13 @@ def build_book_html(self, book_id: int) -> None:
 
         log("HTML build complete.")
 
-        # 14. Email the user a link to view / download the HTML output
-        deliver_book_html.delay(book.id)
+        # 14. Email the user a link to view / download the HTML output.
+        # Skipped when chained after a PDF build — the PDF email already
+        # went out and a duplicate would be redundant.
+        if send_email:
+            deliver_book_html.delay(book.id)
+        else:
+            log("HTML email skipped (send_email=False).")
 
     except SoftTimeLimitExceeded:
         log("BUILD TIMEOUT: exceeded 25-minute time limit")

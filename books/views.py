@@ -275,15 +275,35 @@ class BuildTriggerView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        if fmt == "pdf":
-            build_book.delay(book_pk)
-        elif fmt == "html":
+        # If the user picked PDF and HTML has been built before, chain the
+        # HTML rebuild so "View Online" doesn't go stale. The user's
+        # explicit `last_build_format` stays "pdf" so future Retries
+        # re-evaluate the auto-chain based on the current html_built_at.
+        auto_html = (
+            fmt == "pdf"
+            and Book.objects.filter(
+                pk=book_pk, user=request.user, html_built_at__isnull=False
+            ).exists()
+        )
+
+        if fmt == "html":
             build_book_html.delay(book_pk)
-        else:  # both — chain PDF then HTML so they run sequentially
-            chain(build_book.si(book_pk), build_book_html.si(book_pk)).delay()
+        elif fmt == "both" or auto_html:
+            # Suppress the HTML email; the PDF email covers this build.
+            chain(
+                build_book.si(book_pk),
+                build_book_html.si(book_pk, send_email=False),
+            ).delay()
+        else:
+            build_book.delay(book_pk)
 
         return Response(
-            {"detail": "Build queued.", "book_id": book_pk, "format": fmt},
+            {
+                "detail": "Build queued.",
+                "book_id": book_pk,
+                "format": fmt,
+                "auto_html": auto_html,
+            },
             status=status.HTTP_202_ACCEPTED,
         )
 

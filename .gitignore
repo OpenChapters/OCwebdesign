@@ -15,11 +15,8 @@ staticfiles/
 .env.prod
 .env.pro.example
 
-# Generated PDFs, cached images, and HTML build output
-media/pdfs/
-media/covers/
-media/html/
-media/html_books/
+# Generated PDFs, cached images, HTML build output, example figures, etc.
+media/
 
 # Test coverage
 .coverage
@@ -41,3 +38,6 @@ cresume
 log.md
 deploy.txt
 todo.txt
+todo-evaluation.md
+status.txt
+t

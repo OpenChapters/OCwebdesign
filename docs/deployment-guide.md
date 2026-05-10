@@ -19,7 +19,7 @@ This guide covers deploying the OpenChapters web platform to a production server
 11. [SSL with Let's Encrypt](#ssl-with-lets-encrypt)
 12. [Domain and DNS](#domain-and-dns)
 13. [Updating the Application](#updating-the-application)
-14. [Database Backups](#database-backups)
+14. [Backups](#backups)
 15. [Monitoring and Logs](#monitoring-and-logs)
 16. [Troubleshooting](#troubleshooting)
 17. [Security Checklist](#security-checklist)
@@ -916,33 +916,57 @@ A few subtleties worth following on every deploy:
 - **`--force-recreate` is not a default.** Without it, `up -d` is a no-op against a running container even when the underlying image has been rebuilt. The web container survives this most of the time because gunicorn re-imports per request, but **Celery workers cache imports at process start** — a `restart` (or unforced `up -d`) keeps the old `tasks.py` / management-command code in memory. Always `--force-recreate worker` after touching Python that the worker imports.
 - **Which services to rebuild.** A backend-only change needs `web worker`. A frontend-only change needs `nginx`. A LaTeX template change needs `worker` (templates are baked into the worker image). When in doubt, rebuild all three — the rebuild is fast because the layers are cached.
 
-## Database Backups
+## Backups
+
+The repo ships `scripts/backup.sh`, which dumps Postgres **and** the
+irreplaceable media volumes (author-uploaded figures + snippet preview PDFs)
+to a configurable directory and prunes anything older than the retention
+window. Build artefacts (`media/pdfs`, `media/html`, `media/html_books`,
+`media/pdf_labels`) are intentionally skipped because they can be rebuilt
+from source.
 
 ### Manual Backup
 
 ```bash
-docker compose -f docker-compose.prod.yml exec db \
-  pg_dump -U ocweb ocweb | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+cd /home/mdg/OCwebdesign
+./scripts/backup.sh
+```
+
+By default this writes `db_<ts>.sql.gz` and `media_<ts>.tar.gz` into
+`~/backups/ocweb` and prunes anything older than 90 days. Override via
+environment variables, e.g.:
+
+```bash
+BACKUP_DIR=/mnt/external/ocweb RETENTION_DAYS=30 ./scripts/backup.sh
 ```
 
 ### Automated Daily Backup
 
-Create a cron job:
-
-```bash
-crontab -e
-```
-
-Add:
+Add a cron entry (runs at 02:30 every day, logs to a per-day file):
 
 ```
-0 2 * * * cd /path/to/OCwebdesign && docker compose -f docker-compose.prod.yml exec -T db pg_dump -U ocweb ocweb | gzip > /path/to/backups/ocweb_$(date +\%Y\%m\%d).sql.gz
+30 2 * * * cd /home/mdg/OCwebdesign && /home/mdg/OCwebdesign/scripts/backup.sh >> /home/mdg/backups/ocweb/cron.log 2>&1
 ```
+
+Edit your crontab with `crontab -e` and paste the line above. Confirm the
+log file is being written the next morning (`tail /home/mdg/backups/ocweb/cron.log`).
 
 ### Restore from Backup
 
+Database:
+
 ```bash
-gunzip -c backup_20260325.sql.gz | docker compose -f docker-compose.prod.yml exec -T db psql -U ocweb ocweb
+gunzip -c ~/backups/ocweb/db_20260510_023000.sql.gz \
+  | docker compose -f docker-compose.prod.yml exec -T db psql -U ocweb ocweb
+```
+
+Media (extracts back into the running web container, which writes to the
+named volumes):
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T web \
+  tar -xzf - -C /app/media \
+  < ~/backups/ocweb/media_20260510_023000.tar.gz
 ```
 
 ## Monitoring and Logs

@@ -521,19 +521,30 @@ class ExampleAuthorManageView(APIView):
         ex = self._get_own(pk)
         if ex is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        if ex.status not in (Example.Status.DRAFT, Example.Status.REJECTED):
+        if ex.status not in (
+            Example.Status.DRAFT,
+            Example.Status.REJECTED,
+            Example.Status.PUBLISHED,
+        ):
             return Response(
-                {"detail": "Only drafts and rejected examples can be edited."},
+                {"detail": "This example cannot be edited in its current state."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         ser = ExampleWriteSerializer(ex, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
-        # Editing a rejected example moves it back to DRAFT so the author
-        # can iterate and re-submit.
+        # Status transitions on edit:
+        #   REJECTED → DRAFT     so the author can iterate and re-submit
+        #   PUBLISHED → PENDING  so an admin re-reviews before the change
+        #                        becomes public; preview state is cleared
+        #                        so the queue page shows it as stale.
         save_kwargs = {}
         if ex.status == Example.Status.REJECTED:
             save_kwargs["status"] = Example.Status.DRAFT
             save_kwargs["rejection_reason"] = ""
+        elif ex.status == Example.Status.PUBLISHED:
+            save_kwargs["status"] = Example.Status.PENDING
+            save_kwargs["preview_built_at"] = None
+            save_kwargs["preview_build_log"] = ""
         set_current_user(request.user)
         try:
             ex = ser.save(**save_kwargs)

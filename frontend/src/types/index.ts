@@ -125,6 +125,7 @@ export interface ExampleDetail extends ExampleListItem {
   solution_tex: string;
   license: string;
   rejection_reason: string;
+  is_own: boolean;
   preview_built_at: string | null;
   preview_build_log: string;
   preview_fresh: boolean;

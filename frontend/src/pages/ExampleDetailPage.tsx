@@ -118,9 +118,16 @@ export default function ExampleDetailPage() {
     );
   }
 
-  const isOwn = example.status !== 'published'; // /manage/ would only return own
-  const canEdit = isOwn && (example.status === 'draft' || example.status === 'rejected');
-  const canSubmit = canEdit;
+  // `is_own` comes from the backend (request.user == example.author).
+  // For backwards compat with payloads that don't include it yet, fall
+  // back to the old "served from /manage/" heuristic.
+  const isOwn = example.is_own ?? example.status !== 'published';
+  const canEditDraftLike =
+    isOwn && (example.status === 'draft' || example.status === 'rejected');
+  // Editing a published example moves it back to PENDING for re-review.
+  const canEditPublished = isOwn && example.status === 'published';
+  const canEdit = canEditDraftLike || canEditPublished;
+  const canSubmit = canEditDraftLike;
   const canDelete = isOwn && example.status === 'draft';
 
   return (
@@ -258,9 +265,14 @@ export default function ExampleDetailPage() {
           {canEdit && (
             <Link
               to={`/examples/${example.id}/edit`}
+              title={
+                canEditPublished
+                  ? 'Editing this published example will pull it back into the review queue until an admin re-approves the change.'
+                  : undefined
+              }
               className="text-sm bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900"
             >
-              Edit
+              {canEditPublished ? 'Edit (re-review)' : 'Edit'}
             </Link>
           )}
           {canSubmit && (

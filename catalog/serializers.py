@@ -144,11 +144,18 @@ class ExampleDetailSerializer(serializers.ModelSerializer):
     chapters = _ExampleChapterRefSerializer(many=True, read_only=True)
     figures = ExampleFigureSerializer(many=True, read_only=True)
     author_display = serializers.SerializerMethodField()
+    is_own = serializers.SerializerMethodField()
     preview_fresh = serializers.SerializerMethodField()
     preview_pdf_url = serializers.SerializerMethodField()
 
     def get_author_display(self, obj):
         return obj.author.full_name or "Anonymous"
+
+    def get_is_own(self, obj):
+        request = self.context.get("request")
+        if request is None or not getattr(request, "user", None) or not request.user.is_authenticated:
+            return False
+        return obj.author_id == request.user.id
 
     def get_preview_fresh(self, obj):
         return (
@@ -181,6 +188,7 @@ class ExampleDetailSerializer(serializers.ModelSerializer):
             "status",
             "rejection_reason",
             "author_display",
+            "is_own",
             "preview_built_at",
             "preview_build_log",
             "preview_fresh",

@@ -11,7 +11,14 @@ STATIC_URL = "/static/"
 
 # whitenoise serves static files (Django admin CSS) directly from gunicorn.
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+# Setting STORAGES wholesale replaces Django's default, so we must include
+# the `default` alias explicitly — otherwise any FileField save (e.g. an
+# uploaded figure) raises InvalidStorageError("Could not find config for
+# 'default'").
 STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },

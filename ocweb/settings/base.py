@@ -198,3 +198,37 @@ BUILD_TEMPLATE_HTML_DIR = BASE_DIR / "Build" / "template_html"
 # Path to a local clone of the OpenChapters monorepo.
 # When set, "Update Thumbnails" also writes cover.png to the monorepo.
 OPENCHAPTERS_MONOREPO_PATH = env("OPENCHAPTERS_MONOREPO_PATH", default="")
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+# Django's default LOGGING filters the console handler to DEBUG=True only,
+# so unhandled 500s in production are silently routed to mail_admins (which
+# we don't have configured) and never reach stdout/stderr. This config sends
+# WARNING+ from `django` and ERROR+ from `django.request` to the console
+# unconditionally so docker logs always show tracebacks.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "WARNING",
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}

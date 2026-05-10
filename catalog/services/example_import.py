@@ -419,6 +419,11 @@ def commit_report(
         # Preserve the report shape so the caller can surface what failed.
         return report
 
+    # Attribute any ledger rows written inside this commit to the
+    # importing user. Cleared in `finally` so the thread-local doesn't
+    # leak between requests.
+    from catalog.signals import set_current_user
+
     if default_status not in dict(Example.Status.choices):
         report.global_errors.append(
             f"`default_status` must be one of: "
@@ -435,52 +440,56 @@ def commit_report(
         for c in Chapter.objects.filter(chabbr__in=chabbrs_needed)
     }
 
-    with transaction.atomic():
-        for plan in report.entries:
-            primary = chapter_by_chabbr[plan.primary_chapter_chabbr]
-            chapters = [chapter_by_chabbr[c] for c in plan.chapters_chabbrs]
+    set_current_user(default_author)
+    try:
+        with transaction.atomic():
+            for plan in report.entries:
+                primary = chapter_by_chabbr[plan.primary_chapter_chabbr]
+                chapters = [chapter_by_chabbr[c] for c in plan.chapters_chabbrs]
 
-            if plan.action == "update" and plan.matched_example_id is not None:
-                ex = Example.objects.select_for_update().get(pk=plan.matched_example_id)
-                ex.primary_chapter = primary
-                ex.statement_tex = plan.statement_tex
-                ex.solution_tex = plan.solution_tex
-                ex.difficulty = plan.difficulty
-                # status is intentionally not changed on update.
-                ex.preview_built_at = None
-                ex.preview_build_log = ""
-                ex.save()
-                ex.chapters.set(chapters)
+                if plan.action == "update" and plan.matched_example_id is not None:
+                    ex = Example.objects.select_for_update().get(pk=plan.matched_example_id)
+                    ex.primary_chapter = primary
+                    ex.statement_tex = plan.statement_tex
+                    ex.solution_tex = plan.solution_tex
+                    ex.difficulty = plan.difficulty
+                    # status is intentionally not changed on update.
+                    ex.preview_built_at = None
+                    ex.preview_build_log = ""
+                    ex.save()
+                    ex.chapters.set(chapters)
 
-                # Replace figures wholesale.
-                for old_fig in ex.figures.all():
-                    try:
-                        old_fig.file.delete(save=False)
-                    except Exception:
-                        pass
-                ex.figures.all().delete()
+                    # Replace figures wholesale.
+                    for old_fig in ex.figures.all():
+                        try:
+                            old_fig.file.delete(save=False)
+                        except Exception:
+                            pass
+                    ex.figures.all().delete()
 
-            else:  # create
-                ex = Example.objects.create(
-                    author=default_author,
-                    slug=plan.slug,
-                    primary_chapter=primary,
-                    statement_tex=plan.statement_tex,
-                    solution_tex=plan.solution_tex,
-                    difficulty=plan.difficulty,
-                    status=default_status,
-                )
-                ex.chapters.set(chapters)
+                else:  # create
+                    ex = Example.objects.create(
+                        author=default_author,
+                        slug=plan.slug,
+                        primary_chapter=primary,
+                        statement_tex=plan.statement_tex,
+                        solution_tex=plan.solution_tex,
+                        difficulty=plan.difficulty,
+                        status=default_status,
+                    )
+                    ex.chapters.set(chapters)
 
-            for fig_plan in plan.figures:
-                ExampleFigure.objects.create(
-                    example=ex,
-                    file=ContentFile(fig_plan.bytes_data, name=fig_plan.original_filename),
-                    original_filename=fig_plan.original_filename,
-                    order=0,
-                )
+                for fig_plan in plan.figures:
+                    ExampleFigure.objects.create(
+                        example=ex,
+                        file=ContentFile(fig_plan.bytes_data, name=fig_plan.original_filename),
+                        original_filename=fig_plan.original_filename,
+                        order=0,
+                    )
 
-            plan.persisted_id = ex.id
+                plan.persisted_id = ex.id
+    finally:
+        set_current_user(None)
 
     return report
 

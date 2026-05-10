@@ -304,3 +304,59 @@ class ExampleFigure(models.Model):
 
     def __str__(self):
         return f"Figure {self.original_filename} for Example #{self.example_id}"
+
+
+class ExampleVersion(models.Model):
+    """
+    Append-only ledger of prior `Example` content states.
+
+    A row is written by a pre_save signal whenever a tracked content
+    field on `Example` is about to change. The snapshot captures the
+    *prior* state so the live row stays canonical and the ledger gives
+    you point-in-time recovery and an edit history.
+
+    The snapshot is stored as a JSON blob (rather than mirrored columns)
+    so the schema doesn't need to migrate every time we add a new
+    example field — and so a chapter row being deleted doesn't break a
+    foreign key into the ledger.
+    """
+
+    example = models.ForeignKey(
+        Example,
+        on_delete=models.CASCADE,
+        related_name="versions",
+    )
+    # Monotonically increasing per-example counter (1, 2, 3, ...).
+    version_no = models.PositiveIntegerField()
+    # JSON shape: {
+    #   "statement_tex": str, "solution_tex": str, "difficulty": str,
+    #   "primary_chapter_chabbr": str | None,
+    #   "chapters_chabbrs": [str, ...],
+    #   "status": str, "slug": str | None,
+    # }
+    snapshot = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Best-effort attribution. Authenticated views set this via the
+    # signal helper; nullable so a management-command save still works.
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ["example_id", "version_no"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["example", "version_no"],
+                name="unique_example_version_no",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["example", "-version_no"]),
+        ]
+
+    def __str__(self):
+        return f"Example #{self.example_id} v{self.version_no}"

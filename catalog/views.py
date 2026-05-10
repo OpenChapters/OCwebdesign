@@ -516,6 +516,8 @@ class ExampleAuthorManageView(APIView):
         return Response(ExampleDetailSerializer(ex).data)
 
     def patch(self, request, pk):
+        from .signals import set_current_user
+
         ex = self._get_own(pk)
         if ex is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -532,7 +534,11 @@ class ExampleAuthorManageView(APIView):
         if ex.status == Example.Status.REJECTED:
             save_kwargs["status"] = Example.Status.DRAFT
             save_kwargs["rejection_reason"] = ""
-        ex = ser.save(**save_kwargs)
+        set_current_user(request.user)
+        try:
+            ex = ser.save(**save_kwargs)
+        finally:
+            set_current_user(None)
         return Response(ExampleDetailSerializer(ex).data)
 
     def delete(self, request, pk):

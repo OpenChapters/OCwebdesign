@@ -215,6 +215,11 @@ class Example(models.Model):
         related_name="primary_examples",
     )
 
+    # Optional stable identifier for idempotent batch re-imports. Scoped
+    # per-author so two authors can use the same slug independently.
+    # NULL when the example was created via the regular editor.
+    slug = models.CharField(max_length=64, null=True, blank=True)
+
     statement_tex = models.TextField()
     solution_tex = models.TextField()
 
@@ -245,6 +250,15 @@ class Example(models.Model):
         indexes = [
             models.Index(fields=["status"]),
             models.Index(fields=["status", "primary_chapter"]),
+        ]
+        constraints = [
+            # Per-author slug uniqueness (NULL slugs are excluded so the
+            # vast majority of editor-created rows aren't constrained).
+            models.UniqueConstraint(
+                fields=["author", "slug"],
+                condition=models.Q(slug__isnull=False),
+                name="unique_example_slug_per_author",
+            ),
         ]
 
     def __str__(self):

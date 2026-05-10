@@ -858,6 +858,77 @@ class ExampleAdminRejectView(APIView):
         return Response(ExampleDetailSerializer(ex).data)
 
 
+class ExampleAdminImportDryRunView(APIView):
+    """POST /api/admin/examples/import/dry-run/ — parse and validate a
+    batch zip without writing to the DB. Returns the per-entry report.
+    """
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        from catalog.services.example_import import parse_zip, report_to_dict
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"file": "A zip file upload is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        zip_bytes = upload.read()
+        report = parse_zip(zip_bytes=zip_bytes, default_author=request.user)
+        return Response(report_to_dict(report))
+
+
+class ExampleAdminImportCommitView(APIView):
+    """POST /api/admin/examples/import/commit/ — re-validate then persist.
+
+    `default_status` form field controls the status assigned to newly
+    created examples (existing ones keep their current status). For
+    admin imports the choices are PENDING (sent to the review queue) or
+    PUBLISHED (live immediately).
+    """
+    permission_classes = [IsAdminUser]
+
+    ALLOWED_DEFAULT_STATUSES = (Example.Status.PENDING, Example.Status.PUBLISHED)
+
+    def post(self, request):
+        from catalog.services.example_import import (
+            commit_report,
+            parse_zip,
+            report_to_dict,
+        )
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"file": "A zip file upload is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        default_status = (request.data.get("default_status") or Example.Status.PENDING).strip()
+        if default_status not in self.ALLOWED_DEFAULT_STATUSES:
+            return Response(
+                {"default_status": (
+                    f"Must be one of: {', '.join(self.ALLOWED_DEFAULT_STATUSES)}."
+                )},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        zip_bytes = upload.read()
+        report = parse_zip(zip_bytes=zip_bytes, default_author=request.user)
+        if report.has_errors:
+            return Response(report_to_dict(report), status=status.HTTP_400_BAD_REQUEST)
+
+        report = commit_report(
+            report=report,
+            default_author=request.user,
+            default_status=default_status,
+        )
+        # commit_report can append global_errors (e.g. invalid status) —
+        # surface those as a 400 even though parse succeeded.
+        if report.has_errors:
+            return Response(report_to_dict(report), status=status.HTTP_400_BAD_REQUEST)
+        return Response(report_to_dict(report), status=status.HTTP_201_CREATED)
+
+
 class ExampleAdminDeleteView(APIView):
     """DELETE /api/admin/examples/<id>/ — remove an example in any state.
 

@@ -62,7 +62,15 @@ export default function ExamplesQueuePage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Worked examples</h1>
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-2xl font-bold text-gray-900">Worked examples</h1>
+        <Link
+          to="/admin-panel/examples/import"
+          className="text-sm bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900"
+        >
+          Batch import…
+        </Link>
+      </div>
       <p className="text-sm text-gray-600 mb-6">
         Review submitted examples before they appear publicly.
       </p>

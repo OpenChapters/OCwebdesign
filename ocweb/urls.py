@@ -40,6 +40,8 @@ from catalog.views import (
     DisciplineListView,
     ExampleAdminApproveView,
     ExampleAdminDeleteView,
+    ExampleAdminImportCommitView,
+    ExampleAdminImportDryRunView,
     ExampleAdminQueueView,
     ExampleAdminRejectView,
     ExampleAuthorManageView,
@@ -139,6 +141,8 @@ urlpatterns = [
     path("api/admin/examples/<int:pk>/", ExampleAdminDeleteView.as_view(), name="example-admin-delete"),
     path("api/admin/examples/<int:pk>/approve/", ExampleAdminApproveView.as_view(), name="example-admin-approve"),
     path("api/admin/examples/<int:pk>/reject/", ExampleAdminRejectView.as_view(), name="example-admin-reject"),
+    path("api/admin/examples/import/dry-run/", ExampleAdminImportDryRunView.as_view(), name="example-admin-import-dry-run"),
+    path("api/admin/examples/import/commit/", ExampleAdminImportCommitView.as_view(), name="example-admin-import-commit"),
 
     # ── Books ─────────────────────────────────────────────────────────────────
     path("api/books/", BookListCreateView.as_view(), name="book-list"),

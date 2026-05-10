@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import { examplesApi } from '../api/examples';
 import { chaptersApi } from '../api/chapters';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,6 +40,13 @@ export default function ExamplesPage() {
     staleTime: 300_000,
   });
 
+  const { data: publicSettings } = useQuery({
+    queryKey: ['public-settings'],
+    queryFn: () => axios.get('/api/settings/public/').then((r) => r.data),
+    staleTime: 60_000,
+  });
+  const batchImportEnabled = Boolean(publicSettings?.author_batch_import_enabled);
+
   const { data, isLoading } = useQuery({
     queryKey: ['examples', chapter, difficulty, search],
     queryFn: () =>
@@ -62,12 +70,22 @@ export default function ExamplesPage() {
           </p>
         </div>
         {isAuthenticated && (
-          <Link
-            to="/examples/new"
-            className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shrink-0"
-          >
-            Submit an example
-          </Link>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {batchImportEnabled && (
+              <Link
+                to="/examples/import"
+                className="text-sm bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900"
+              >
+                Batch import…
+              </Link>
+            )}
+            <Link
+              to="/examples/new"
+              className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Submit an example
+            </Link>
+          </div>
         )}
       </div>
 

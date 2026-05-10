@@ -929,6 +929,98 @@ class ExampleAdminImportCommitView(APIView):
         return Response(report_to_dict(report), status=status.HTTP_201_CREATED)
 
 
+def _author_import_enabled() -> bool:
+    """Read the author-batch-import flag without crashing if admin_api
+    isn't installed yet (e.g. during migrations)."""
+    try:
+        from admin_api.models import SiteSetting
+        return bool(SiteSetting.get("author_batch_import_enabled"))
+    except Exception:  # pragma: no cover — defensive
+        return False
+
+
+class ExampleAuthorImportDryRunView(APIView):
+    """POST /api/examples/import/dry-run/ — author-side dry-run.
+
+    Authenticated authors can validate a batch zip when the admin has
+    enabled the feature in Site Settings. The parser is shared with the
+    admin path; the requesting user is recorded as the author for both
+    the slug-match lookup and the eventual create.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not _author_import_enabled():
+            return Response(
+                {"detail": "Author batch-import is currently disabled."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        from catalog.services.example_import import parse_zip, report_to_dict
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"file": "A zip file upload is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        zip_bytes = upload.read()
+        report = parse_zip(zip_bytes=zip_bytes, default_author=request.user)
+        return Response(report_to_dict(report))
+
+
+class ExampleAuthorImportCommitView(APIView):
+    """POST /api/examples/import/commit/ — author-side commit.
+
+    Newly created rows are persisted as DRAFT or PENDING (admin review
+    queue). Authors cannot self-publish via batch import; only admins
+    can do that through the admin import endpoint.
+    """
+    permission_classes = [IsAuthenticated]
+
+    ALLOWED_DEFAULT_STATUSES = (Example.Status.DRAFT, Example.Status.PENDING)
+
+    def post(self, request):
+        if not _author_import_enabled():
+            return Response(
+                {"detail": "Author batch-import is currently disabled."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        from catalog.services.example_import import (
+            commit_report,
+            parse_zip,
+            report_to_dict,
+        )
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"file": "A zip file upload is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        default_status = (request.data.get("default_status") or Example.Status.DRAFT).strip()
+        if default_status not in self.ALLOWED_DEFAULT_STATUSES:
+            return Response(
+                {"default_status": (
+                    f"Must be one of: {', '.join(self.ALLOWED_DEFAULT_STATUSES)}."
+                )},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        zip_bytes = upload.read()
+        report = parse_zip(zip_bytes=zip_bytes, default_author=request.user)
+        if report.has_errors:
+            return Response(report_to_dict(report), status=status.HTTP_400_BAD_REQUEST)
+
+        report = commit_report(
+            report=report,
+            default_author=request.user,
+            default_status=default_status,
+        )
+        if report.has_errors:
+            return Response(report_to_dict(report), status=status.HTTP_400_BAD_REQUEST)
+        return Response(report_to_dict(report), status=status.HTTP_201_CREATED)
+
+
 class ExampleAdminDeleteView(APIView):
     """DELETE /api/admin/examples/<id>/ — remove an example in any state.
 

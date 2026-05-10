@@ -15,6 +15,7 @@ import CommunityPage from './pages/CommunityPage';
 import ExamplesPage from './pages/ExamplesPage';
 import ExampleDetailPage from './pages/ExampleDetailPage';
 import ExampleEditorPage from './pages/ExampleEditorPage';
+import ExamplesImportPage from './pages/ExamplesImportPage';
 import MyBooksPage from './pages/MyBooksPage';
 import BookEditorPage from './pages/BookEditorPage';
 import BookReadPage from './pages/BookReadPage';
@@ -38,7 +39,7 @@ import SettingsPage from './admin/pages/SettingsPage';
 import AuditLogPage from './admin/pages/AuditLogPage';
 import AnalyticsPage from './admin/pages/AnalyticsPage';
 import ExamplesQueuePage from './admin/pages/ExamplesQueuePage';
-import ExamplesImportPage from './admin/pages/ExamplesImportPage';
+import AdminExamplesImportPage from './admin/pages/ExamplesImportPage';
 import PlaceholderPage from './admin/pages/PlaceholderPage';
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -146,6 +147,14 @@ export default function App() {
             </Layout>
           }
         />
+        <Route
+          path="/examples/import"
+          element={
+            <Layout>
+              <ExamplesImportPage />
+            </Layout>
+          }
+        />
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route
@@ -181,7 +190,7 @@ export default function App() {
           <Route path="builds" element={<BuildsAdminPage />} />
           <Route path="builds/:id" element={<BuildAdminDetailPage />} />
           <Route path="examples" element={<ExamplesQueuePage />} />
-          <Route path="examples/import" element={<ExamplesImportPage />} />
+          <Route path="examples/import" element={<AdminExamplesImportPage />} />
           <Route path="system" element={<SystemPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="audit" element={<AuditLogPage />} />

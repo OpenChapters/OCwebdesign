@@ -66,6 +66,28 @@ export const examplesApi = {
   deleteFigure: (id: number, figureId: number) =>
     client.delete(`/examples/${id}/figures/${figureId}/`).then((r) => r.data),
 
+  // ── Author batch import (gated on site setting) ──────────────────────────
+  importDryRun: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return client
+      .post<ImportReport>('/examples/import/dry-run/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
+
+  importCommit: (file: File, default_status: 'draft' | 'pending') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('default_status', default_status);
+    return client
+      .post<ImportReport>('/examples/import/commit/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
+
   // ── Admin ────────────────────────────────────────────────────────────────
   adminQueue: (status: ExampleStatus = 'pending') =>
     client

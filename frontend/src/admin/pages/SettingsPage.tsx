@@ -99,6 +99,26 @@ export default function SettingsPage() {
           </label>
         </div>
 
+        {/* Author batch import */}
+        <div>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={form.author_batch_import_enabled}
+              onChange={(e) =>
+                setForm({ ...form, author_batch_import_enabled: e.target.checked })
+              }
+              className="rounded"
+            />
+            Allow authors to batch-import worked examples
+          </label>
+          <p className="text-xs text-gray-400 mt-1 ml-6">
+            When on, authenticated users see a "Batch import…" link on the
+            Examples page. Author imports land as drafts or in the pending
+            review queue — they cannot self-publish.
+          </p>
+        </div>
+
         {/* Numeric settings */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>

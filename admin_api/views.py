@@ -948,6 +948,9 @@ class PublicSettingsView(APIView):
             "welcome_message": all_settings.get("welcome_message", ""),
             "announcement_banner": all_settings.get("announcement_banner", ""),
             "registration_enabled": all_settings.get("registration_enabled", True),
+            "author_batch_import_enabled": all_settings.get(
+                "author_batch_import_enabled", False
+            ),
         })
 
 

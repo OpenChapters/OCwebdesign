@@ -102,6 +102,7 @@ export interface SiteSettings {
   announcement_banner: string;
   registration_enabled: boolean;
   build_enabled: boolean;
+  author_batch_import_enabled: boolean;
   max_chapters_per_book: number;
   max_concurrent_builds: number;
   pdf_retention_days: number;

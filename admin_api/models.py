@@ -35,6 +35,7 @@ class SiteSetting(models.Model):
         "announcement_banner": "",
         "registration_enabled": True,
         "build_enabled": True,
+        "author_batch_import_enabled": False,
         "max_chapters_per_book": 30,
         "max_concurrent_builds": 4,
         "pdf_retention_days": 90,

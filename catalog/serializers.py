@@ -111,7 +111,7 @@ class ExampleListSerializer(serializers.ModelSerializer):
     chapters = _ExampleChapterRefSerializer(many=True, read_only=True)
     author_display = serializers.SerializerMethodField()
 
-    def get_author_display(self, obj):
+    def get_author_display(self, obj) -> str:
         return obj.author.full_name or "Anonymous"
 
     class Meta:
@@ -148,7 +148,7 @@ class ExampleDetailSerializer(serializers.ModelSerializer):
     preview_fresh = serializers.SerializerMethodField()
     preview_pdf_url = serializers.SerializerMethodField()
 
-    def get_author_display(self, obj):
+    def get_author_display(self, obj) -> str:
         return obj.author.full_name or "Anonymous"
 
     def get_is_own(self, obj):
@@ -268,7 +268,7 @@ class ExampleVersionSerializer(serializers.ModelSerializer):
 
     editor_display = serializers.SerializerMethodField()
 
-    def get_editor_display(self, obj):
+    def get_editor_display(self, obj) -> str | None:
         if obj.created_by is None:
             return None
         return obj.created_by.full_name or "Anonymous"

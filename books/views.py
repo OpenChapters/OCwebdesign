@@ -5,6 +5,7 @@ from django.conf import settings
 from django.db import transaction
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -67,6 +68,7 @@ class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 # ── Cover Image ───────────────────────────────────────────────────────────────
 
+@extend_schema(exclude=True)
 class CoverImageView(APIView):
     """POST /api/books/<book_pk>/cover/ — upload a cover image PDF.
     DELETE /api/books/<book_pk>/cover/ — remove the uploaded cover image."""
@@ -451,6 +453,7 @@ class BookExamplesAvailableView(APIView):
 
 # ── Library ───────────────────────────────────────────────────────────────────
 
+@extend_schema(exclude=True)
 class DownloadPDFView(APIView):
     """GET /api/books/<book_pk>/download/ — serve the built PDF file."""
 
@@ -472,6 +475,7 @@ class DownloadPDFView(APIView):
         return _serve_pdf(pdf, book.title)
 
 
+@extend_schema(exclude=True)
 class DownloadPDFByTokenView(APIView):
     """
     GET /api/dl/<token>/ — download a PDF using a signed, time-limited token.
@@ -648,6 +652,7 @@ def _book_html_dir(book: Book) -> Path | None:
     return fallback if fallback.is_dir() else None
 
 
+@extend_schema(exclude=True)
 class BookHtmlView(APIView):
     """
     GET /api/books/<book_pk>/html/                — serve the book's landing HTML
@@ -803,6 +808,7 @@ def _serve_book_html_zip(book: Book) -> FileResponse | Response:
     return response
 
 
+@extend_schema(exclude=True)
 class DownloadBookHtmlView(APIView):
     """GET /api/books/<book_pk>/download-html/ — download the HTML zip (JWT auth)."""
 
@@ -813,6 +819,7 @@ class DownloadBookHtmlView(APIView):
         return _serve_book_html_zip(book)
 
 
+@extend_schema(exclude=True)
 class DownloadBookHtmlByTokenView(APIView):
     """
     GET /api/dl-html/<token>/ — download the HTML zip using a signed,

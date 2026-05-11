@@ -3,6 +3,11 @@ from pathlib import Path
 from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import include, path
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from users.token import CustomTokenObtainPairView
@@ -109,6 +114,19 @@ urlpatterns = [
 
     # ── Health check ──────────────────────────────────────────────────────────
     path("api/health/", health_check, name="health-check"),
+
+    # ── OpenAPI schema + interactive docs (drf-spectacular) ─────────────────
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "api/schema/swagger-ui/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
+    path(
+        "api/schema/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc",
+    ),
 
     # ── Auth ──────────────────────────────────────────────────────────────────
     path("api/auth/register/", RegisterView.as_view(), name="auth-register"),

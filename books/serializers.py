@@ -1,5 +1,6 @@
 from catalog.models import Chapter
 from catalog.serializers import ChapterSerializer
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import Book, BookChapter, BookPart, BuildJob, BuildStep
@@ -66,16 +67,16 @@ class BookSerializer(serializers.ModelSerializer):
     has_html = serializers.SerializerMethodField()
     examples_count = serializers.SerializerMethodField()
 
-    def get_has_cover_image(self, obj):
+    def get_has_cover_image(self, obj) -> bool:
         return bool(obj.cover_image)
 
-    def get_has_pdf(self, obj):
+    def get_has_pdf(self, obj) -> bool:
         return bool(getattr(obj, "build_job", None) and obj.build_job.pdf_path)
 
-    def get_has_html(self, obj):
+    def get_has_html(self, obj) -> bool:
         return bool(obj.html_built_at and obj.html_path)
 
-    def get_examples_count(self, obj):
+    def get_examples_count(self, obj) -> int:
         # Distinct PUBLISHED Examples tagged to any chapter in the book.
         # Each renders exactly once at build time (earliest-in-book host),
         # so this also matches what will actually appear in the artifact.
@@ -135,6 +136,7 @@ class PublicChapterRefSerializer(serializers.ModelSerializer):
 class PublicBookPartSerializer(serializers.ModelSerializer):
     chapters = serializers.SerializerMethodField()
 
+    @extend_schema_field(PublicChapterRefSerializer(many=True))
     def get_chapters(self, obj):
         chapters = [bc.chapter for bc in obj.book_chapters.all()]
         return PublicChapterRefSerializer(chapters, many=True).data
@@ -156,7 +158,7 @@ class PublicBookSerializer(serializers.ModelSerializer):
     parts = PublicBookPartSerializer(many=True, read_only=True)
     author_display = serializers.SerializerMethodField()
 
-    def get_author_display(self, obj):
+    def get_author_display(self, obj) -> str:
         name = (obj.user.full_name or "").strip()
         return name or "Anonymous"
 
@@ -172,10 +174,10 @@ class BookListSerializer(serializers.ModelSerializer):
     has_pdf = serializers.SerializerMethodField()
     has_html = serializers.SerializerMethodField()
 
-    def get_has_pdf(self, obj):
+    def get_has_pdf(self, obj) -> bool:
         return bool(getattr(obj, "build_job", None) and obj.build_job.pdf_path)
 
-    def get_has_html(self, obj):
+    def get_has_html(self, obj) -> bool:
         return bool(obj.html_built_at and obj.html_path)
 
     class Meta:

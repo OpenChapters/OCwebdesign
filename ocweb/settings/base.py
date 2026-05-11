@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     # Third-party
     "rest_framework",
     "rest_framework_simplejwt",
+    "drf_spectacular",
     # Project apps
     "users",
     "catalog",
@@ -132,6 +133,31 @@ REST_FRAMEWORK = {
         "user": "1000/hour",
         "auth": "10/hour",
         "builds": "10/hour",
+    },
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# ── drf-spectacular ──────────────────────────────────────────────────────────
+# Generates the OpenAPI schema served at /api/schema/ and the interactive
+# Swagger UI / ReDoc views. Metadata fields below show up in the rendered
+# docs; bump `VERSION` when the API contract changes in a breaking way.
+SPECTACULAR_SETTINGS = {
+    "TITLE": "OpenChapters API",
+    "DESCRIPTION": (
+        "REST API for the OpenChapters web platform — chapter catalog, "
+        "worked examples, book assembly + PDF/HTML build pipeline."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    # Suggest sensible defaults in the rendered docs; auth is JWT.
+    "SECURITY": [{"jwtAuth": []}],
+    "COMPONENT_SPLIT_REQUEST": True,
+    # Resolve the three `status` enum collisions by giving each its own
+    # component name in the generated schema.
+    "ENUM_NAME_OVERRIDES": {
+        "BookStatusEnum": "books.models.Book.Status.choices",
+        "BuildStepStatusEnum": "books.models.BuildStep.Status.choices",
+        "ExampleStatusEnum": "catalog.models.Example.Status.choices",
     },
 }
 

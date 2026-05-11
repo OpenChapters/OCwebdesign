@@ -5,6 +5,7 @@ django-environ==0.*
 httpx==0.*
 djangorestframework==3.*
 djangorestframework-simplejwt==5.*
+drf-spectacular==0.28.*
 Pillow==11.*
 beautifulsoup4==4.*
 sentry-sdk[django]==2.*

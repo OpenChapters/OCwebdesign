@@ -10,6 +10,7 @@ from django.conf import settings
 from django.core.signing import BadSignature, TimestampSigner
 from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -115,6 +116,7 @@ class ChapterDetailView(generics.RetrieveAPIView):
         )
 
 
+@extend_schema(exclude=True)
 class ChapterCatalogCsvView(APIView):
     """GET /api/chapters/catalog.csv — public CSV of all published chapters.
 
@@ -167,6 +169,7 @@ class ChapterCatalogCsvView(APIView):
         return response
 
 
+@extend_schema(exclude=True)
 class ChapterCoverView(APIView):
     """
     GET /api/chapters/<id>/cover/ — serve the chapter's cover image.
@@ -233,6 +236,7 @@ class ChapterCoverView(APIView):
         return response
 
 
+@extend_schema(exclude=True)
 class ChapterHtmlView(APIView):
     """
     GET /api/chapters/<id>/html/              — serve index.html
@@ -300,6 +304,7 @@ class ChapterHtmlView(APIView):
         return response
 
 
+@extend_schema(exclude=True)
 class ChapterPdfLabelsView(APIView):
     """GET /api/chapters/<id>/pdf-labels/ — labels-PDF for foundational chapters.
 
@@ -672,6 +677,7 @@ class ExamplePreviewTriggerView(APIView):
         return Response({"task_id": task.id}, status=status.HTTP_202_ACCEPTED)
 
 
+@extend_schema(exclude=True)
 class ExampleFigureFileView(APIView):
     """GET /api/examples/<id>/figures/<figure_id>/file
     Serves the figure file. PUBLISHED examples are anonymous-readable;
@@ -806,6 +812,7 @@ class ExampleFigureDeleteView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(exclude=True)
 class ExamplePreviewPdfView(APIView):
     """GET /api/examples/<id>/preview.pdf[?t=<signed-token>]
 

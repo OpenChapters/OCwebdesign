@@ -25,7 +25,6 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
-  const [siteKey, setSiteKey] = useState('');
   const widgetRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
 
@@ -36,7 +35,6 @@ export default function RegisterPage() {
       try {
         const { data } = await axios.get('/api/auth/turnstile/');
         if (cancelled || !data.site_key) return;
-        setSiteKey(data.site_key);
         await loadTurnstileScript();
         if (cancelled || !widgetRef.current) return;
         // Render the widget

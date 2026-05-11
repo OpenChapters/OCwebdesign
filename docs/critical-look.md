@@ -427,7 +427,7 @@ the May 2026 push.
 |---|---|---|---|---|
 | 1 | CI workflow runs pytest on every push | 0.5 | Prevents future regressions | ✅ |
 | 2 | Integration tests for example lifecycle + batch import + picker | 2 | Closes the §2.2 gap directly | ✅ |
-| 3 | Strict-mode TypeScript on new files + eslint | 1 | Catches a class of runtime bugs |  |
+| 3 | Strict-mode TypeScript on new files + eslint | 1 | Catches a class of runtime bugs | ✅ |
 | 4 | Mobile responsive pass on Browse / Examples / Detail / User Guide | 5 | Doubles usable surface | ✅ |
 | 5 | A11y pass — labels, ARIA, focus traps, axe-core audit | 5 | Unblocks institutional use | ✅ |
 | 6 | Per-step BuildJob (model + worker emit + UI strip) | 4 | Makes builds feel fast; enables retry granularity; unlocks unit tests | ✅ |

@@ -34,6 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   const [isStaff, setIsStaff] = useState(readIsStaff);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref-indirection so the timeout callback can re-schedule itself
+  // without the useCallback closing over its own (undeclared) name.
+  const scheduleRefreshRef = useRef<() => void>(() => {});
 
   const logout = useCallback(() => {
     localStorage.removeItem('access_token');
@@ -58,12 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await axios.post('/api/auth/token/refresh/', { refresh });
         localStorage.setItem('access_token', data.access);
         setIsStaff(readIsStaff());
-        scheduleRefresh();
+        scheduleRefreshRef.current();
       } catch {
         logout();
       }
     }, msUntilRefresh);
   }, [logout]);
+
+  useEffect(() => {
+    scheduleRefreshRef.current = scheduleRefresh;
+  }, [scheduleRefresh]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { access, refresh } = await authApi.login(email, password);

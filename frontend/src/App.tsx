@@ -40,7 +40,6 @@ import AuditLogPage from './admin/pages/AuditLogPage';
 import AnalyticsPage from './admin/pages/AnalyticsPage';
 import ExamplesQueuePage from './admin/pages/ExamplesQueuePage';
 import AdminExamplesImportPage from './admin/pages/ExamplesImportPage';
-import PlaceholderPage from './admin/pages/PlaceholderPage';
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (

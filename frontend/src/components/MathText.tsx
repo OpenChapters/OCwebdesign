@@ -75,7 +75,6 @@ export default function MathText({ source, className }: Props) {
         return (
           <span
             key={i}
-            // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: html }}
           />
         );

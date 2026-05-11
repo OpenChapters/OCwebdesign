@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -24,7 +24,6 @@ export default function BookEditorPage() {
   const toast = useToast();
   const { id } = useParams<{ id: string }>();
   const bookId = parseInt(id!);
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [editingTitle, setEditingTitle] = useState(false);

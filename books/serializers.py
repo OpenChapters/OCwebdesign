@@ -83,12 +83,25 @@ class BookSerializer(serializers.ModelSerializer):
             "parts", "build_job", "has_cover_image", "html_built_at",
             "has_pdf", "has_html", "last_build_format",
             "include_examples", "include_solutions", "examples_count",
+            "excluded_example_ids",
         ]
         read_only_fields = [
             "id", "status", "created_at", "updated_at", "parts",
             "build_job", "has_cover_image", "html_built_at",
             "has_pdf", "has_html", "last_build_format", "examples_count",
         ]
+
+    def validate_excluded_example_ids(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Must be a list of example ids.")
+        ids = []
+        for v in value:
+            if not isinstance(v, int) or isinstance(v, bool):
+                raise serializers.ValidationError("All entries must be integers.")
+            ids.append(v)
+        # de-dup, preserve order
+        seen = set()
+        return [i for i in ids if not (i in seen or seen.add(i))]
 
 
 class PublicChapterRefSerializer(serializers.ModelSerializer):

@@ -14,6 +14,7 @@ import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
 import { booksApi } from '../api/books';
 import { chaptersApi } from '../api/chapters';
 import ChapterCard from '../components/ChapterCard';
+import ExampleSelectionModal from '../components/ExampleSelectionModal';
 import SortableChapterList from '../components/SortableChapterList';
 import type { BookPart, BuildFormat, Chapter } from '../types';
 import { useToast } from '../components/Toast';
@@ -36,6 +37,7 @@ export default function BookEditorPage() {
   const [building, setBuilding] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [buildFormat, setBuildFormat] = useState<BuildFormat>('pdf');
+  const [showExamplePicker, setShowExamplePicker] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -444,6 +446,22 @@ export default function BookEditorPage() {
             with solutions
           </label>
         )}
+        {book.examples_count > 0 && book.include_examples && (
+          <button
+            type="button"
+            onClick={() => setShowExamplePicker(true)}
+            disabled={building || buildStatus === 'queued' || buildStatus === 'building'}
+            className="text-xs text-blue-600 hover:text-blue-800 underline disabled:opacity-40 disabled:no-underline"
+            title="Pick which examples are included in this and future builds."
+          >
+            Customize examples…
+            {book.excluded_example_ids && book.excluded_example_ids.length > 0 && (
+              <span className="ml-1 text-gray-500">
+                ({book.excluded_example_ids.length} excluded)
+              </span>
+            )}
+          </button>
+        )}
 
         <button
           onClick={() => setShowPreview(!showPreview)}
@@ -716,6 +734,17 @@ export default function BookEditorPage() {
           </div>
         </div>
       </div>
+
+      {showExamplePicker && (
+        <ExampleSelectionModal
+          bookId={bookId}
+          onClose={() => setShowExamplePicker(false)}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['book', bookId] });
+            toast('Example selection saved.', 'success');
+          }}
+        />
+      )}
     </div>
   );
 }

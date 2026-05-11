@@ -15,8 +15,26 @@ export const booksApi = {
     doi?: string;
     include_examples?: boolean;
     include_solutions?: boolean;
+    excluded_example_ids?: number[];
   }) =>
     client.patch<Book>(`/books/${id}/`, data).then((r) => r.data),
+
+  getExamplesAvailable: (bookId: number) =>
+    client
+      .get<{
+        groups: Array<{
+          chapter: { id: number; title: string; chabbr: string };
+          examples: Array<{
+            id: number;
+            difficulty: 'introductory' | 'standard' | 'advanced';
+            statement_tex: string;
+            author_display: string;
+            chapter_chabbrs: string[];
+          }>;
+        }>;
+        excluded_example_ids: number[];
+      }>(`/books/${bookId}/examples-available/`)
+      .then((r) => r.data),
 
   delete: (id: number) => client.delete(`/books/${id}/`),
 

@@ -325,6 +325,124 @@ class BuildStatusView(APIView):
         return Response(data)
 
 
+class BookExamplesAvailableView(APIView):
+    """GET /api/books/<book_pk>/examples-available/
+
+    Returns the worked examples that would be rendered for this book,
+    grouped by their host chapter (earliest-tagged-in-book wins for
+    cross-chapter examples — same rule the build pipeline uses).
+
+    Response shape:
+        {
+          "groups": [
+            {
+              "chapter": {"id", "title", "chabbr"},
+              "examples": [{
+                "id", "difficulty", "statement_tex", "author_display",
+                "chapter_chabbrs": [...]
+              }, ...]
+            }, ...
+          ],
+          "excluded_example_ids": [...]
+        }
+
+    The picker uses `excluded_example_ids` to pre-populate its state;
+    saving back to PATCH /api/books/<id>/ overwrites the list.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, book_pk):
+        from catalog.models import Chapter, Example
+
+        book = get_object_or_404(
+            Book.objects.prefetch_related("parts__book_chapters__chapter"),
+            pk=book_pk,
+            user=request.user,
+        )
+
+        # Replicate _assemble_request_data's chapter-order construction,
+        # including auto-included foundational dependencies.
+        book_chapter_order: list[int] = []
+        included_chabbrs: set[str] = set()
+        for part in book.parts.all():
+            for bc in part.book_chapters.all():
+                book_chapter_order.append(bc.chapter_id)
+                if bc.chapter.chabbr:
+                    included_chabbrs.add(bc.chapter.chabbr)
+
+        # Foundational deps prepended (matches build pipeline ordering)
+        needed_chabbrs: set[str] = set()
+        for cid in list(book_chapter_order):
+            ch = Chapter.objects.filter(pk=cid).first()
+            if not ch:
+                continue
+            for dep in ch.depends_on or []:
+                if dep not in included_chabbrs:
+                    needed_chabbrs.add(dep)
+        if needed_chabbrs:
+            dep_ids = list(
+                Chapter.objects
+                .filter(chabbr__in=needed_chabbrs, published=True)
+                .order_by("title")
+                .values_list("id", flat=True)
+            )
+            book_chapter_order = dep_ids + book_chapter_order
+
+        if not book_chapter_order:
+            return Response({"groups": [], "excluded_example_ids": list(book.excluded_example_ids or [])})
+
+        rank = {cid: i for i, cid in enumerate(book_chapter_order)}
+        chapters_by_id = {
+            c.id: c for c in Chapter.objects.filter(pk__in=book_chapter_order)
+        }
+
+        candidate_examples = (
+            Example.objects.filter(
+                status=Example.Status.PUBLISHED,
+                chapters__in=book_chapter_order,
+            )
+            .select_related("author")
+            .prefetch_related("chapters")
+            .distinct()
+            .order_by("difficulty", "id")
+        )
+
+        groups: dict[int, list[dict]] = {cid: [] for cid in book_chapter_order}
+        for ex in candidate_examples:
+            tagged_in_book = [ch.id for ch in ex.chapters.all() if ch.id in rank]
+            if not tagged_in_book:
+                continue
+            host = min(tagged_in_book, key=lambda cid: rank[cid])
+            groups[host].append({
+                "id": ex.id,
+                "difficulty": ex.difficulty,
+                "statement_tex": ex.statement_tex,
+                "author_display": ex.author.full_name or "Anonymous",
+                "chapter_chabbrs": [
+                    ch.chabbr for ch in ex.chapters.all() if ch.chabbr
+                ],
+            })
+
+        result_groups = []
+        for cid in book_chapter_order:
+            exs = groups.get(cid) or []
+            if not exs:
+                continue
+            ch = chapters_by_id.get(cid)
+            if ch is None:
+                continue
+            result_groups.append({
+                "chapter": {"id": ch.id, "title": ch.title, "chabbr": ch.chabbr},
+                "examples": exs,
+            })
+
+        return Response({
+            "groups": result_groups,
+            "excluded_example_ids": list(book.excluded_example_ids or []),
+        })
+
+
 # ── Library ───────────────────────────────────────────────────────────────────
 
 class DownloadPDFView(APIView):

@@ -131,6 +131,7 @@ def _build_request_data(book) -> dict:
 
     if getattr(book, "include_examples", True) and book_chapter_order:
         rank = {cid: i for i, cid in enumerate(book_chapter_order)}
+        excluded = set(getattr(book, "excluded_example_ids", None) or [])
         candidate_examples = (
             Example.objects.filter(
                 status=Example.Status.PUBLISHED,
@@ -141,6 +142,8 @@ def _build_request_data(book) -> dict:
             .order_by("difficulty", "id")
         )
         for ex in candidate_examples:
+            if ex.id in excluded:
+                continue
             tagged_in_book = [
                 ch.id for ch in ex.chapters.all() if ch.id in rank
             ]

@@ -68,6 +68,12 @@ class Book(models.Model):
     include_examples = models.BooleanField(default=True)
     include_solutions = models.BooleanField(default=True)
 
+    # Per-book picker: stores only the deselections relative to "everything
+    # currently tagged & published". Empty list = include all (default).
+    # Stale ids (deleted / unpublished / re-tagged examples) are tolerated
+    # by the build pipeline at read time — no proactive pruning.
+    excluded_example_ids = models.JSONField(default=list, blank=True)
+
     class Meta:
         ordering = ["-created_at"]
 

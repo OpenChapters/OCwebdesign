@@ -69,6 +69,7 @@ export interface Book {
   include_examples: boolean;
   include_solutions: boolean;
   examples_count: number;
+  excluded_example_ids: number[];
 }
 
 export interface BookListItem {

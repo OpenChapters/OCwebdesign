@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 import zipfile
 from contextlib import contextmanager
@@ -297,6 +298,50 @@ def _run_script(
     _run(cmd, log_fn)
 
 
+# Total attempts (initial + retries) for a single `git clone`. GitHub
+# occasionally returns 5xx ("Internal Server Error"), which is almost
+# always transient — three tries with exponential backoff covers it.
+_CLONE_MAX_ATTEMPTS = 3
+_CLONE_BACKOFF_BASE = 2  # seconds; doubles each attempt
+
+
+def _clone_repo(clone_url: str, repo_dir: Path, log_fn) -> None:
+    """`git clone --depth=1` with exponential-backoff retry.
+
+    Retries on any non-zero exit because git's exit codes don't
+    distinguish transient network/server failures from genuine
+    "repo not found". A wrong URL fails the same way three times in a
+    row anyway; the small extra wait is acceptable to make a one-off
+    GitHub 500 self-heal instead of failing the whole build.
+
+    On final failure raises subprocess.CalledProcessError so the
+    surrounding _build_step context manager records the failure on the
+    BuildStep row exactly as before.
+    """
+    cmd = ["git", "clone", "--depth=1", clone_url, str(repo_dir)]
+    last_exc: subprocess.CalledProcessError | None = None
+    for attempt in range(1, _CLONE_MAX_ATTEMPTS + 1):
+        # If a prior attempt left a partial directory, clear it so the
+        # retry can write into a clean path.
+        if repo_dir.exists():
+            shutil.rmtree(repo_dir, ignore_errors=True)
+        try:
+            _run(cmd, log_fn)
+            return
+        except subprocess.CalledProcessError as exc:
+            last_exc = exc
+            if attempt >= _CLONE_MAX_ATTEMPTS:
+                break
+            backoff = _CLONE_BACKOFF_BASE * (2 ** (attempt - 1))
+            log_fn(
+                f"  ! git clone failed (attempt {attempt}/{_CLONE_MAX_ATTEMPTS}); "
+                f"retrying in {backoff}s"
+            )
+            time.sleep(backoff)
+    assert last_exc is not None
+    raise last_exc
+
+
 # ---------------------------------------------------------------------------
 # Tasks
 # ---------------------------------------------------------------------------
@@ -395,11 +440,7 @@ def build_book(self, book_id: int) -> None:
             for i, repo in enumerate(repos, start=1):
                 _set_step_detail(step, f"{i} of {len(repos)}: {repo}")
                 repo_dir = workdir / repo.split("/")[-1]
-                _run(
-                    ["git", "clone", "--depth=1",
-                     provider.clone_url(repo), str(repo_dir)],
-                    log,
-                )
+                _clone_repo(provider.clone_url(repo), repo_dir, log)
             _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
 
         # ── Step 2: assemble matter/, frontmatter, cover, bibs, figures ──────
@@ -885,10 +926,7 @@ def build_book_html(self, book_id: int, send_email: bool = True) -> None:
             for i, repo in enumerate(repos, start=1):
                 _set_step_detail(step, f"{i} of {len(repos)}: {repo}")
                 repo_dir = workdir / repo.split("/")[-1]
-                _run(
-                    ["git", "clone", "--depth=1", provider.clone_url(repo), str(repo_dir)],
-                    log,
-                )
+                _clone_repo(provider.clone_url(repo), repo_dir, log)
             _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
 
         # ── Step 2: assemble images, bibs, figures, SVG conversion ───────

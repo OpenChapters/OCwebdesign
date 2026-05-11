@@ -33,22 +33,22 @@ export default function CommunityPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Community library</h1>
-        <p className="text-sm text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-2">Community library</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           Books built by other contributors who chose to share them. Each entry shows
           the book's structure and chapters; PDFs and HTML readers are private to the
           original author. To share your own builds, enable visibility on your{' '}
-          <Link to="/profile" className="text-blue-600 hover:underline">profile</Link>.
+          <Link to="/profile" className="text-blue-600 dark:text-blue-400 hover:underline">profile</Link>.
         </p>
       </div>
 
       {isLoading ? (
-        <p className="text-gray-500 py-8 text-center">Loading…</p>
+        <p className="text-gray-500 dark:text-gray-400 py-8 text-center">Loading…</p>
       ) : books.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-4xl mb-3">📚</p>
-          <p className="text-lg font-semibold text-gray-700 mb-1">Nothing here yet</p>
-          <p className="text-sm text-gray-400">
+          <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-1">Nothing here yet</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">
             No one has chosen to share their builds at this time.
           </p>
         </div>
@@ -57,12 +57,12 @@ export default function CommunityPage() {
           {books.map((book) => (
             <article
               key={book.id}
-              className="bg-white border border-gray-200 rounded-lg p-5"
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5"
             >
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">{book.title}</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">{book.title}</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     by {book.author_display} · built{' '}
                     {new Date(book.updated_at).toLocaleDateString()}
                   </p>
@@ -79,7 +79,7 @@ export default function CommunityPage() {
                 ) : (
                   <Link
                     to="/login"
-                    className="shrink-0 text-sm text-blue-600 hover:underline"
+                    className="shrink-0 text-sm text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     Sign in to clone
                   </Link>
@@ -90,20 +90,20 @@ export default function CommunityPage() {
                 <div className="space-y-3">
                   {book.parts.map((part) => (
                     <div key={part.order}>
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
                         {part.title}
                       </p>
-                      <ul className="text-sm text-gray-700 space-y-0.5 pl-3">
+                      <ul className="text-sm text-gray-700 dark:text-gray-200 space-y-0.5 pl-3">
                         {part.chapters.map((ch) => (
                           <li key={ch.id} className="flex items-baseline gap-2">
                             <Link
                               to={`/chapters/${ch.id}`}
-                              className="text-blue-600 hover:underline"
+                              className="text-blue-600 dark:text-blue-400 hover:underline"
                             >
                               {ch.title}
                             </Link>
                             {ch.chabbr && (
-                              <span className="text-xs font-mono text-gray-400">
+                              <span className="text-xs font-mono text-gray-400 dark:text-gray-500">
                                 {ch.chabbr}
                               </span>
                             )}

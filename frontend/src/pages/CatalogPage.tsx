@@ -25,8 +25,8 @@ export default function CatalogPage() {
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Chapter catalog</h1>
-        <p className="text-sm text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-2">Chapter catalog</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           All published chapters in the OpenChapters collection. Useful as a reference
           when planning a new contribution. Download the CSV for offline use.
         </p>
@@ -41,7 +41,7 @@ export default function CatalogPage() {
             id="catalog-discipline"
             value={selectedDiscipline}
             onChange={(e) => setSelectedDiscipline(e.target.value)}
-            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:w-auto border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All disciplines</option>
             {disciplines.map((d) => (
@@ -59,58 +59,58 @@ export default function CatalogPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-gray-500 py-8 text-center">Loading…</p>
+        <p className="text-gray-500 dark:text-gray-400 py-8 text-center">Loading…</p>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto">
           <table className="w-full text-sm min-w-[640px]">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-left">
-                <th className="px-4 py-2 font-medium text-gray-500">Title</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Abbr</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Discipline</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Type</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Authors</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Last updated</th>
-                <th className="px-4 py-2 font-medium text-gray-500 text-right">Examples</th>
+              <tr className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 text-left">
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Title</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Abbr</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Discipline</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Type</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Authors</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Last updated</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 text-right">Examples</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                     No chapters.
                   </td>
                 </tr>
               )}
               {filtered.map((c) => (
-                <tr key={c.id} className="border-b border-gray-100 last:border-0">
-                  <td className="px-4 py-2 text-gray-900">{c.title}</td>
-                  <td className="px-4 py-2 font-mono text-xs text-gray-600">
+                <tr key={c.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <td className="px-4 py-2 text-gray-900 dark:text-gray-50">{c.title}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-gray-600 dark:text-gray-300">
                     {c.chabbr || '—'}
                   </td>
-                  <td className="px-4 py-2 text-gray-700">
+                  <td className="px-4 py-2 text-gray-700 dark:text-gray-200">
                     {c.discipline?.name || '—'}
                   </td>
                   <td className="px-4 py-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       c.chapter_type === 'foundational'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-purple-100 text-purple-800'
+                        ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300'
+                        : 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300'
                     }`}>
                       {c.chapter_type}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-xs text-gray-600">
+                  <td className="px-4 py-2 text-xs text-gray-600 dark:text-gray-300">
                     {c.authors.length > 0 ? c.authors.join('; ') : '—'}
                   </td>
-                  <td className="px-4 py-2 text-xs text-gray-500">
+                  <td className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
                     {c.last_updated ? new Date(c.last_updated).toLocaleDateString() : '—'}
                   </td>
-                  <td className="px-4 py-2 text-xs text-gray-700 text-right tabular-nums">
+                  <td className="px-4 py-2 text-xs text-gray-700 dark:text-gray-200 text-right tabular-nums">
                     {c.examples_count > 0 ? (
                       <Link
                         to={`/examples?chapter=${c.chabbr}`}
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         {c.examples_count}
                       </Link>

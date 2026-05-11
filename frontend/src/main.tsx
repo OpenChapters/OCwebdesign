@@ -8,6 +8,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Sentry } from './sentry';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './components/Toast';
 import App from './App';
 import './index.css';
@@ -28,12 +29,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         the SPA doesn't show a blank screen. */}
     <Sentry.ErrorBoundary
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-6">
           <div className="max-w-md text-center">
-            <h1 className="text-xl font-semibold text-gray-900 mb-2">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-50 mb-2">
               Something went wrong.
             </h1>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
               The page hit an unexpected error. Try reloading; if it
               keeps happening, please file an issue on GitHub.
             </p>
@@ -49,11 +50,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     >
       <BrowserRouter>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <App />
+              </ToastProvider>
+            </AuthProvider>
+          </ThemeProvider>
         </QueryClientProvider>
       </BrowserRouter>
     </Sentry.ErrorBoundary>

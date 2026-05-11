@@ -57,14 +57,14 @@ export default function UsersPage() {
   return (
     <div className="p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">Users</h1>
         <div className="flex items-center gap-3">
           <input
             type="search"
             placeholder="Search by email…"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             onClick={() => setShowAddForm(!showAddForm)}
@@ -77,31 +77,31 @@ export default function UsersPage() {
 
       {/* Add user form */}
       {showAddForm && (
-        <form onSubmit={handleCreate} className="mb-6 bg-white border border-gray-200 rounded-lg p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Create new user</h2>
+        <form onSubmit={handleCreate} className="mb-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Create new user</h2>
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Email</label>
               <input
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Password (min 8)</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Password (min 8)</label>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 minLength={8}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <label className="flex items-center gap-2 text-sm text-gray-700 pb-1">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 pb-1">
               <input
                 type="checkbox"
                 checked={newIsStaff}
@@ -120,68 +120,68 @@ export default function UsersPage() {
             <button
               type="button"
               onClick={() => { setShowAddForm(false); setCreateError(''); }}
-              className="text-sm text-gray-500 px-3 py-2"
+              className="text-sm text-gray-500 dark:text-gray-400 px-3 py-2"
             >
               Cancel
             </button>
           </div>
-          {createError && <p className="text-sm text-red-600 mt-2">{createError}</p>}
+          {createError && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{createError}</p>}
         </form>
       )}
 
       {isLoading ? (
-        <p className="text-gray-500 py-8 text-center">Loading…</p>
+        <p className="text-gray-500 dark:text-gray-400 py-8 text-center">Loading…</p>
       ) : (
         <>
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-left">
-                  <th className="px-4 py-2 font-medium text-gray-500">Email</th>
-                  <th className="px-4 py-2 font-medium text-gray-500">Joined</th>
-                  <th className="px-4 py-2 font-medium text-gray-500">Books</th>
-                  <th className="px-4 py-2 font-medium text-gray-500">Last login</th>
-                  <th className="px-4 py-2 font-medium text-gray-500">Role</th>
-                  <th className="px-4 py-2 font-medium text-gray-500">Status</th>
-                  <th className="px-4 py-2 font-medium text-gray-500"></th>
+                <tr className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 text-left">
+                  <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Email</th>
+                  <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Joined</th>
+                  <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Books</th>
+                  <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Last login</th>
+                  <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Role</th>
+                  <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Status</th>
+                  <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400"></th>
                 </tr>
               </thead>
               <tbody>
                 {users.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No users found.</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No users found.</td></tr>
                 )}
                 {users.map((u) => (
-                  <tr key={u.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                  <tr key={u.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-4 py-2">
-                      <Link to={`/admin-panel/users/${u.id}`} className="text-blue-600 hover:underline">
+                      <Link to={`/admin-panel/users/${u.id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
                         {u.email}
                       </Link>
                     </td>
-                    <td className="px-4 py-2 text-gray-500">{new Date(u.date_joined).toLocaleDateString()}</td>
-                    <td className="px-4 py-2 text-gray-700">{u.book_count}</td>
-                    <td className="px-4 py-2 text-gray-500">
+                    <td className="px-4 py-2 text-gray-500 dark:text-gray-400">{new Date(u.date_joined).toLocaleDateString()}</td>
+                    <td className="px-4 py-2 text-gray-700 dark:text-gray-200">{u.book_count}</td>
+                    <td className="px-4 py-2 text-gray-500 dark:text-gray-400">
                       {u.last_login ? new Date(u.last_login).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-2">
                       {u.is_superuser ? (
-                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">superuser</span>
+                        <span className="text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded-full">superuser</span>
                       ) : u.is_staff ? (
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">staff</span>
+                        <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">staff</span>
                       ) : (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">user</span>
+                        <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">user</span>
                       )}
                     </td>
                     <td className="px-4 py-2">
                       {u.is_active ? (
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">active</span>
+                        <span className="text-xs bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 px-2 py-0.5 rounded-full">active</span>
                       ) : (
-                        <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full">inactive</span>
+                        <span className="text-xs bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 px-2 py-0.5 rounded-full">inactive</span>
                       )}
                     </td>
                     <td className="px-4 py-2 text-right">
                       <button
                         onClick={() => handleDelete(u.id, u.email)}
-                        className="text-xs text-gray-400 hover:text-red-500"
+                        className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
                         title="Delete user"
                       >
                         Delete
@@ -200,7 +200,7 @@ export default function UsersPage() {
                   key={p}
                   onClick={() => setPage(p)}
                   className={`text-sm px-3 py-1 rounded ${
-                    p === page ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    p === page ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   {p}

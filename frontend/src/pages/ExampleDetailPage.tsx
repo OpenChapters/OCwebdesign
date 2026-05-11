@@ -15,10 +15,10 @@ const DIFFICULTY_LABEL: Record<ExampleDifficulty, string> = {
 };
 
 const STATUS_BADGE: Record<ExampleStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  pending: 'bg-amber-100 text-amber-800',
-  published: 'bg-emerald-100 text-emerald-800',
-  rejected: 'bg-red-100 text-red-700',
+  draft: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
+  pending: 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200',
+  published: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200',
+  rejected: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
 };
 
 const STATUS_LABEL: Record<ExampleStatus, string> = {
@@ -107,12 +107,12 @@ export default function ExampleDetailPage() {
     onError: () => toast('Could not delete.', 'error'),
   });
 
-  if (isLoading) return <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 text-gray-500">Loading…</div>;
+  if (isLoading) return <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 text-gray-500 dark:text-gray-400">Loading…</div>;
   if (error || !example) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 text-center">
-        <p className="text-lg text-gray-700 mb-1">Example not found</p>
-        <Link to="/examples" className="text-sm text-blue-600 hover:underline">
+        <p className="text-lg text-gray-700 dark:text-gray-200 mb-1">Example not found</p>
+        <Link to="/examples" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
           Back to examples
         </Link>
       </div>
@@ -133,7 +133,7 @@ export default function ExampleDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <Link to="/examples" className="text-sm text-blue-600 hover:underline">
+      <Link to="/examples" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
         ← Back to examples
       </Link>
 
@@ -141,34 +141,34 @@ export default function ExampleDetailPage() {
         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[example.status]}`}>
           {STATUS_LABEL[example.status]}
         </span>
-        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
           {DIFFICULTY_LABEL[example.difficulty]}
         </span>
         {example.chapters.map((ch) => (
           <Link
             key={ch.id}
             to={`/chapters/${ch.id}`}
-            className="text-xs font-mono bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded"
+            className="text-xs font-mono bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-2 py-0.5 rounded"
           >
             {ch.chabbr}
             {example.primary_chapter.id === ch.id && (
-              <span className="ml-1 text-gray-400">(primary)</span>
+              <span className="ml-1 text-gray-400 dark:text-gray-500">(primary)</span>
             )}
           </Link>
         ))}
       </div>
 
-      <h1 className="mt-3 text-xl font-bold text-gray-900">
+      <h1 className="mt-3 text-xl font-bold text-gray-900 dark:text-gray-50">
         Example #{example.id}
       </h1>
-      <p className="text-sm text-gray-500">by {example.author_display}</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400">by {example.author_display}</p>
 
       {example.status === 'rejected' && example.rejection_reason && (
-        <div className="mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-          <p className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-1">
+        <div className="mt-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg px-4 py-3">
+          <p className="text-xs font-semibold text-red-800 dark:text-red-300 uppercase tracking-wide mb-1">
             Rejection reason
           </p>
-          <p className="text-sm text-red-900 whitespace-pre-wrap">{example.rejection_reason}</p>
+          <p className="text-sm text-red-900 dark:text-red-200 whitespace-pre-wrap">{example.rejection_reason}</p>
         </div>
       )}
 
@@ -189,33 +189,33 @@ export default function ExampleDetailPage() {
           (the public detail endpoint is reached only for PUBLISHED). */}
       {example.preview_build_log && (
         <div className="mt-4">
-          <p className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-1">
+          <p className="text-xs font-semibold text-red-800 dark:text-red-300 uppercase tracking-wide mb-1">
             Last preview build failed
           </p>
-          <pre className="font-mono text-xs text-red-900 bg-red-50 border border-red-200 rounded-lg p-3 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+          <pre className="font-mono text-xs text-red-900 dark:text-red-200 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
             {example.preview_build_log}
           </pre>
         </div>
       )}
 
       <section className="mt-6">
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide mb-2">
           Statement
         </h2>
         <MathText
           source={example.statement_tex}
-          className="text-sm bg-gray-50 border border-gray-200 rounded-lg p-4"
+          className="text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
         />
       </section>
 
       <section className="mt-6">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">
             Solution
           </h2>
           <button
             onClick={() => setShowSolution((s) => !s)}
-            className="text-xs text-blue-600 hover:underline"
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
           >
             {showSolution ? 'Hide' : 'Show'}
           </button>
@@ -223,10 +223,10 @@ export default function ExampleDetailPage() {
         {showSolution ? (
           <MathText
             source={example.solution_tex}
-            className="text-sm bg-gray-50 border border-gray-200 rounded-lg p-4"
+            className="text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
           />
         ) : (
-          <p className="text-sm text-gray-400 italic px-4 py-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg">
+          <p className="text-sm text-gray-400 dark:text-gray-500 italic px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
             Solution hidden. Click "Show" to reveal.
           </p>
         )}
@@ -234,19 +234,19 @@ export default function ExampleDetailPage() {
 
       {example.figures && example.figures.length > 0 && (
         <section className="mt-6">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide mb-2">
             Figures
           </h2>
-          <ul className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+          <ul className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
             {example.figures.map((f) => (
               <li key={f.id} className="flex items-center gap-3 px-3 py-2">
-                <span className="font-mono text-xs text-gray-700 flex-1 truncate">{f.original_filename}</span>
-                {f.caption && <span className="text-xs text-gray-500 truncate">{f.caption}</span>}
+                <span className="font-mono text-xs text-gray-700 dark:text-gray-200 flex-1 truncate">{f.original_filename}</span>
+                {f.caption && <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{f.caption}</span>}
                 <a
                   href={f.file_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   view
                 </a>
@@ -256,7 +256,7 @@ export default function ExampleDetailPage() {
         </section>
       )}
 
-      <p className="mt-6 text-xs text-gray-400">
+      <p className="mt-6 text-xs text-gray-400 dark:text-gray-500">
         License: {example.license}
       </p>
 
@@ -266,7 +266,7 @@ export default function ExampleDetailPage() {
 
       {/* Author actions */}
       {(canEdit || canSubmit || canDelete) && (
-        <div className="mt-6 flex flex-wrap gap-2 border-t border-gray-200 pt-4">
+        <div className="mt-6 flex flex-wrap gap-2 border-t border-gray-200 dark:border-gray-700 pt-4">
           {canEdit && (
             <Link
               to={`/examples/${example.id}/edit`}
@@ -297,7 +297,7 @@ export default function ExampleDetailPage() {
                 }
               }}
               disabled={deleteMut.isPending}
-              className="text-sm text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
+              className="text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/40 disabled:opacity-50"
             >
               Delete draft
             </button>
@@ -307,8 +307,8 @@ export default function ExampleDetailPage() {
 
       {/* Admin actions */}
       {isStaff && (
-        <div className="mt-6 border-t border-gray-200 pt-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
             Admin
           </p>
           {example.status === 'pending' && !showReject ? (
@@ -322,7 +322,7 @@ export default function ExampleDetailPage() {
               </button>
               <button
                 onClick={() => setShowReject(true)}
-                className="text-sm text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-50"
+                className="text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/40"
               >
                 Reject…
               </button>
@@ -333,14 +333,14 @@ export default function ExampleDetailPage() {
                   }
                 }}
                 disabled={adminDeleteMut.isPending}
-                className="text-sm text-red-700 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50 ml-auto"
+                className="text-sm text-red-700 dark:text-red-300 border border-red-300 dark:border-red-900 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/40 disabled:opacity-50 ml-auto"
               >
                 {adminDeleteMut.isPending ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           ) : example.status === 'pending' && showReject ? (
             <div className="space-y-2">
-              <label htmlFor="rejection-reason" className="block text-xs font-medium text-gray-700">
+              <label htmlFor="rejection-reason" className="block text-xs font-medium text-gray-700 dark:text-gray-200">
                 Reason for rejection (visible to author)
               </label>
               <textarea
@@ -349,7 +349,7 @@ export default function ExampleDetailPage() {
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Explain what needs to change before this example can be published."
                 rows={3}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               />
               <div className="flex gap-2">
                 <button
@@ -361,7 +361,7 @@ export default function ExampleDetailPage() {
                 </button>
                 <button
                   onClick={() => { setShowReject(false); setRejectReason(''); }}
-                  className="text-sm text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-100"
+                  className="text-sm text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   Cancel
                 </button>
@@ -376,7 +376,7 @@ export default function ExampleDetailPage() {
                   }
                 }}
                 disabled={adminDeleteMut.isPending}
-                className="text-sm text-red-700 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                className="text-sm text-red-700 dark:text-red-300 border border-red-300 dark:border-red-900 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/40 disabled:opacity-50"
               >
                 {adminDeleteMut.isPending ? 'Deleting…' : 'Delete example'}
               </button>

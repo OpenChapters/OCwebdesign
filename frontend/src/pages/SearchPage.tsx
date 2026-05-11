@@ -50,7 +50,7 @@ export default function SearchPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Search Chapters</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-6">Search Chapters</h1>
 
       <label htmlFor="full-text-search" className="sr-only">
         Search across all published chapter content
@@ -62,31 +62,31 @@ export default function SearchPage() {
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search chapter content…"
         autoFocus
-        className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
 
-      <p className="text-xs text-gray-500 mt-2">
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
         Searches across all published chapters with HTML output. Supports phrases in quotes and OR/AND operators.
       </p>
 
       <div className="mt-6">
         {debouncedQuery.length < 2 ? (
-          <p className="text-sm text-gray-400">Type at least 2 characters to search.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">Type at least 2 characters to search.</p>
         ) : isLoading ? (
-          <p className="text-sm text-gray-500">Searching…</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Searching…</p>
         ) : !data || data.count === 0 ? (
-          <p className="text-sm text-gray-500">No matches for "{debouncedQuery}".</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">No matches for "{debouncedQuery}".</p>
         ) : (
           <>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
               {data.count} result{data.count === 1 ? '' : 's'}
             </p>
             <ul className="space-y-4">
               {data.results.map((r, i) => (
-                <li key={i} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                <li key={i} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-sm transition-shadow">
                   <Link to={r.read_url} className="block">
                     <div className="flex items-center gap-2 mb-1 text-xs">
-                      <span className="font-mono text-gray-500">{r.chabbr}</span>
+                      <span className="font-mono text-gray-500 dark:text-gray-400">{r.chabbr}</span>
                       {r.discipline && (
                         <span
                           className="px-1.5 py-0.5 rounded text-white"
@@ -96,14 +96,14 @@ export default function SearchPage() {
                         </span>
                       )}
                     </div>
-                    <h3 className="font-semibold text-sm text-gray-900 hover:text-blue-600">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-50 hover:text-blue-600 dark:hover:text-blue-400">
                       {r.chapter_title}
                       {r.section_title && (
-                        <span className="text-gray-500 font-normal"> — {r.section_title}</span>
+                        <span className="text-gray-500 dark:text-gray-400 font-normal"> — {r.section_title}</span>
                       )}
                     </h3>
                     <p
-                      className="text-xs text-gray-600 mt-1 leading-relaxed [&>mark]:bg-yellow-100 [&>mark]:text-gray-900 [&>mark]:font-semibold"
+                      className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed [&>mark]:bg-yellow-100 dark:[&>mark]:bg-yellow-700/60 [&>mark]:text-gray-900 dark:[&>mark]:text-yellow-50 [&>mark]:font-semibold"
                       dangerouslySetInnerHTML={{ __html: r.snippet || '' }}
                     />
                   </Link>

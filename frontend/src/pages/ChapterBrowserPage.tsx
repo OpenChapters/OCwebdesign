@@ -166,9 +166,9 @@ export default function ChapterBrowserPage() {
             {pickerChapterId === chapter.id && (
               <div
                 ref={pickerRef}
-                className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3"
+                className="absolute z-30 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3"
               >
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
                   Choose a book
                 </p>
                 {draftBooks.length > 0 && (
@@ -178,11 +178,11 @@ export default function ChapterBrowserPage() {
                         key={b.id}
                         onClick={() => addToExistingBook(b.id)}
                         disabled={adding}
-                        className="w-full text-left text-sm text-gray-800 hover:bg-gray-50 rounded px-2 py-1.5 disabled:opacity-50 truncate"
+                        className="w-full text-left text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 py-1.5 disabled:opacity-50 truncate"
                       >
                         {b.title}
                         {b.id === lastBookId && (
-                          <span className="ml-1 text-xs text-blue-500">(last used)</span>
+                          <span className="ml-1 text-xs text-blue-500 dark:text-blue-400">(last used)</span>
                         )}
                       </button>
                     ))}
@@ -200,7 +200,7 @@ export default function ChapterBrowserPage() {
                       onChange={(e) => setNewBookTitle(e.target.value)}
                       autoFocus
                       required
-                      className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       type="submit"
@@ -213,7 +213,7 @@ export default function ChapterBrowserPage() {
                 ) : (
                   <button
                     onClick={() => setShowNewBookInput(true)}
-                    className="w-full text-sm text-blue-600 hover:bg-blue-50 rounded px-2 py-1.5 text-left font-medium"
+                    className="w-full text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded px-2 py-1.5 text-left font-medium"
                   >
                     + Create new book
                   </button>
@@ -233,9 +233,9 @@ export default function ChapterBrowserPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Welcome banner */}
       {welcomeMessage && (
-        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl px-6 py-5">
+        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-100 dark:border-blue-900/60 rounded-xl px-6 py-5">
           <div
-            className="text-gray-700 leading-relaxed"
+            className="text-gray-700 dark:text-gray-200 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(welcomeMessage) }}
           />
         </div>
@@ -243,8 +243,8 @@ export default function ChapterBrowserPage() {
 
       {/* Announcement banner */}
       {announcementBanner && (
-        <div className="mb-8 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
-          <h2 className="font-semibold text-amber-900 mb-1">Announcements</h2>
+        <div className="mb-8 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-lg px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          <h2 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">Announcements</h2>
           <div
             className="[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(announcementBanner) }}
@@ -260,7 +260,7 @@ export default function ChapterBrowserPage() {
             className={`text-sm px-3 py-1.5 rounded-full transition-colors ${
               !selectedDiscipline
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
           >
             All Disciplines
@@ -272,7 +272,7 @@ export default function ChapterBrowserPage() {
               className={`text-sm px-3 py-1.5 rounded-full transition-colors ${
                 selectedDiscipline === d.slug
                   ? 'text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
               style={selectedDiscipline === d.slug ? { backgroundColor: d.color_primary } : {}}
             >
@@ -284,8 +284,8 @@ export default function ChapterBrowserPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Chapter Browser</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">Chapter Browser</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             {data ? `${data.count} chapters available` : ''}
           </p>
         </div>
@@ -299,7 +299,7 @@ export default function ChapterBrowserPage() {
             placeholder="Search chapters…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:w-64 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
@@ -307,24 +307,24 @@ export default function ChapterBrowserPage() {
       {isLoading && <SkeletonCardGrid count={10} />}
 
       {error && (
-        <div className="text-center text-red-600 py-16">Failed to load chapters.</div>
+        <div className="text-center text-red-600 dark:text-red-400 py-16">Failed to load chapters.</div>
       )}
 
       {!isLoading && filtered.length === 0 && (
         <div className="text-center py-16">
           <p className="text-4xl mb-3">🔍</p>
-          <p className="text-lg font-semibold text-gray-700 mb-1">No chapters found</p>
-          <p className="text-sm text-gray-400">Try a different search term or clear the search box.</p>
+          <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-1">No chapters found</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">Try a different search term or clear the search box.</p>
         </div>
       )}
 
       {topical.length > 0 && (
         <section className="mb-10">
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1">
             Topical Chapters
-            <span className="ml-2 text-sm font-normal text-gray-400">({topical.length})</span>
+            <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-500">({topical.length})</span>
           </h2>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Specialized topics in materials science and engineering.
           </p>
           {renderGrid(topical)}
@@ -333,11 +333,11 @@ export default function ChapterBrowserPage() {
 
       {foundational.length > 0 && (
         <section>
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1">
             Foundational Chapters
-            <span className="ml-2 text-sm font-normal text-gray-400">({foundational.length})</span>
+            <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-500">({foundational.length})</span>
           </h2>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Core mathematical and scientific background.
           </p>
           {renderGrid(foundational)}

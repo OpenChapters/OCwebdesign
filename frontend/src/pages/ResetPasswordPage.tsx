@@ -29,13 +29,13 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 w-full max-w-sm p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Set new password</h1>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 w-full max-w-sm p-8">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-2">Set new password</h1>
 
         {success ? (
           <>
-            <p className="text-sm text-green-700 mb-4">
+            <p className="text-sm text-green-700 dark:text-green-300 mb-4">
               Your password has been reset successfully.
             </p>
             <Link
@@ -48,7 +48,7 @@ export default function ResetPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div>
-              <label htmlFor="reset-new-password" className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+              <label htmlFor="reset-new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">New password</label>
               <input
                 id="reset-new-password"
                 type="password"
@@ -57,11 +57,11 @@ export default function ResetPasswordPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label htmlFor="reset-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+              <label htmlFor="reset-confirm-password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Confirm password</label>
               <input
                 id="reset-confirm-password"
                 type="password"
@@ -70,10 +70,10 @@ export default function ResetPasswordPage() {
                 onChange={(e) => setConfirm(e.target.value)}
                 required
                 minLength={8}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>}
             <button
               type="submit"
               disabled={loading}

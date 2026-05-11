@@ -20,18 +20,18 @@ export default function ChapterReadPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <p className="text-gray-500">Loading...</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-500 dark:text-gray-400">Loading...</p>
       </div>
     );
   }
 
   if (!chapter || !chapter.html_built_at) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">HTML version not available for this chapter.</p>
-          <Link to={`/chapters/${id}`} className="text-blue-600 hover:underline text-sm">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">HTML version not available for this chapter.</p>
+          <Link to={`/chapters/${id}`} className="text-blue-600 dark:text-blue-400 hover:underline text-sm">
             Back to chapter info
           </Link>
         </div>
@@ -40,16 +40,16 @@ export default function ChapterReadPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       {/* Top bar */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-4 shrink-0">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center gap-4 shrink-0">
         <Link
           to={`/chapters/${id}`}
-          className="text-sm text-gray-500 hover:text-gray-700"
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
         >
           &larr; Chapter Info
         </Link>
-        <h1 className="text-sm font-semibold text-gray-900 truncate">
+        <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate">
           {chapter.title}
         </h1>
         {chapter.discipline && (

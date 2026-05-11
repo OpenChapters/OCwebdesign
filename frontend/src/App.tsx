@@ -44,7 +44,7 @@ import PlaceholderPage from './admin/pages/PlaceholderPage';
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col">
       {/* Skip-to-content link — visible on keyboard focus, hidden otherwise. */}
       <a
         href="#main-content"

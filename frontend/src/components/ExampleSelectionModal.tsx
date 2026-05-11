@@ -11,9 +11,9 @@ const DIFFICULTY_LABEL: Record<ExampleDifficulty, string> = {
 };
 
 const DIFFICULTY_BADGE: Record<ExampleDifficulty, string> = {
-  introductory: 'bg-emerald-100 text-emerald-800',
-  standard: 'bg-blue-100 text-blue-800',
-  advanced: 'bg-amber-100 text-amber-800',
+  introductory: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200',
+  standard: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300',
+  advanced: 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200',
 };
 
 function truncate(s: string, n: number) {
@@ -98,20 +98,20 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
         role="dialog"
         aria-modal="true"
         aria-labelledby="example-picker-title"
-        className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-start sm:items-center justify-between gap-2">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-start sm:items-center justify-between gap-2">
           <div>
-            <h2 id="example-picker-title" className="text-lg font-semibold text-gray-900">Customize examples</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <h2 id="example-picker-title" className="text-lg font-semibold text-gray-900 dark:text-gray-50">Customize examples</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Uncheck any examples you don't want in this build. Selections are
               saved on the book and reused on every future build until changed.
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none px-1"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-2xl leading-none px-1"
             aria-label="Close"
           >
             ×
@@ -119,14 +119,14 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-          {isLoading && <p className="text-gray-500 text-sm py-8 text-center">Loading…</p>}
+          {isLoading && <p className="text-gray-500 dark:text-gray-400 text-sm py-8 text-center">Loading…</p>}
           {error && (
-            <p className="text-red-600 text-sm py-8 text-center">
+            <p className="text-red-600 dark:text-red-400 text-sm py-8 text-center">
               Failed to load examples.
             </p>
           )}
           {!isLoading && !error && groups.length === 0 && (
-            <p className="text-gray-500 text-sm py-8 text-center">
+            <p className="text-gray-500 dark:text-gray-400 text-sm py-8 text-center">
               No published examples are tagged to any chapter in this book.
             </p>
           )}
@@ -138,10 +138,10 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
             return (
               <div key={g.chapter.id} className="mb-6">
                 <div className="flex items-baseline justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-800">
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">
                     {g.chapter.title}{' '}
                     {g.chapter.chabbr && (
-                      <span className="font-mono text-xs text-gray-500">
+                      <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
                         ({g.chapter.chabbr})
                       </span>
                     )}
@@ -151,7 +151,7 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
                       type="button"
                       onClick={() => setGroupSelected(ids, true)}
                       disabled={allSelected}
-                      className="text-blue-600 hover:text-blue-800 disabled:text-gray-300 disabled:cursor-default"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:text-gray-300 disabled:cursor-default"
                     >
                       Select all
                     </button>
@@ -159,7 +159,7 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
                       type="button"
                       onClick={() => setGroupSelected(ids, false)}
                       disabled={noneSelected}
-                      className="text-blue-600 hover:text-blue-800 disabled:text-gray-300 disabled:cursor-default"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:text-gray-300 disabled:cursor-default"
                     >
                       Deselect all
                     </button>
@@ -172,7 +172,7 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
                       <li
                         key={ex.id}
                         className={`flex gap-3 border rounded-md p-3 ${
-                          checked ? 'border-gray-200 bg-white' : 'border-gray-200 bg-gray-50'
+                          checked ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900'
                         }`}
                       >
                         <input
@@ -195,12 +195,12 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
                             {ex.chapter_chabbrs.map((ch) => (
                               <span
                                 key={ch}
-                                className="text-xs font-mono bg-gray-100 text-gray-700 px-2 py-0.5 rounded"
+                                className="text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-2 py-0.5 rounded"
                               >
                                 {ch}
                               </span>
                             ))}
-                            <span className="text-xs text-gray-400 ml-auto">
+                            <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
                               by {ex.author_display}
                             </span>
                             <a
@@ -208,13 +208,13 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
                               target="_blank"
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="text-xs text-blue-600 hover:text-blue-800"
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                               title="Open in a new tab"
                             >
                               Open ↗
                             </a>
                           </div>
-                          <pre className="font-mono text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+                          <pre className="font-mono text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                             {truncate(ex.statement_tex, 240)}
                           </pre>
                         </label>
@@ -227,8 +227,8 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
           })}
         </div>
 
-        <div className="px-4 sm:px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <p className="text-xs text-gray-500">
+        <div className="px-4 sm:px-6 py-3 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             {totalExamples > 0
               ? `${selectedCount} of ${totalExamples} included`
               : ''}
@@ -237,7 +237,7 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
             <button
               onClick={onClose}
               disabled={saving}
-              className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-40"
+              className="text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40"
             >
               Cancel
             </button>

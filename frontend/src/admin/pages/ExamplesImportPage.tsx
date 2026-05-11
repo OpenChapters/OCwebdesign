@@ -79,22 +79,22 @@ export default function ExamplesImportPage() {
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-2xl font-bold text-gray-900">Batch import examples</h1>
-        <Link to="/admin-panel/examples" className="text-sm text-blue-600 hover:underline">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">Batch import examples</h1>
+        <Link to="/admin-panel/examples" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
           ← Back to queue
         </Link>
       </div>
-      <p className="text-sm text-gray-600 mb-6">
-        Upload a zip with a <code className="bg-gray-100 px-1 rounded">manifest.json</code> at
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+        Upload a zip with a <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">manifest.json</code> at
         the root and one directory per example holding{' '}
-        <code className="bg-gray-100 px-1 rounded">statement.tex</code>,{' '}
-        <code className="bg-gray-100 px-1 rounded">solution.tex</code>, and an optional{' '}
-        <code className="bg-gray-100 px-1 rounded">figures/</code> subdirectory.
+        <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">statement.tex</code>,{' '}
+        <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">solution.tex</code>, and an optional{' '}
+        <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">figures/</code> subdirectory.
       </p>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-5 mb-4 space-y-4">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5 mb-4 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
             Batch zip
           </label>
           <input
@@ -106,13 +106,13 @@ export default function ExamplesImportPage() {
             }}
             className="text-sm"
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Cap: 50 MB total · 5 MB per figure · max 200 entries per batch.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
             Default status for newly created examples
           </label>
           <div className="flex gap-3">
@@ -129,7 +129,7 @@ export default function ExamplesImportPage() {
               </label>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             <strong>Pending</strong> sends new examples to the admin queue for
             Approve/Reject. <strong>Published</strong> makes them live
             immediately. Existing examples (matched by slug) keep their
@@ -137,7 +137,7 @@ export default function ExamplesImportPage() {
           </p>
         </div>
 
-        <div className="flex gap-2 pt-2 border-t border-gray-100">
+        <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
           <button
             onClick={handleValidate}
             disabled={file === null || loading}
@@ -169,13 +169,13 @@ export default function ExamplesImportPage() {
 
 function ReportView({ report, committed }: { report: ImportReport; committed: boolean }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5">
       {report.global_errors.length > 0 && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-          <p className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-1">
+        <div className="mb-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg px-4 py-3">
+          <p className="text-xs font-semibold text-red-800 dark:text-red-300 uppercase tracking-wide mb-1">
             Cannot import this batch
           </p>
-          <ul className="text-sm text-red-900 list-disc pl-5 space-y-0.5">
+          <ul className="text-sm text-red-900 dark:text-red-200 list-disc pl-5 space-y-0.5">
             {report.global_errors.map((e, i) => (
               <li key={i}>{e}</li>
             ))}
@@ -184,20 +184,20 @@ function ReportView({ report, committed }: { report: ImportReport; committed: bo
       )}
 
       <div className="flex flex-wrap gap-4 mb-3 text-sm">
-        <span className="text-gray-600">
+        <span className="text-gray-600 dark:text-gray-300">
           Total: <span className="font-semibold">{report.summary.total}</span>
         </span>
-        <span className="text-emerald-700">
+        <span className="text-emerald-700 dark:text-emerald-300">
           Create: <span className="font-semibold">{report.summary.create}</span>
         </span>
-        <span className="text-blue-700">
+        <span className="text-blue-700 dark:text-blue-300">
           Update: <span className="font-semibold">{report.summary.update}</span>
         </span>
-        <span className={report.summary.errors > 0 ? 'text-red-700' : 'text-gray-400'}>
+        <span className={report.summary.errors > 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-400 dark:text-gray-500'}>
           Errors: <span className="font-semibold">{report.summary.errors}</span>
         </span>
         {committed && (
-          <span className="ml-auto text-xs text-emerald-700 font-medium">
+          <span className="ml-auto text-xs text-emerald-700 dark:text-emerald-300 font-medium">
             ✓ Persisted to database
           </span>
         )}
@@ -206,7 +206,7 @@ function ReportView({ report, committed }: { report: ImportReport; committed: bo
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 text-left text-xs text-gray-500 uppercase tracking-wide">
+            <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               <th className="py-2 pr-3">Dir</th>
               <th className="py-2 pr-3">Slug</th>
               <th className="py-2 pr-3">Primary</th>
@@ -217,23 +217,23 @@ function ReportView({ report, committed }: { report: ImportReport; committed: bo
               <th className="py-2 pr-3">Errors</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {report.entries.map((e) => (
               <tr key={e.dir} className="align-top">
-                <td className="py-2 pr-3 font-mono text-xs text-gray-700">{e.dir}</td>
-                <td className="py-2 pr-3 font-mono text-xs text-gray-500">{e.slug || '—'}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-gray-700 dark:text-gray-200">{e.dir}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-gray-500 dark:text-gray-400">{e.slug || '—'}</td>
                 <td className="py-2 pr-3 font-mono text-xs">{e.primary_chapter || '—'}</td>
-                <td className="py-2 pr-3 font-mono text-xs text-gray-600">
+                <td className="py-2 pr-3 font-mono text-xs text-gray-600 dark:text-gray-300">
                   {e.chapters.join(', ') || '—'}
                 </td>
                 <td className="py-2 pr-3 text-xs">{e.difficulty}</td>
-                <td className="py-2 pr-3 text-xs text-gray-600">{e.figure_count}</td>
+                <td className="py-2 pr-3 text-xs text-gray-600 dark:text-gray-300">{e.figure_count}</td>
                 <td className="py-2 pr-3">
                   <ActionBadge action={e.action} />
                   {e.persisted_id && (
                     <Link
                       to={`/examples/${e.persisted_id}`}
-                      className="ml-2 text-xs text-blue-600 hover:underline"
+                      className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
                     >
                       #{e.persisted_id}
                     </Link>
@@ -241,7 +241,7 @@ function ReportView({ report, committed }: { report: ImportReport; committed: bo
                 </td>
                 <td className="py-2 pr-3">
                   {e.errors.length > 0 ? (
-                    <ul className="text-xs text-red-700 list-disc pl-4 space-y-0.5">
+                    <ul className="text-xs text-red-700 dark:text-red-300 list-disc pl-4 space-y-0.5">
                       {e.errors.map((msg, i) => (
                         <li key={i}>{msg}</li>
                       ))}
@@ -262,10 +262,10 @@ function ReportView({ report, committed }: { report: ImportReport; committed: bo
 function ActionBadge({ action }: { action: 'create' | 'update' | 'skip' }) {
   const cls =
     action === 'create'
-      ? 'bg-emerald-100 text-emerald-800'
+      ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200'
       : action === 'update'
-      ? 'bg-blue-100 text-blue-800'
-      : 'bg-red-100 text-red-700';
+      ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300'
+      : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300';
   return (
     <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${cls}`}>{action}</span>
   );

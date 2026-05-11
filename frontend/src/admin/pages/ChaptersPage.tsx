@@ -92,19 +92,19 @@ export default function ChaptersPage() {
   return (
     <div className="p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Chapters</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">Chapters</h1>
         <div className="flex items-center gap-3">
           <input
             type="search"
             placeholder="Search title, chabbr…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             onClick={() => handleBuildHtml('stale')}
             disabled={buildingHtml}
-            className="text-sm border border-green-300 text-green-700 px-4 py-2 rounded-lg hover:bg-green-50 disabled:opacity-50"
+            className="text-sm border border-green-300 dark:border-green-900 text-green-700 dark:text-green-300 px-4 py-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/40 disabled:opacity-50"
             title="Build HTML only for chapters whose source has changed"
           >
             {buildingHtml ? 'Building…' : 'Build Stale HTML'}
@@ -112,7 +112,7 @@ export default function ChaptersPage() {
           <button
             onClick={() => handleBuildHtml('all')}
             disabled={buildingHtml}
-            className="text-sm border border-green-300 text-green-700 px-4 py-2 rounded-lg hover:bg-green-50 disabled:opacity-50"
+            className="text-sm border border-green-300 dark:border-green-900 text-green-700 dark:text-green-300 px-4 py-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/40 disabled:opacity-50"
             title="Rebuild HTML for every published chapter"
           >
             {buildingHtml ? 'Building…' : 'Rebuild All HTML'}
@@ -120,14 +120,14 @@ export default function ChaptersPage() {
           <button
             onClick={handleUpdateTOC}
             disabled={updatingTOC}
-            className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
           >
             {updatingTOC ? 'Updating…' : 'Update TOC'}
           </button>
           <button
             onClick={handleUpdateThumbnails}
             disabled={updatingThumbs}
-            className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
           >
             {updatingThumbs ? 'Updating…' : 'Update Thumbnails'}
           </button>
@@ -142,67 +142,67 @@ export default function ChaptersPage() {
       </div>
 
       {syncOutput && (
-        <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="mb-6 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase">Sync output</p>
-            <button onClick={() => setSyncOutput('')} className="text-xs text-gray-400 hover:text-gray-600">Dismiss</button>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Sync output</p>
+            <button onClick={() => setSyncOutput('')} className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">Dismiss</button>
           </div>
-          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">{syncOutput}</pre>
+          <pre className="text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap font-mono">{syncOutput}</pre>
         </div>
       )}
 
       {isLoading ? (
-        <p className="text-gray-500 py-8 text-center">Loading…</p>
+        <p className="text-gray-500 dark:text-gray-400 py-8 text-center">Loading…</p>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-left">
-                <th className="px-4 py-2 font-medium text-gray-500">Title</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Abbr</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Type</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Published</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Dependencies</th>
-                <th className="px-4 py-2 font-medium text-gray-500 text-right">Examples</th>
-                <th className="px-4 py-2 font-medium text-gray-500">Last synced</th>
+              <tr className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 text-left">
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Title</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Abbr</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Type</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Published</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Dependencies</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 text-right">Examples</th>
+                <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">Last synced</th>
               </tr>
             </thead>
             <tbody>
               {chapters.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No chapters found.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No chapters found.</td></tr>
               )}
               {chapters.map((ch) => (
-                <tr key={ch.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                <tr key={ch.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-4 py-2">
-                    <Link to={`/admin-panel/chapters/${ch.id}`} className="text-blue-600 hover:underline">
+                    <Link to={`/admin-panel/chapters/${ch.id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
                       {ch.title}
                     </Link>
                   </td>
-                  <td className="px-4 py-2 font-mono text-xs text-gray-600">{ch.chabbr || '—'}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-gray-600 dark:text-gray-300">{ch.chabbr || '—'}</td>
                   <td className="px-4 py-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       ch.chapter_type === 'foundational'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-purple-100 text-purple-800'
+                        ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300'
+                        : 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300'
                     }`}>
                       {ch.chapter_type}
                     </span>
                   </td>
                   <td className="px-4 py-2">
                     {ch.published ? (
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">yes</span>
+                      <span className="text-xs bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 px-2 py-0.5 rounded-full">yes</span>
                     ) : (
-                      <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full">no</span>
+                      <span className="text-xs bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 px-2 py-0.5 rounded-full">no</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-xs text-gray-500">
+                  <td className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
                     {ch.depends_on.length > 0 ? ch.depends_on.join(', ') : '—'}
                   </td>
-                  <td className="px-4 py-2 text-xs text-gray-700 text-right tabular-nums">
+                  <td className="px-4 py-2 text-xs text-gray-700 dark:text-gray-200 text-right tabular-nums">
                     {ch.examples_count > 0 ? (
                       <Link
                         to={`/examples?chapter=${ch.chabbr}`}
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         {ch.examples_count}
                       </Link>
@@ -210,7 +210,7 @@ export default function ChaptersPage() {
                       <span className="text-gray-300">0</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-xs text-gray-500">
+                  <td className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
                     {new Date(ch.cached_at).toLocaleDateString()}
                   </td>
                 </tr>

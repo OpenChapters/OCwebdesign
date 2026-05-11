@@ -34,52 +34,52 @@ export default function SettingsPage() {
   }
 
   if (isLoading || !form) {
-    return <div className="p-8 text-gray-500">Loading…</div>;
+    return <div className="p-8 text-gray-500 dark:text-gray-400">Loading…</div>;
   }
 
   return (
     <div className="p-8 max-w-3xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Site Settings</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-6">Site Settings</h1>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 space-y-6">
         {/* Site name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Site name</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Site name</label>
           <input
             value={form.site_name}
             onChange={(e) => setForm({ ...form, site_name: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <p className="text-xs text-gray-400 mt-1">Displayed in the navbar and emails.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Displayed in the navbar and emails.</p>
         </div>
 
         {/* Welcome message */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Welcome message</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Welcome message</label>
           <textarea
             value={form.welcome_message}
             onChange={(e) => setForm({ ...form, welcome_message: e.target.value })}
             rows={2}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <p className="text-xs text-gray-400 mt-1">Shown on the chapter browser page (optional).</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Shown on the chapter browser page (optional).</p>
         </div>
 
         {/* Announcement banner */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Announcement banner</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Announcement banner</label>
           <textarea
             value={form.announcement_banner}
             onChange={(e) => setForm({ ...form, announcement_banner: e.target.value })}
             rows={2}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <p className="text-xs text-gray-400 mt-1">Shown at the top of all pages. Leave blank to hide.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Shown at the top of all pages. Leave blank to hide.</p>
         </div>
 
         {/* Toggles */}
         <div className="flex flex-wrap gap-6">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
             <input
               type="checkbox"
               checked={form.registration_enabled}
@@ -88,7 +88,7 @@ export default function SettingsPage() {
             />
             Registration enabled
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
             <input
               type="checkbox"
               checked={form.build_enabled}
@@ -101,7 +101,7 @@ export default function SettingsPage() {
 
         {/* Author batch import */}
         <div>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
             <input
               type="checkbox"
               checked={form.author_batch_import_enabled}
@@ -112,7 +112,7 @@ export default function SettingsPage() {
             />
             Allow authors to batch-import worked examples
           </label>
-          <p className="text-xs text-gray-400 mt-1 ml-6">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 ml-6">
             When on, authenticated users see a "Batch import…" link on the
             Examples page. Author imports land as drafts or in the pending
             review queue — they cannot self-publish.
@@ -122,33 +122,33 @@ export default function SettingsPage() {
         {/* Numeric settings */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max chapters per book</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Max chapters per book</label>
             <input
               type="number"
               min={1}
               value={form.max_chapters_per_book}
               onChange={(e) => setForm({ ...form, max_chapters_per_book: parseInt(e.target.value) || 1 })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max concurrent builds</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Max concurrent builds</label>
             <input
               type="number"
               min={1}
               value={form.max_concurrent_builds}
               onChange={(e) => setForm({ ...form, max_concurrent_builds: parseInt(e.target.value) || 1 })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">PDF retention (days)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">PDF retention (days)</label>
             <input
               type="number"
               min={1}
               value={form.pdf_retention_days}
               onChange={(e) => setForm({ ...form, pdf_retention_days: parseInt(e.target.value) || 1 })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -162,7 +162,7 @@ export default function SettingsPage() {
           >
             {saving ? 'Saving…' : 'Save settings'}
           </button>
-          {message && <p className="text-sm text-green-600">{message}</p>}
+          {message && <p className="text-sm text-green-600 dark:text-green-400">{message}</p>}
         </div>
       </div>
     </div>

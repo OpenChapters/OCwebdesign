@@ -103,7 +103,7 @@ export default function ProfilePage() {
   if (isLoading || !profile) {
     return (
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <p className="text-gray-500">Loading…</p>
+        <p className="text-gray-500 dark:text-gray-400">Loading…</p>
       </div>
     );
   }
@@ -114,18 +114,18 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Profile</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50 mb-6">Profile</h1>
 
       {deletionDate && (
         <div
           role="alert"
-          className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+          className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
         >
           <div>
-            <p className="text-sm font-medium text-amber-900">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
               Account scheduled for deletion
             </p>
-            <p className="text-xs text-amber-800 mt-1">
+            <p className="text-xs text-amber-800 dark:text-amber-200 mt-1">
               Your account and all its data will be removed on{' '}
               <strong>{deletionDate.toLocaleString()}</strong>. Cancel any
               time before then to keep it.
@@ -141,12 +141,12 @@ export default function ProfilePage() {
       )}
 
       {/* Account info */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Account</h2>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
+        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Account</h2>
         <dl className="text-sm space-y-3">
           <div className="flex justify-between items-center">
-            <dt className="text-gray-500">Full Name</dt>
-            <dd className="text-gray-900 flex items-center gap-2">
+            <dt className="text-gray-500 dark:text-gray-400">Full Name</dt>
+            <dd className="text-gray-900 dark:text-gray-50 flex items-center gap-2">
               {editingName ? (
                 <form
                   onSubmit={async (e) => {
@@ -168,17 +168,17 @@ export default function ProfilePage() {
                     value={nameValue}
                     onChange={(e) => setNameValue(e.target.value)}
                     autoFocus
-                    className="border border-gray-300 rounded px-2 py-0.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="border border-gray-300 dark:border-gray-600 rounded px-2 py-0.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <button type="submit" disabled={nameSaving} className="text-xs text-blue-600 hover:underline">Save</button>
-                  <button type="button" onClick={() => setEditingName(false)} className="text-xs text-gray-400">Cancel</button>
+                  <button type="submit" disabled={nameSaving} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Save</button>
+                  <button type="button" onClick={() => setEditingName(false)} className="text-xs text-gray-400 dark:text-gray-500">Cancel</button>
                 </form>
               ) : (
                 <>
-                  {profile.full_name || <span className="text-gray-400 italic">Not set</span>}
+                  {profile.full_name || <span className="text-gray-400 dark:text-gray-500 italic">Not set</span>}
                   <button
                     onClick={() => { setNameValue(profile.full_name); setEditingName(true); }}
-                    className="text-xs text-blue-600 hover:underline"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     Edit
                   </button>
@@ -187,31 +187,31 @@ export default function ProfilePage() {
             </dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-gray-500">Email</dt>
-            <dd className="text-gray-900">{profile.email}</dd>
+            <dt className="text-gray-500 dark:text-gray-400">Email</dt>
+            <dd className="text-gray-900 dark:text-gray-50">{profile.email}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-gray-500">Member since</dt>
-            <dd className="text-gray-900">{new Date(profile.date_joined).toLocaleDateString()}</dd>
+            <dt className="text-gray-500 dark:text-gray-400">Member since</dt>
+            <dd className="text-gray-900 dark:text-gray-50">{new Date(profile.date_joined).toLocaleDateString()}</dd>
           </div>
           {profile.last_login && (
             <div className="flex justify-between">
-              <dt className="text-gray-500">Last login</dt>
-              <dd className="text-gray-900">{new Date(profile.last_login).toLocaleString()}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">Last login</dt>
+              <dd className="text-gray-900 dark:text-gray-50">{new Date(profile.last_login).toLocaleString()}</dd>
             </div>
           )}
           {profile.is_staff && (
             <div className="flex justify-between">
-              <dt className="text-gray-500">Role</dt>
-              <dd><span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Staff</span></dd>
+              <dt className="text-gray-500 dark:text-gray-400">Role</dt>
+              <dd><span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">Staff</span></dd>
             </div>
           )}
         </dl>
       </div>
 
       {/* Visibility */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Visibility</h2>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
+        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Visibility</h2>
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -234,10 +234,10 @@ export default function ProfilePage() {
             className="mt-1"
           />
           <div className="text-sm">
-            <div className="text-gray-900 font-medium">
+            <div className="text-gray-900 dark:text-gray-50 font-medium">
               Make my completed books visible in the Community library
             </div>
-            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
               When on, every completed book you build is listed publicly with its title,
               parts, and chapter list. Your full name (if set) is shown as the author —
               otherwise the entry is attributed to "Anonymous". Your email is never shown.
@@ -248,19 +248,19 @@ export default function ProfilePage() {
       </div>
 
       {/* My Examples */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             My worked examples
           </h2>
-          <Link to="/examples/new" className="text-sm text-blue-600 hover:underline">
+          <Link to="/examples/new" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
             + New example
           </Link>
         </div>
         {myExamples.length === 0 ? (
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-400 dark:text-gray-500">
             You haven't submitted any examples yet.{' '}
-            <Link to="/examples/new" className="text-blue-600 hover:underline">
+            <Link to="/examples/new" className="text-blue-600 dark:text-blue-400 hover:underline">
               Create one
             </Link>{' '}
             to share a worked problem with other authors.
@@ -271,25 +271,25 @@ export default function ProfilePage() {
       </div>
 
       {/* Change password */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Password</h2>
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Password</h2>
           {!showPwForm && (
             <button
               onClick={() => setShowPwForm(true)}
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               Change password
             </button>
           )}
         </div>
 
-        {pwSuccess && <p className="text-sm text-green-600 mb-3">{pwSuccess}</p>}
+        {pwSuccess && <p className="text-sm text-green-600 dark:text-green-400 mb-3">{pwSuccess}</p>}
 
         {showPwForm && (
           <form onSubmit={handleChangePassword} className="space-y-3">
             <div>
-              <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+              <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Current password</label>
               <input
                 id="current-password"
                 type="password"
@@ -297,11 +297,11 @@ export default function ProfilePage() {
                 value={currentPw}
                 onChange={(e) => setCurrentPw(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+              <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">New password</label>
               <input
                 id="new-password"
                 type="password"
@@ -310,11 +310,11 @@ export default function ProfilePage() {
                 onChange={(e) => setNewPw(e.target.value)}
                 required
                 minLength={8}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label htmlFor="confirm-new-password" className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+              <label htmlFor="confirm-new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Confirm new password</label>
               <input
                 id="confirm-new-password"
                 type="password"
@@ -323,10 +323,10 @@ export default function ProfilePage() {
                 onChange={(e) => setConfirmPw(e.target.value)}
                 required
                 minLength={8}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            {pwError && <p className="text-sm text-red-600">{pwError}</p>}
+            {pwError && <p className="text-sm text-red-600 dark:text-red-400">{pwError}</p>}
             <div className="flex gap-3">
               <button
                 type="submit"
@@ -338,7 +338,7 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => { setShowPwForm(false); setPwError(''); }}
-                className="text-sm text-gray-500"
+                className="text-sm text-gray-500 dark:text-gray-400"
               >
                 Cancel
               </button>
@@ -349,16 +349,16 @@ export default function ProfilePage() {
 
       {/* Danger zone */}
       {!deletionDate && (
-        <div className="bg-white border border-red-200 rounded-lg p-6">
-          <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-2">Danger zone</h2>
-          <p className="text-sm text-gray-500 mb-3">
+        <div className="bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900 rounded-lg p-6">
+          <h2 className="text-sm font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide mb-2">Danger zone</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
             Schedule your account for deletion. Your data (books, builds,
             worked examples) will be permanently removed seven days later.
             You can sign in and cancel any time before then.
           </p>
           <button
             onClick={handleDeleteAccount}
-            className="text-sm bg-red-50 text-red-700 px-4 py-2 rounded-lg hover:bg-red-100 font-medium"
+            className="text-sm bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 px-4 py-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 font-medium"
           >
             Schedule deletion (7 days)
           </button>
@@ -376,10 +376,10 @@ const STATUS_LABEL: Record<ExampleStatus, string> = {
   published: 'Published',
 };
 const STATUS_BADGE: Record<ExampleStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  rejected: 'bg-red-100 text-red-700',
-  pending: 'bg-amber-100 text-amber-800',
-  published: 'bg-emerald-100 text-emerald-800',
+  draft: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
+  rejected: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
+  pending: 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200',
+  published: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200',
 };
 
 function MyExamplesList({ items }: { items: ExampleListItem[] }) {
@@ -395,9 +395,9 @@ function MyExamplesList({ items }: { items: ExampleListItem[] }) {
         if (group.length === 0) return null;
         return (
           <div key={s}>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
               {STATUS_LABEL[s]}{' '}
-              <span className="font-normal text-gray-400">({group.length})</span>
+              <span className="font-normal text-gray-400 dark:text-gray-500">({group.length})</span>
             </h3>
             <ul className="space-y-1.5">
               {group.map((ex) => {
@@ -410,17 +410,17 @@ function MyExamplesList({ items }: { items: ExampleListItem[] }) {
                   <li key={ex.id}>
                     <Link
                       to={target}
-                      className="block px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded transition"
+                      className="block px-3 py-2 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded transition"
                     >
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_BADGE[ex.status]}`}>
                           #{ex.id}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           {ex.primary_chapter.chabbr} · {ex.difficulty}
                         </span>
                       </div>
-                      <p className="font-mono text-xs text-gray-700 line-clamp-1">{preview}</p>
+                      <p className="font-mono text-xs text-gray-700 dark:text-gray-200 line-clamp-1">{preview}</p>
                     </Link>
                   </li>
                 );

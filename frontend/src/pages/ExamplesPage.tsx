@@ -14,15 +14,15 @@ const DIFFICULTY_LABEL: Record<ExampleDifficulty, string> = {
 };
 
 const DIFFICULTY_BADGE: Record<ExampleDifficulty, string> = {
-  introductory: 'bg-emerald-100 text-emerald-800',
-  standard: 'bg-blue-100 text-blue-800',
-  advanced: 'bg-amber-100 text-amber-800',
+  introductory: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200',
+  standard: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300',
+  advanced: 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200',
 };
 
 function StatementPreview({ tex }: { tex: string }) {
   const trimmed = tex.length > 240 ? tex.slice(0, 240) + '…' : tex;
   return (
-    <pre className="font-mono text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+    <pre className="font-mono text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
       {trimmed}
     </pre>
   );
@@ -63,8 +63,8 @@ export default function ExamplesPage() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Worked examples</h1>
-          <p className="text-sm text-gray-600 mt-1 max-w-2xl">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">Worked examples</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 max-w-2xl">
             Community-contributed examples with full solutions, tagged to one
             or more chapters. Browse here, or include them at book build time.
           </p>
@@ -98,7 +98,7 @@ export default function ExamplesPage() {
             id="examples-chapter-filter"
             value={chapter}
             onChange={(e) => setChapter(e.target.value)}
-            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:w-auto border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All chapters</option>
             {chapters
@@ -118,7 +118,7 @@ export default function ExamplesPage() {
             id="examples-difficulty-filter"
             value={difficulty}
             onChange={(e) => setDifficulty(e.target.value)}
-            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:w-auto border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All difficulties</option>
             <option value="introductory">Introductory</option>
@@ -136,19 +136,19 @@ export default function ExamplesPage() {
             placeholder="Search statement / solution…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
 
-      {isLoading && <p className="text-gray-500 py-12 text-center">Loading…</p>}
+      {isLoading && <p className="text-gray-500 dark:text-gray-400 py-12 text-center">Loading…</p>}
 
       {!isLoading && examples.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-lg">
-          <p className="text-lg font-semibold text-gray-700 mb-1">
+        <div className="text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+          <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-1">
             No examples yet
           </p>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-400 dark:text-gray-500">
             {isAuthenticated
               ? 'Be the first to submit one.'
               : 'Sign in to contribute.'}
@@ -161,7 +161,7 @@ export default function ExamplesPage() {
           <Link
             key={ex.id}
             to={`/examples/${ex.id}`}
-            className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition"
+            className="block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition"
           >
             <div className="flex items-start justify-between gap-3 mb-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -173,13 +173,13 @@ export default function ExamplesPage() {
                 {ex.chapters.map((ch) => (
                   <span
                     key={ch.id}
-                    className="text-xs font-mono bg-gray-100 text-gray-700 px-2 py-0.5 rounded"
+                    className="text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-2 py-0.5 rounded"
                   >
                     {ch.chabbr}
                   </span>
                 ))}
               </div>
-              <span className="text-xs text-gray-400 shrink-0">
+              <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
                 by {ex.author_display}
               </span>
             </div>

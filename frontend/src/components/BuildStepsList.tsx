@@ -2,10 +2,10 @@ import type { BuildStep } from '../types';
 
 const STATUS_ICON: Record<BuildStep['status'], { glyph: string; cls: string; aria: string }> = {
   pending:   { glyph: '○', cls: 'text-gray-300',     aria: 'Pending' },
-  running:   { glyph: '◐', cls: 'text-blue-600 animate-pulse', aria: 'Running' },
-  succeeded: { glyph: '✓', cls: 'text-emerald-600', aria: 'Succeeded' },
-  failed:    { glyph: '✗', cls: 'text-red-600',     aria: 'Failed' },
-  skipped:   { glyph: '–', cls: 'text-gray-400',    aria: 'Skipped' },
+  running:   { glyph: '◐', cls: 'text-blue-600 dark:text-blue-400 animate-pulse', aria: 'Running' },
+  succeeded: { glyph: '✓', cls: 'text-emerald-600 dark:text-emerald-400', aria: 'Succeeded' },
+  failed:    { glyph: '✗', cls: 'text-red-600 dark:text-red-400',     aria: 'Failed' },
+  skipped:   { glyph: '–', cls: 'text-gray-400 dark:text-gray-500',    aria: 'Skipped' },
 };
 
 function durationText(started: string | null, finished: string | null): string {
@@ -23,7 +23,7 @@ function durationText(started: string | null, finished: string | null): string {
 export default function BuildStepsList({ steps }: { steps: BuildStep[] }) {
   if (steps.length === 0) {
     return (
-      <p className="text-sm text-gray-400 italic">
+      <p className="text-sm text-gray-400 dark:text-gray-500 italic">
         No progress recorded yet — the build is still spinning up.
       </p>
     );
@@ -39,10 +39,10 @@ export default function BuildStepsList({ steps }: { steps: BuildStep[] }) {
             key={step.order}
             className={`flex gap-3 items-start border rounded-md px-3 py-2 ${
               step.status === 'failed'
-                ? 'border-red-200 bg-red-50'
+                ? 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40'
                 : step.status === 'running'
-                  ? 'border-blue-200 bg-blue-50'
-                  : 'border-gray-200 bg-white'
+                  ? 'border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
             }`}
           >
             <span
@@ -54,20 +54,20 @@ export default function BuildStepsList({ steps }: { steps: BuildStep[] }) {
             </span>
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-sm font-medium text-gray-900">{step.label}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-50">{step.label}</span>
                 {step.detail && (
-                  <span className="text-xs text-gray-500 truncate">{step.detail}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{step.detail}</span>
                 )}
               </div>
               {duration && (
-                <p className="text-xs text-gray-400 mt-0.5">{duration}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{duration}</p>
               )}
               {step.status === 'failed' && step.log_tail && (
                 <details className="mt-2">
-                  <summary className="text-xs text-red-700 cursor-pointer hover:underline">
+                  <summary className="text-xs text-red-700 dark:text-red-300 cursor-pointer hover:underline">
                     Show log
                   </summary>
-                  <pre className="mt-1 text-xs text-red-900 font-mono whitespace-pre-wrap bg-white border border-red-200 rounded p-2 max-h-64 overflow-y-auto">
+                  <pre className="mt-1 text-xs text-red-900 dark:text-red-200 font-mono whitespace-pre-wrap bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900 rounded p-2 max-h-64 overflow-y-auto">
                     {step.log_tail}
                   </pre>
                 </details>

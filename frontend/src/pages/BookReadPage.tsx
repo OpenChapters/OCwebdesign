@@ -30,18 +30,18 @@ export default function BookReadPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <p className="text-gray-500">Loading…</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-500 dark:text-gray-400">Loading…</p>
       </div>
     );
   }
 
   if (!book || !book.html_built_at) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">HTML version not available for this book.</p>
-          <Link to="/books" className="text-blue-600 hover:underline text-sm">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">HTML version not available for this book.</p>
+          <Link to="/books" className="text-blue-600 dark:text-blue-400 hover:underline text-sm">
             Back to my books
           </Link>
         </div>
@@ -54,12 +54,12 @@ export default function BookReadPage() {
     : '';
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-4 shrink-0">
-        <Link to="/books" className="text-sm text-gray-500 hover:text-gray-700">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center gap-4 shrink-0">
+        <Link to="/books" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
           &larr; My Books
         </Link>
-        <h1 className="text-sm font-semibold text-gray-900 truncate">{book.title}</h1>
+        <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate">{book.title}</h1>
       </div>
 
       {iframeSrc ? (
@@ -69,7 +69,7 @@ export default function BookReadPage() {
           style={{ width: '100%', height: 'calc(100vh - 48px)', border: 'none' }}
         />
       ) : (
-        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+        <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
           Preparing viewer…
         </div>
       )}

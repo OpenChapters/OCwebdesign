@@ -95,19 +95,19 @@ export default function ChapterDetailPage() {
   }
 
   if (isLoading) {
-    return <div className="text-center text-gray-500 py-16">Loading…</div>;
+    return <div className="text-center text-gray-500 dark:text-gray-400 py-16">Loading…</div>;
   }
   if (!chapter) {
-    return <div className="text-center text-red-600 py-16">Chapter not found.</div>;
+    return <div className="text-center text-red-600 dark:text-red-400 py-16">Chapter not found.</div>;
   }
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <Link to="/chapters" className="text-sm text-gray-400 hover:text-gray-600">
+      <Link to="/chapters" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
         ← Back to browser
       </Link>
 
-      <div className="mt-6 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="mt-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
         {chapter.cover_image_url && !imgFailed ? (
           <img
             src={`/api/chapters/${chapter.id}/cover/?v=${new Date(chapter.cached_at).getTime()}`}
@@ -116,7 +116,7 @@ export default function ChapterDetailPage() {
             onError={() => setImgFailed(true)}
           />
         ) : (
-          <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+          <div className="w-full h-48 bg-gradient-to-br from-blue-50 dark:from-blue-950 to-blue-100 dark:to-blue-900 flex items-center justify-center">
             <span className="text-6xl">📖</span>
           </div>
         )}
@@ -124,16 +124,16 @@ export default function ChapterDetailPage() {
         <div className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{chapter.title}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">{chapter.title}</h1>
               {chapter.authors.length > 0 && (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   {chapter.authors.map((name, i) => {
                     const url = chapter.author_urls?.[name];
                     return (
                       <span key={name}>
                         {i > 0 && ', '}
                         {url ? (
-                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{name}</a>
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">{name}</a>
                         ) : name}
                       </span>
                     );
@@ -141,7 +141,7 @@ export default function ChapterDetailPage() {
                 </p>
               )}
               {(chapter.last_updated || chapter.reviewer_name) && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                   {chapter.last_updated && (
                     <>Last updated {new Date(chapter.last_updated).toLocaleDateString()}</>
                   )}
@@ -155,8 +155,8 @@ export default function ChapterDetailPage() {
             <span
               className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${
                 chapter.chapter_type === 'foundational'
-                  ? 'bg-blue-100 text-blue-800'
-                  : 'bg-purple-100 text-purple-800'
+                  ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300'
+                  : 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300'
               }`}
             >
               {chapter.chapter_type}
@@ -164,7 +164,7 @@ export default function ChapterDetailPage() {
           </div>
 
           {chapter.description && (
-            <p className="text-sm text-gray-600 mt-4 leading-relaxed">{chapter.description}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-4 leading-relaxed">{chapter.description}</p>
           )}
 
           {(chapter.html_built_at ||
@@ -196,7 +196,7 @@ export default function ChapterDetailPage() {
               {chapter.keywords.map((kw) => (
                 <span
                   key={kw}
-                  className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
+                  className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded"
                 >
                   {kw}
                 </span>
@@ -206,8 +206,8 @@ export default function ChapterDetailPage() {
 
           {chapter.toc.length > 0 && (
             <div className="mt-6">
-              <h2 className="text-sm font-semibold text-gray-700 mb-2">Table of Contents</h2>
-              <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Table of Contents</h2>
+              <ol className="list-decimal list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1">
                 {chapter.toc.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -217,27 +217,27 @@ export default function ChapterDetailPage() {
 
           {chapter.depends_on.length > 0 && (
             <div className="mt-6">
-              <h2 className="text-sm font-semibold text-gray-700 mb-1">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">
                 Depends on foundational chapters
               </h2>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {chapter.depends_on.join(', ')}
               </p>
             </div>
           )}
 
           {taggedExamples.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-gray-700">
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                   Worked examples
-                  <span className="ml-2 text-xs font-normal text-gray-400">
+                  <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500">
                     ({taggedExamples.length})
                   </span>
                 </h2>
                 <Link
                   to={`/examples?chapter=${chapter.chabbr}`}
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   Browse all →
                 </Link>
@@ -247,16 +247,16 @@ export default function ChapterDetailPage() {
                   <Link
                     key={ex.id}
                     to={`/examples/${ex.id}`}
-                    className="block bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 transition"
+                    className="block bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 transition"
                   >
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                      <span className="font-medium text-gray-700">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <span className="font-medium text-gray-700 dark:text-gray-200">
                         {ex.difficulty.charAt(0).toUpperCase() + ex.difficulty.slice(1)}
                       </span>
                       <span>·</span>
                       <span>by {ex.author_display}</span>
                     </div>
-                    <p className="font-mono text-xs text-gray-700 line-clamp-2 whitespace-pre-wrap">
+                    <p className="font-mono text-xs text-gray-700 dark:text-gray-200 line-clamp-2 whitespace-pre-wrap">
                       {ex.statement_tex.length > 180
                         ? ex.statement_tex.slice(0, 180) + '…'
                         : ex.statement_tex}
@@ -268,7 +268,7 @@ export default function ChapterDetailPage() {
           )}
 
           {/* Add to Book */}
-          <div className="mt-8 pt-6 border-t border-gray-100">
+          <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
             {isAuthenticated ? (
               <div className="relative">
                 <button
@@ -279,8 +279,8 @@ export default function ChapterDetailPage() {
                 </button>
 
                 {showAdd && (
-                  <div className="absolute left-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-10 w-72">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  <div className="absolute left-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-10 w-72">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
                       Choose a book
                     </p>
                     {draftBooks.length > 0 && (
@@ -290,7 +290,7 @@ export default function ChapterDetailPage() {
                             key={b.id}
                             onClick={() => addToBook(b.id)}
                             disabled={adding}
-                            className="w-full text-left text-sm text-gray-800 hover:bg-gray-50 rounded px-2 py-1.5 disabled:opacity-50"
+                            className="w-full text-left text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 py-1.5 disabled:opacity-50"
                           >
                             {b.title}
                           </button>
@@ -309,7 +309,7 @@ export default function ChapterDetailPage() {
                           onChange={(e) => setNewBookTitle(e.target.value)}
                           autoFocus
                           required
-                          className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button
                           type="submit"
@@ -322,7 +322,7 @@ export default function ChapterDetailPage() {
                     ) : (
                       <button
                         onClick={() => setShowNewBookInput(true)}
-                        className="w-full text-sm text-blue-600 hover:bg-blue-50 rounded px-2 py-1.5 text-left font-medium"
+                        className="w-full text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded px-2 py-1.5 text-left font-medium"
                       >
                         + Create new book
                       </button>
@@ -333,7 +333,7 @@ export default function ChapterDetailPage() {
             ) : (
               <Link
                 to="/login"
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
               >
                 Sign in to add this chapter to a book
               </Link>

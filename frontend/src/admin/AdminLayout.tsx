@@ -21,8 +21,8 @@ function SidebarLink({ to, label, end }: { to: string; label: string; end?: bool
       className={({ isActive }) =>
         `block px-4 py-2 text-sm rounded-lg transition-colors ${
           isActive
-            ? 'bg-blue-50 text-blue-700 font-medium'
-            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium'
+            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-50'
         }`
       }
     >
@@ -33,14 +33,14 @@ function SidebarLink({ to, label, end }: { to: string; label: string; end?: bool
 
 export default function AdminLayout() {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
-      <aside className="w-56 bg-white border-r border-gray-200 flex flex-col shrink-0">
-        <div className="px-4 py-4 border-b border-gray-200">
-          <Link to="/" className="text-sm text-gray-400 hover:text-gray-600">
+      <aside className="w-56 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
+        <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700">
+          <Link to="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
             ← Back to site
           </Link>
-          <h2 className="text-lg font-bold text-gray-900 mt-1">Admin Panel</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-50 mt-1">Admin Panel</h2>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {NAV_ITEMS.map((item) => (

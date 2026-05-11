@@ -27,7 +27,7 @@ export function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 bg-white border border-gray-200 rounded px-3 py-2 text-sm"
+      className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-sm"
     >
       <span
         {...attributes}
@@ -35,15 +35,15 @@ export function SortableItem({
         role="button"
         tabIndex={0}
         aria-label={`Drag handle for ${bookChapter.chapter_detail.title} — use the keyboard to reorder or move between parts`}
-        className="cursor-grab text-gray-300 hover:text-gray-500 select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+        className="cursor-grab text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
       >
         <span aria-hidden="true">⠿</span>
       </span>
-      <span className="flex-1 truncate text-gray-800">{bookChapter.chapter_detail.title}</span>
+      <span className="flex-1 truncate text-gray-800 dark:text-gray-100">{bookChapter.chapter_detail.title}</span>
       <button
         onClick={onRemove}
         aria-label={`Remove chapter "${bookChapter.chapter_detail.title}" from this part`}
-        className="text-gray-300 hover:text-red-500 transition-colors font-bold text-base leading-none focus:outline-none focus:ring-2 focus:ring-red-500 rounded px-1"
+        className="text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors font-bold text-base leading-none focus:outline-none focus:ring-2 focus:ring-red-500 rounded px-1"
       >
         <span aria-hidden="true">×</span>
       </button>
@@ -65,12 +65,12 @@ export default function SortableChapterList({ partId, chapters, onRemove }: Prop
     <div
       ref={setNodeRef}
       className={`flex flex-col gap-1 min-h-[2rem] rounded transition-colors ${
-        isOver ? 'bg-blue-50' : ''
+        isOver ? 'bg-blue-50 dark:bg-blue-950/40' : ''
       }`}
     >
       <SortableContext items={chapters.map((c) => c.id)} strategy={verticalListSortingStrategy}>
         {chapters.length === 0 ? (
-          <p className="text-xs text-gray-400 italic py-2 text-center">
+          <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2 text-center">
             Drop chapters here, or add from the catalog.
           </p>
         ) : (

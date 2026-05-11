@@ -371,8 +371,8 @@ export default function BookEditorPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────
 
-  if (bookLoading) return <div className="text-center text-gray-500 py-16">Loading…</div>;
-  if (!book) return <div className="text-center text-red-600 py-16">Book not found.</div>;
+  if (bookLoading) return <div className="text-center text-gray-500 dark:text-gray-400 py-16">Loading…</div>;
+  if (!book) return <div className="text-center text-red-600 dark:text-red-400 py-16">Book not found.</div>;
 
   const chapterCount = book.parts.reduce((sum, p) => sum + p.chapters.length, 0);
   const canBuild = chapterCount > 0 && book.status !== 'building' && book.status !== 'queued';
@@ -380,8 +380,8 @@ export default function BookEditorPage() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Link to="/books" className="text-sm text-gray-400 hover:text-gray-600">← My Books</Link>
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Link to="/books" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">← My Books</Link>
         <div className="flex-1 min-w-[180px]">
           {editingTitle ? (
             <div className="flex items-center gap-2">
@@ -391,22 +391,22 @@ export default function BookEditorPage() {
                 autoFocus value={bookTitle}
                 onChange={(e) => setBookTitle(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && saveTitle()}
-                className="flex-1 border border-blue-400 rounded px-2 py-1 text-base font-bold focus:outline-none"
+                className="flex-1 border border-blue-400 dark:border-blue-700 rounded px-2 py-1 text-base font-bold focus:outline-none"
               />
-              <button onClick={saveTitle} className="text-sm text-blue-600 hover:underline">Save</button>
-              <button onClick={() => { setEditingTitle(false); setBookTitle(book.title); }} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+              <button onClick={saveTitle} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Save</button>
+              <button onClick={() => { setEditingTitle(false); setBookTitle(book.title); }} className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">Cancel</button>
             </div>
           ) : (
             <button
               onClick={() => setEditingTitle(true)}
-              className="text-base font-bold text-gray-900 hover:text-blue-600 text-left"
+              className="text-base font-bold text-gray-900 dark:text-gray-50 hover:text-blue-600 dark:hover:text-blue-400 text-left"
               aria-label={`Edit book title (currently "${book.title}")`}
             >
               {book.title} <span aria-hidden="true">✎</span>
             </button>
           )}
         </div>
-        <span className="text-sm text-gray-500">{chapterCount} chapters</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{chapterCount} chapters</span>
 
         {/* Build status indicator — surfaces the current pipeline step
             so the user sees real progress instead of a static badge. */}
@@ -418,7 +418,7 @@ export default function BookEditorPage() {
             return (
               <Link
                 to={`/books/${bookId}/status`}
-                className="text-xs bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-full font-medium animate-pulse hover:bg-yellow-200"
+                className="text-xs bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 px-3 py-1.5 rounded-full font-medium animate-pulse hover:bg-yellow-200 dark:hover:bg-yellow-900/60"
               >
                 Queued…
               </Link>
@@ -431,7 +431,7 @@ export default function BookEditorPage() {
             return (
               <Link
                 to={`/books/${bookId}/status`}
-                className="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full font-medium animate-pulse hover:bg-blue-200 max-w-md truncate"
+                className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 px-3 py-1.5 rounded-full font-medium animate-pulse hover:bg-blue-200 dark:hover:bg-blue-900/60 max-w-md truncate"
                 title={text}
               >
                 {text}
@@ -440,14 +440,14 @@ export default function BookEditorPage() {
           }
           if (buildStatus === 'complete') {
             return (
-              <Link to={`/books/${bookId}/status`} className="text-xs bg-green-100 text-green-800 px-3 py-1.5 rounded-full font-medium hover:bg-green-200">
+              <Link to={`/books/${bookId}/status`} className="text-xs bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 px-3 py-1.5 rounded-full font-medium hover:bg-green-200 dark:hover:bg-green-900/60">
                 Build complete — View
               </Link>
             );
           }
           if (buildStatus === 'failed') {
             return (
-              <Link to={`/books/${bookId}/status`} className="text-xs bg-red-100 text-red-800 px-3 py-1.5 rounded-full font-medium hover:bg-red-200">
+              <Link to={`/books/${bookId}/status`} className="text-xs bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 px-3 py-1.5 rounded-full font-medium hover:bg-red-200 dark:hover:bg-red-900/60">
                 Build Failed — View
               </Link>
             );
@@ -457,7 +457,7 @@ export default function BookEditorPage() {
 
         {book.examples_count > 0 && (
           <label
-            className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"
+            className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300 cursor-pointer"
             title="When checked, the build appends published worked examples after each tagged chapter."
           >
             <input
@@ -471,7 +471,7 @@ export default function BookEditorPage() {
         )}
         {book.examples_count > 0 && book.include_examples && (
           <label
-            className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"
+            className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300 cursor-pointer"
             title="When unchecked, statements appear without solutions — useful as a problem-only handout."
           >
             <input
@@ -488,12 +488,12 @@ export default function BookEditorPage() {
             type="button"
             onClick={() => setShowExamplePicker(true)}
             disabled={building || buildStatus === 'queued' || buildStatus === 'building'}
-            className="text-xs text-blue-600 hover:text-blue-800 underline disabled:opacity-40 disabled:no-underline"
+            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline disabled:opacity-40 disabled:no-underline"
             title="Pick which examples are included in this and future builds."
           >
             Customize examples…
             {book.excluded_example_ids && book.excluded_example_ids.length > 0 && (
-              <span className="ml-1 text-gray-500">
+              <span className="ml-1 text-gray-500 dark:text-gray-400">
                 ({book.excluded_example_ids.length} excluded)
               </span>
             )}
@@ -502,7 +502,7 @@ export default function BookEditorPage() {
 
         <button
           onClick={() => setShowPreview(!showPreview)}
-          className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50"
+          className="text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
           aria-expanded={showPreview}
           aria-controls="book-toc-preview"
         >
@@ -514,7 +514,7 @@ export default function BookEditorPage() {
           value={buildFormat}
           onChange={(e) => setBuildFormat(e.target.value as BuildFormat)}
           disabled={building || buildStatus === 'queued' || buildStatus === 'building'}
-          className="text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+          className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
         >
           <option value="pdf">PDF</option>
           <option value="html">HTML</option>
@@ -532,13 +532,13 @@ export default function BookEditorPage() {
       </div>
 
       {/* Mobile-only pane toggle */}
-      <div className="md:hidden bg-white border-b border-gray-200 px-4 py-2 flex gap-2" role="tablist" aria-label="Book editor panes">
+      <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex gap-2" role="tablist" aria-label="Book editor panes">
         <button
           type="button"
           role="tab"
           aria-selected={mobileView === 'catalog'}
           onClick={() => setMobileView('catalog')}
-          className={`flex-1 text-sm py-1.5 rounded ${mobileView === 'catalog' ? 'bg-blue-100 text-blue-800 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+          className={`flex-1 text-sm py-1.5 rounded ${mobileView === 'catalog' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
         >
           Catalog
         </button>
@@ -547,7 +547,7 @@ export default function BookEditorPage() {
           role="tab"
           aria-selected={mobileView === 'structure'}
           onClick={() => setMobileView('structure')}
-          className={`flex-1 text-sm py-1.5 rounded ${mobileView === 'structure' ? 'bg-blue-100 text-blue-800 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+          className={`flex-1 text-sm py-1.5 rounded ${mobileView === 'structure' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
         >
           Book Structure
         </button>
@@ -555,22 +555,22 @@ export default function BookEditorPage() {
 
       {/* TOC Preview panel */}
       {showPreview && (
-        <div id="book-toc-preview" className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 max-h-64 overflow-y-auto">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Book Preview</p>
+        <div id="book-toc-preview" className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 max-h-64 overflow-y-auto">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Book Preview</p>
           <div className="text-sm">
-            <p className="font-bold text-gray-900 mb-2">{book.title}</p>
+            <p className="font-bold text-gray-900 dark:text-gray-50 mb-2">{book.title}</p>
             {book.parts.length === 0 ? (
-              <p className="text-gray-400 italic">No parts added yet.</p>
+              <p className="text-gray-400 dark:text-gray-500 italic">No parts added yet.</p>
             ) : (
               book.parts.map((part, pi) => (
                 <div key={part.id} className="mb-2">
-                  <p className="font-semibold text-gray-700">
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">
                     Part {pi + 1}: {part.title}
                   </p>
                   {part.chapters.length === 0 ? (
-                    <p className="text-gray-400 italic text-xs ml-4">No chapters</p>
+                    <p className="text-gray-400 dark:text-gray-500 italic text-xs ml-4">No chapters</p>
                   ) : (
-                    <ol className="ml-4 text-gray-600 list-decimal list-inside">
+                    <ol className="ml-4 text-gray-600 dark:text-gray-300 list-decimal list-inside">
                       {part.chapters.map((bc) => (
                         <li key={bc.id}>{bc.chapter_detail.title}</li>
                       ))}
@@ -587,17 +587,17 @@ export default function BookEditorPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Chapter catalog */}
         <div
-          className={`${mobileView === 'catalog' ? 'flex' : 'hidden'} md:flex w-full md:w-2/5 md:border-r border-gray-200 flex-col overflow-hidden bg-gray-50`}
+          className={`${mobileView === 'catalog' ? 'flex' : 'hidden'} md:flex w-full md:w-2/5 md:border-r border-gray-200 dark:border-gray-700 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900`}
         >
-          <div className="px-4 py-3 border-b border-gray-200 bg-white">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Chapter Catalog</p>
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Chapter Catalog</p>
             <div className="flex flex-col sm:flex-row gap-2 mb-2">
               <label htmlFor="editor-chapter-search" className="sr-only">Search chapters in catalog</label>
               <input
                 id="editor-chapter-search"
                 type="search" placeholder="Search chapters…" value={chapterSearch}
                 onChange={(e) => setChapterSearch(e.target.value)}
-                className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {disciplines.length > 1 && (
                 <>
@@ -606,7 +606,7 @@ export default function BookEditorPage() {
                     id="editor-discipline"
                     value={editorDiscipline}
                     onChange={(e) => setEditorDiscipline(e.target.value)}
-                    className="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">All</option>
                     {disciplines.map((d: any) => (
@@ -617,7 +617,7 @@ export default function BookEditorPage() {
               )}
             </div>
             {activePart && (
-              <p className="text-xs text-blue-600 mt-2">
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
                 Adding to: <strong>{book.parts.find((p) => p.id === activePart)?.title}</strong>
               </p>
             )}
@@ -640,15 +640,15 @@ export default function BookEditorPage() {
         <div
           className={`${mobileView === 'structure' ? 'flex' : 'hidden'} md:flex flex-1 flex-col overflow-hidden`}
         >
-          <div className="px-5 py-3 border-b border-gray-200 bg-white">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Book Structure</p>
+          <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Book Structure</p>
           </div>
 
           {/* Cover image upload */}
-          <div className="mx-5 mt-4 bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-4">
+          <div className="mx-5 mt-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center gap-4">
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-700">Cover Page Image</p>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Cover Page Image</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                 {book.has_cover_image
                   ? 'Custom cover image uploaded.'
                   : 'Using default cover. Upload a PDF to customize.'}
@@ -661,12 +661,12 @@ export default function BookEditorPage() {
                   toast('Cover image removed.', 'info');
                   refresh();
                 }}
-                className="text-xs text-red-600 hover:underline"
+                className="text-xs text-red-600 dark:text-red-400 hover:underline"
               >
                 Remove
               </button>
             ) : null}
-            <label className="text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded cursor-pointer hover:bg-gray-200">
+            <label className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600">
               {book.has_cover_image ? 'Replace' : 'Upload PDF'}
               <input
                 type="file"
@@ -689,8 +689,8 @@ export default function BookEditorPage() {
           </div>
 
           {/* DOI field */}
-          <div className="mx-5 mt-3 bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-4">
-            <p className="text-sm font-medium text-gray-700 shrink-0">DOI</p>
+          <div className="mx-5 mt-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center gap-4">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 shrink-0">DOI</p>
             <input
               type="text"
               placeholder="e.g. 10.1234/openchapters.2026"
@@ -705,23 +705,23 @@ export default function BookEditorPage() {
                   } catch { /* ignore */ }
                 }
               }}
-              className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600"
+              className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600 dark:text-gray-300"
             />
-            <p className="text-xs text-gray-400 shrink-0">(optional)</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 shrink-0">(optional)</p>
           </div>
 
           {/* Auto-include suggestions */}
           {suggestions.length > 0 && (
-            <div className="mx-5 mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="mx-5 mt-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-800">Required foundational chapters</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Required foundational chapters</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
                     The topical chapters you selected reference these foundational chapters.
                   </p>
                   <ul className="mt-2 space-y-1">
                     {suggestions.map((ch) => (
-                      <li key={ch.id} className="flex items-center gap-2 text-sm text-amber-900">
+                      <li key={ch.id} className="flex items-center gap-2 text-sm text-amber-900 dark:text-amber-100">
                         <span className="flex-1">{ch.title}</span>
                         <button onClick={() => addSuggestedChapter(ch.id)} className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded hover:bg-amber-700">+ Add</button>
                       </li>
@@ -730,7 +730,7 @@ export default function BookEditorPage() {
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
                   <button onClick={addAllSuggestions} className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded hover:bg-amber-700">Add all</button>
-                  <button onClick={() => setSuggestions([])} className="text-xs text-amber-600 hover:underline">Dismiss</button>
+                  <button onClick={() => setSuggestions([])} className="text-xs text-amber-600 dark:text-amber-400 hover:underline">Dismiss</button>
                 </div>
               </div>
             </div>
@@ -741,13 +741,13 @@ export default function BookEditorPage() {
               {book.parts.map((part) => (
                 <div
                   key={part.id}
-                  className={`bg-white border rounded-lg overflow-hidden ${
-                    activePart === part.id ? 'border-blue-400 shadow-sm' : 'border-gray-200'
+                  className={`bg-white dark:bg-gray-800 border rounded-lg overflow-hidden ${
+                    activePart === part.id ? 'border-blue-400 dark:border-blue-700 shadow-sm' : 'border-gray-200 dark:border-gray-700'
                   }`}
                 >
                   {/* Part header */}
                   <div
-                    className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200 cursor-pointer"
+                    className="flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 cursor-pointer"
                     onClick={() => setActivePart(part.id)}
                   >
                     {editingPartId === part.id ? (
@@ -755,37 +755,37 @@ export default function BookEditorPage() {
                         <input autoFocus value={editingPartTitle}
                           onChange={(e) => setEditingPartTitle(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && savePart(part)}
-                          className="flex-1 border border-blue-400 rounded px-2 py-0.5 text-sm font-semibold focus:outline-none"
+                          className="flex-1 border border-blue-400 dark:border-blue-700 rounded px-2 py-0.5 text-sm font-semibold focus:outline-none"
                         />
-                        <button onClick={() => savePart(part)} className="text-xs text-blue-600 hover:underline">Save</button>
-                        <button onClick={() => setEditingPartId(null)} className="text-xs text-gray-400">Cancel</button>
+                        <button onClick={() => savePart(part)} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Save</button>
+                        <button onClick={() => setEditingPartId(null)} className="text-xs text-gray-400 dark:text-gray-500">Cancel</button>
                       </div>
                     ) : (
                       <>
-                        <span className="flex-1 text-sm font-semibold text-gray-800">
+                        <span className="flex-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
                           {part.title}
-                          {activePart === part.id && <span className="ml-2 text-xs text-blue-500 font-normal">(active)</span>}
+                          {activePart === part.id && <span className="ml-2 text-xs text-blue-500 dark:text-blue-400 font-normal">(active)</span>}
                         </span>
                         <button onClick={(e) => { e.stopPropagation(); movePartUp(part.id); }}
                           disabled={book.parts.indexOf(part) === 0}
                           aria-label={`Move part "${part.title}" up`}
-                          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-20 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1">
+                          className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1">
                           <span aria-hidden="true">▲</span>
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); movePartDown(part.id); }}
                           disabled={book.parts.indexOf(part) === book.parts.length - 1}
                           aria-label={`Move part "${part.title}" down`}
-                          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-20 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1">
+                          className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1">
                           <span aria-hidden="true">▼</span>
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); setEditingPartId(part.id); setEditingPartTitle(part.title); }}
                           aria-label={`Rename part "${part.title}"`}
-                          className="text-xs text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1">
+                          className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1">
                           <span aria-hidden="true">✎</span>
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); deletePart(part.id); }}
                           aria-label={`Delete part "${part.title}"`}
-                          className="text-xs text-gray-400 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 rounded p-1">
+                          className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 rounded p-1">
                           <span aria-hidden="true">🗑</span>
                         </button>
                       </>
@@ -808,7 +808,7 @@ export default function BookEditorPage() {
             <form onSubmit={addPart} className="flex gap-2">
               <input type="text" placeholder="New part title…" value={newPartTitle}
                 onChange={(e) => setNewPartTitle(e.target.value)}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button type="submit" disabled={!newPartTitle.trim()}
                 className="bg-gray-800 text-white text-sm px-4 py-2 rounded-lg hover:bg-gray-900 disabled:opacity-40">

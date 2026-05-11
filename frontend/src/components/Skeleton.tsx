@@ -2,14 +2,14 @@
 
 export function SkeletonBlock({ className = '' }: { className?: string }) {
   return (
-    <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
+    <div className={`animate-pulse bg-gray-200 dark:bg-gray-700 rounded ${className}`} />
   );
 }
 
 /** Skeleton for a chapter card in the browser grid. */
 export function SkeletonCard() {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
       <SkeletonBlock className="w-full h-28 rounded-t-lg rounded-b-none" />
       <div className="p-3 space-y-2">
         <SkeletonBlock className="h-4 w-3/4" />
@@ -33,7 +33,7 @@ export function SkeletonCardGrid({ count = 10 }: { count?: number }) {
 /** Skeleton for a table row. */
 export function SkeletonRow({ cols = 4 }: { cols?: number }) {
   return (
-    <tr className="border-b border-gray-100">
+    <tr className="border-b border-gray-100 dark:border-gray-700">
       {Array.from({ length: cols }, (_, i) => (
         <td key={i} className="px-4 py-3">
           <SkeletonBlock className="h-4 w-full" />
@@ -46,10 +46,10 @@ export function SkeletonRow({ cols = 4 }: { cols?: number }) {
 /** Skeleton table with header and rows. */
 export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
       <table className="w-full">
         <thead>
-          <tr className="bg-gray-50 border-b border-gray-200">
+          <tr className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             {Array.from({ length: cols }, (_, i) => (
               <th key={i} className="px-4 py-2">
                 <SkeletonBlock className="h-3 w-20" />

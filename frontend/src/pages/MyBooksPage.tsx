@@ -6,11 +6,11 @@ import { useToast } from '../components/Toast';
 import { SkeletonTable } from '../components/Skeleton';
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  queued: 'bg-yellow-100 text-yellow-800',
-  building: 'bg-blue-100 text-blue-800',
-  complete: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
+  draft: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
+  queued: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200',
+  building: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300',
+  complete: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
+  failed: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300',
 };
 
 export default function MyBooksPage() {
@@ -66,7 +66,7 @@ export default function MyBooksPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <div className="flex items-center justify-between mb-6 gap-2">
-        <h1 className="text-2xl font-bold text-gray-900">My Books</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">My Books</h1>
         <button
           onClick={() => setShowForm(!showForm)}
           className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -90,7 +90,7 @@ export default function MyBooksPage() {
             onChange={(e) => setNewTitle(e.target.value)}
             autoFocus
             required
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             type="submit"
@@ -102,7 +102,7 @@ export default function MyBooksPage() {
           <button
             type="button"
             onClick={() => setShowForm(false)}
-            className="text-sm text-gray-500 px-3 py-2"
+            className="text-sm text-gray-500 dark:text-gray-400 px-3 py-2"
           >
             Cancel
           </button>
@@ -114,8 +114,8 @@ export default function MyBooksPage() {
       {!isLoading && books.length === 0 && (
         <div className="text-center py-16">
           <p className="text-4xl mb-3">📚</p>
-          <p className="text-lg font-semibold text-gray-700 mb-1">No books yet</p>
-          <p className="text-sm text-gray-400 mb-4">Create your first book to start assembling chapters into a custom textbook.</p>
+          <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-1">No books yet</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">Create your first book to start assembling chapters into a custom textbook.</p>
           <button
             onClick={() => setShowForm(true)}
             className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700"
@@ -132,16 +132,16 @@ export default function MyBooksPage() {
           return (
             <div
               key={book.id}
-              className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex items-center gap-3 flex-wrap"
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-5 py-4 flex items-center gap-3 flex-wrap"
             >
               <div className="flex-1 min-w-[180px]">
                 <Link
                   to={`/books/${book.id}`}
-                  className="font-semibold text-gray-900 hover:text-blue-600"
+                  className="font-semibold text-gray-900 dark:text-gray-50 hover:text-blue-600 dark:hover:text-blue-400"
                 >
                   {book.title}
                 </Link>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                   Updated {new Date(book.updated_at).toLocaleDateString()}
                 </p>
               </div>
@@ -177,7 +177,7 @@ export default function MyBooksPage() {
               {(isActive || isComplete || book.status === 'failed') && (
                 <Link
                   to={`/books/${book.id}/status`}
-                  className="text-xs text-gray-500 hover:text-gray-700"
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 >
                   Build info
                 </Link>
@@ -185,7 +185,7 @@ export default function MyBooksPage() {
               {!isActive && (
                 <button
                   onClick={() => handleDelete(book.id)}
-                  className="text-xs text-gray-400 hover:text-red-500"
+                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
                 >
                   Delete
                 </button>

@@ -281,42 +281,42 @@ export default function ExampleEditorPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <Link to="/examples" className="text-sm text-blue-600 hover:underline">
+      <Link to="/examples" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
         ← Back to examples
       </Link>
-      <h1 className="mt-3 text-2xl font-bold text-gray-900">
+      <h1 className="mt-3 text-2xl font-bold text-gray-900 dark:text-gray-50">
         {isEdit ? 'Edit example' : 'New example'}
       </h1>
-      <p className="text-sm text-gray-600 mt-1">
+      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
         Paste your LaTeX directly. The compile-preview button arrives in a
         later iteration; for now, please verify your snippet locally before
         submitting.
       </p>
 
       {isEdit && rejectionReason && (
-        <div className="mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-          <p className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-1">
+        <div className="mt-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg px-4 py-3">
+          <p className="text-xs font-semibold text-red-800 dark:text-red-300 uppercase tracking-wide mb-1">
             Previous rejection reason
           </p>
-          <p className="text-sm text-red-900 whitespace-pre-wrap">{rejectionReason}</p>
+          <p className="text-sm text-red-900 dark:text-red-200 whitespace-pre-wrap">{rejectionReason}</p>
         </div>
       )}
 
       <form className="mt-6 space-y-5" onSubmit={(e) => handleSubmit(e, 'save')}>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tagged chapters <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+            Tagged chapters <span className="text-red-500 dark:text-red-400">*</span>
           </label>
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
             Select every chapter this example is relevant to. The primary
             chapter (chosen below) drives which preamble is used when the
             preview compile lands in Phase 2.
           </p>
-          <div className="border border-gray-300 rounded-lg max-h-48 overflow-y-auto p-2">
+          <div className="border border-gray-300 dark:border-gray-600 rounded-lg max-h-48 overflow-y-auto p-2">
             {validChapters.map((c) => (
               <label
                 key={c.id}
-                className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 rounded cursor-pointer"
+                className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
               >
                 <input
                   type="checkbox"
@@ -325,15 +325,15 @@ export default function ExampleEditorPage() {
                   className="rounded"
                 />
                 <span className="text-sm">{c.title}</span>
-                <span className="text-xs font-mono text-gray-400 ml-auto">{c.chabbr}</span>
+                <span className="text-xs font-mono text-gray-400 dark:text-gray-500 ml-auto">{c.chabbr}</span>
               </label>
             ))}
           </div>
         </div>
 
         <div>
-          <label htmlFor="primary-chapter" className="block text-sm font-medium text-gray-700 mb-1">
-            Primary chapter <span className="text-red-500">*</span>
+          <label htmlFor="primary-chapter" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+            Primary chapter <span className="text-red-500 dark:text-red-400">*</span>
           </label>
           <select
             id="primary-chapter"
@@ -342,7 +342,7 @@ export default function ExampleEditorPage() {
               updateField('primary_chapter', e.target.value ? Number(e.target.value) : null);
             }}
             disabled={form.chapters.length === 0}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 dark:disabled:bg-gray-800"
           >
             <option value="">— Select primary chapter —</option>
             {validChapters
@@ -356,7 +356,7 @@ export default function ExampleEditorPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
             Difficulty
           </label>
           <div className="flex gap-3">
@@ -376,8 +376,8 @@ export default function ExampleEditorPage() {
         </div>
 
         <div>
-          <label htmlFor="statement-tex" className="block text-sm font-medium text-gray-700 mb-1">
-            Statement (LaTeX) <span className="text-red-500">*</span>
+          <label htmlFor="statement-tex" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+            Statement (LaTeX) <span className="text-red-500 dark:text-red-400">*</span>
           </label>
           <textarea
             id="statement-tex"
@@ -385,14 +385,14 @@ export default function ExampleEditorPage() {
             onChange={(e) => updateField('statement_tex', e.target.value)}
             rows={10}
             required
-            className="w-full font-mono text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full font-mono text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder={'Find the rotation matrix that...'}
           />
         </div>
 
         <div>
-          <label htmlFor="solution-tex" className="block text-sm font-medium text-gray-700 mb-1">
-            Solution (LaTeX) <span className="text-red-500">*</span>
+          <label htmlFor="solution-tex" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+            Solution (LaTeX) <span className="text-red-500 dark:text-red-400">*</span>
           </label>
           <textarea
             id="solution-tex"
@@ -400,43 +400,43 @@ export default function ExampleEditorPage() {
             onChange={(e) => updateField('solution_tex', e.target.value)}
             rows={14}
             required
-            className="w-full font-mono text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full font-mono text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder={'Begin by noting that...'}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
             Figures
           </label>
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
             Reference each figure from the LaTeX above by its filename only,
-            e.g. <code className="bg-gray-100 px-1 rounded">{'\\includegraphics[width=0.6\\textwidth]{fig1.png}'}</code>.
+            e.g. <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">{'\\includegraphics[width=0.6\\textwidth]{fig1.png}'}</code>.
             Allowed: {FIGURE_ALLOWED_EXTENSIONS.join(', ')} · 5 MB cap per file.
           </p>
           {previewExampleId === null ? (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded px-3 py-2">
               Save the draft first — figures attach to the saved example.
             </p>
           ) : (
             <>
               {figures.length > 0 && (
-                <ul className="border border-gray-200 rounded-lg divide-y divide-gray-100 mb-2">
+                <ul className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700 mb-2">
                   {figures.map((f) => (
                     <li key={f.id} className="flex items-center gap-3 px-3 py-2">
-                      <span className="font-mono text-xs text-gray-700 flex-1 truncate">{f.original_filename}</span>
+                      <span className="font-mono text-xs text-gray-700 dark:text-gray-200 flex-1 truncate">{f.original_filename}</span>
                       <a
                         href={f.file_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline"
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         view
                       </a>
                       <button
                         type="button"
                         onClick={() => handleFigureDelete(f.id, f.original_filename)}
-                        className="text-xs text-red-600 hover:underline"
+                        className="text-xs text-red-600 dark:text-red-400 hover:underline"
                       >
                         remove
                       </button>
@@ -454,13 +454,13 @@ export default function ExampleEditorPage() {
                 className="text-sm"
               />
               {uploadingFigure && (
-                <span className="ml-2 text-xs text-gray-500">Uploading…</span>
+                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Uploading…</span>
               )}
             </>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 items-center">
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-700 items-center">
           <button
             type="submit"
             disabled={saving || previewing}
@@ -487,12 +487,12 @@ export default function ExampleEditorPage() {
           </button>
           <Link
             to="/examples"
-            className="text-sm text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-100"
+            className="text-sm text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             Cancel
           </Link>
           {!previewFresh && previewBuiltAt && !previewing && (
-            <span className="text-xs text-amber-700">
+            <span className="text-xs text-amber-700 dark:text-amber-300">
               Preview is stale — click Preview again before submitting.
             </span>
           )}
@@ -501,10 +501,10 @@ export default function ExampleEditorPage() {
 
       {previewBuildLog && (
         <section className="mt-6">
-          <h2 className="text-sm font-semibold text-red-800 uppercase tracking-wide mb-2">
+          <h2 className="text-sm font-semibold text-red-800 dark:text-red-300 uppercase tracking-wide mb-2">
             Last build failed
           </h2>
-          <pre className="font-mono text-xs text-red-900 bg-red-50 border border-red-200 rounded-lg p-3 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+          <pre className="font-mono text-xs text-red-900 dark:text-red-200 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-3 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
             {previewBuildLog}
           </pre>
         </section>
@@ -513,14 +513,14 @@ export default function ExampleEditorPage() {
       {previewExampleId !== null && previewPdfUrl && !previewBuildLog && (
         <section className="mt-6">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">
               Preview
             </h2>
             <a
               href={previewPdfUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
             >
               Open in new tab ↗
             </a>
@@ -529,7 +529,7 @@ export default function ExampleEditorPage() {
             key={previewPdfUrl}
             src={previewPdfUrl}
             title="Example preview"
-            className="w-full h-[640px] border border-gray-200 rounded-lg bg-white"
+            className="w-full h-[640px] border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
           />
         </section>
       )}

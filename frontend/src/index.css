@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+:root { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
 @keyframes slideIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }

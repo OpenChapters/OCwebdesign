@@ -1,0 +1,158 @@
+# Staging stack — clone of docker-compose.prod.yml with:
+#   - separate volumes (postgres_data_staging, media_*_staging, …)
+#   - nginx on a separate host port (8081)
+#   - plain HTTP nginx (docker/nginx/Dockerfile.staging)
+#   - ocweb.settings.staging Django settings
+#   - reads .env.staging instead of .env.prod
+#
+# Bring it up alongside prod:
+#   docker compose -p ocweb_staging -f docker-compose.staging.yml up -d --build
+# Tear it down:
+#   docker compose -p ocweb_staging -f docker-compose.staging.yml down
+# Wipe data (resets the staging DB + media):
+#   docker compose -p ocweb_staging -f docker-compose.staging.yml down -v
+
+services:
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile.staging
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN-}
+        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT-staging}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE-}
+    ports:
+      - "8081:80"
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile.prod
+    command: gunicorn ocweb.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120
+    volumes:
+      - media_pdfs_staging:/app/media/pdfs
+      - media_html_staging:/app/media/html
+      - media_html_books_staging:/app/media/html_books
+      - media_pdf_labels_staging:/app/media/pdf_labels
+      - media_examples_staging:/app/media/examples
+      - media_example_figures_staging:/app/media/example_figures
+    env_file: .env.staging
+    environment:
+      - DJANGO_SETTINGS_MODULE=ocweb.settings.staging
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  worker-builds:
+    build:
+      context: .
+      dockerfile: docker/worker/Dockerfile
+    command: celery -A ocweb worker -l info -Q builds -n builds@%h --concurrency 2 --max-tasks-per-child 100
+    volumes:
+      - media_pdfs_staging:/app/media/pdfs
+      - media_html_staging:/app/media/html
+      - media_html_books_staging:/app/media/html_books
+      - media_pdf_labels_staging:/app/media/pdf_labels
+      - media_examples_staging:/app/media/examples
+      - media_example_figures_staging:/app/media/example_figures
+      - git_cache_staging:/app/git-cache
+    env_file: .env.staging
+    environment:
+      - DJANGO_SETTINGS_MODULE=ocweb.settings.staging
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker-default:
+    build:
+      context: .
+      dockerfile: docker/worker/Dockerfile
+    command: celery -A ocweb worker -l info -Q default -n default@%h --concurrency 1 --max-tasks-per-child 200
+    volumes:
+      - media_pdfs_staging:/app/media/pdfs
+      - media_html_staging:/app/media/html
+      - media_html_books_staging:/app/media/html_books
+      - media_pdf_labels_staging:/app/media/pdf_labels
+      - media_examples_staging:/app/media/examples
+      - media_example_figures_staging:/app/media/example_figures
+    env_file: .env.staging
+    environment:
+      - DJANGO_SETTINGS_MODULE=ocweb.settings.staging
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile.prod
+    command: celery -A ocweb beat -l info --schedule=/app/beat/celerybeat-schedule
+    volumes:
+      - beat_data_staging:/app/beat
+    env_file: .env.staging
+    environment:
+      - DJANGO_SETTINGS_MODULE=ocweb.settings.staging
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    volumes:
+      - postgres_data_staging:/var/lib/postgresql/data
+    env_file: .env.staging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ocweb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    env_file: .env.staging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_staging:
+  media_pdfs_staging:
+  media_html_staging:
+  media_html_books_staging:
+  media_pdf_labels_staging:
+  media_examples_staging:
+  media_example_figures_staging:
+  beat_data_staging:
+  git_cache_staging:

@@ -434,11 +434,11 @@ the May 2026 push.
 | 7 | Sentry or equivalent error tracking | 0.5 | Catches the next silent 500 in seconds | ✅ |
 | 8 | Toast: sticky errors with action links | 0.5 | Stops losing error messages | ✅ |
 | 9 | ExampleVersion UI (author + admin) | 2 | Realizes the ledger investment | ✅ |
-| 10 | drf-spectacular + auto-generated OpenAPI | 1 | Eliminates doc drift |  |
-| 11 | Dark mode | 2 | High visibility, low cost |  |
+| 10 | drf-spectacular + auto-generated OpenAPI | 1 | Eliminates doc drift | ✅ |
+| 11 | Dark mode | 2 | High visibility, low cost | ✅ |
 | 12 | "Preview structure" book build | 2 | Big iteration-speed win for authors |  |
 | 13 | Celery queue separation (builds vs default) | 0.5 | Email retries no longer blocked by long builds | ✅ |
-| 14 | Staging environment | 1 | Catches the next STORAGES-shaped regression |  |
+| 14 | Staging environment | 1 | Catches the next STORAGES-shaped regression | ✅ |
 | 15 | Cooling-off period on account deletion | 0.5 | Recovers from accidental clicks | ✅ |
 
 Bonus shipped alongside item 6: the build pipeline now retries

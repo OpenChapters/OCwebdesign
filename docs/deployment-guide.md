@@ -1105,3 +1105,70 @@ Before going live, verify:
 - [ ] Database backups are configured
 - [ ] Firewall allows only ports 80, 443, and SSH (22)
 - [ ] Docker images are rebuilt from the latest code (`--build` flag)
+
+---
+
+## Staging Environment
+
+A staging stack runs alongside production on the same host, with its
+own isolated Postgres, RabbitMQ, media volumes, and nginx listening on
+port **8081** (plain HTTP). It uses `docker-compose.staging.yml` and
+the settings module `ocweb.settings.staging`.
+
+### One-time setup
+
+```bash
+cp .env.staging.example .env.staging
+# Edit .env.staging: pick a fresh SECRET_KEY and POSTGRES_PASSWORD.
+# Leave SMTP fields blank — settings/staging.py forces the console
+# email backend.
+```
+
+The firewall should leave port 8081 internal. To browse staging
+remotely, SSH-tunnel it:
+
+```bash
+ssh -L 8081:localhost:8081 user@prod-host
+# then visit http://localhost:8081/
+```
+
+### Bring it up
+
+```bash
+docker compose -p ocweb_staging -f docker-compose.staging.yml up -d --build
+docker compose -p ocweb_staging -f docker-compose.staging.yml \
+    exec web python manage.py migrate
+docker compose -p ocweb_staging -f docker-compose.staging.yml \
+    exec web python manage.py seed_staging
+```
+
+The `seed_staging` command is idempotent. It creates two users:
+
+- `admin@staging.local` / `staging-password` (staff + superuser)
+- `author@staging.local` / `staging-password`
+
+…plus one Discipline, one Chapter (`STG`), and one draft Example.
+Re-run it any time the seed schema changes.
+
+### Tear it down
+
+```bash
+# Stop containers, keep DB + media volumes (preserves seeded data):
+docker compose -p ocweb_staging -f docker-compose.staging.yml down
+
+# Wipe everything including the staging DB:
+docker compose -p ocweb_staging -f docker-compose.staging.yml down -v
+```
+
+### Validate a release on staging before deploying to prod
+
+```bash
+git pull
+docker compose -p ocweb_staging -f docker-compose.staging.yml \
+    up -d --build
+docker compose -p ocweb_staging -f docker-compose.staging.yml \
+    exec web python manage.py migrate
+# Browse http://localhost:8081/ and exercise the changed surface.
+# Only then run the corresponding prod deploy command.
+```
+

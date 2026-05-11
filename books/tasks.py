@@ -408,16 +408,26 @@ def _materialize_via_cache(clone_url: str, repo: str, target_dir: Path, log_fn) 
     with open(lock_path, "w") as fd_lock:
         fcntl.flock(fd_lock.fileno(), fcntl.LOCK_EX)
         _refresh_cache(clone_url, cache_dir, log_fn)
-        # `cp -al` = archive + hardlinks. POSIX-portable on the Linux
-        # filesystems Docker uses; cache and workspace must live on
-        # the same filesystem (they do — both under /tmp or /app).
         if target_dir.exists():
             shutil.rmtree(target_dir, ignore_errors=True)
         target_dir.parent.mkdir(parents=True, exist_ok=True)
-        _run(["cp", "-al", str(cache_dir), str(target_dir)], log_fn)
-        # The hardlinked tree includes .git, which downstream scripts
-        # don't care about — leaving it is harmless and lets us inspect
-        # the resolved commit from inside a failed build's archive.
+        # Prefer hardlinks (cp -al) when the cache and the workspace
+        # share a filesystem — instant + zero extra disk. In Docker
+        # the cache typically sits on a named volume while builds
+        # write to /tmp on the container's overlay; hardlinks across
+        # that boundary fail with "Invalid cross-device link", so
+        # fall back to a plain recursive copy (cp -a). Still a small
+        # fraction of the original clone-from-GitHub cost.
+        try:
+            same_fs = cache_dir.stat().st_dev == target_dir.parent.stat().st_dev
+        except OSError:
+            same_fs = False
+        cp_flag = "-al" if same_fs else "-a"
+        _run(["cp", cp_flag, str(cache_dir), str(target_dir)], log_fn)
+        # The hardlinked / copied tree includes .git, which downstream
+        # scripts don't care about — leaving it is harmless and lets us
+        # inspect the resolved commit from inside a failed build's
+        # archive.
 
 
 # ---------------------------------------------------------------------------

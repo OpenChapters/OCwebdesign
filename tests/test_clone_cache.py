@@ -116,6 +116,62 @@ class TestMaterializeViaCache:
         assert not (target / "stale-file").exists()
         assert (target / "README.md").is_file()
 
+    def test_cross_device_falls_back_to_plain_copy(
+        self, settings, tmp_path, local_remote, log_collector, monkeypatch,
+    ):
+        """When cache_dir and the workspace parent report different
+        st_dev (e.g., named-volume cache vs container-overlay /tmp),
+        the helper must use `cp -a` rather than `cp -al`. Regression
+        test for the Invalid-cross-device-link build failure."""
+        settings.GIT_CACHE_DIR = str(tmp_path / "cache")
+        target = tmp_path / "workspace" / "x"
+        _, log_fn = log_collector
+
+        # Seed the cache so st_dev() works on cache_dir.
+        from books.tasks import _refresh_cache
+        cache = tmp_path / "cache" / "owner__x"
+        _refresh_cache(f"file://{local_remote}", cache, log_fn)
+
+        # Patch Path.stat to report a different st_dev for the cache
+        # than the workspace parent. We can't actually create a second
+        # filesystem in a test, so this is the only way to exercise
+        # the fallback branch.
+        import os
+        real_stat = Path.stat
+
+        def fake_stat(self, *args, **kwargs):
+            r = real_stat(self, *args, **kwargs)
+            if "cache" in str(self):
+                # Pretend cache lives on device 99.
+                return os.stat_result((
+                    r.st_mode, r.st_ino, 99, r.st_nlink, r.st_uid,
+                    r.st_gid, r.st_size, r.st_atime, r.st_mtime, r.st_ctime,
+                ))
+            return r
+
+        monkeypatch.setattr(Path, "stat", fake_stat)
+
+        captured: list[list[str]] = []
+        from books import tasks as tasks_mod
+        real_run = tasks_mod._run
+
+        def spy_run(cmd, log_fn_, *a, **kw):
+            captured.append(list(cmd))
+            return real_run(cmd, log_fn_, *a, **kw)
+
+        monkeypatch.setattr(tasks_mod, "_run", spy_run)
+
+        _materialize_via_cache(f"file://{local_remote}", "owner/x", target, log_fn)
+
+        cp_calls = [c for c in captured if c[:1] == ["cp"]]
+        assert cp_calls, "expected at least one cp invocation"
+        # The cp flag should be -a (no hardlinks) since st_dev differs.
+        assert cp_calls[-1][1] == "-a", (
+            f"cross-device fallback should use 'cp -a', got {cp_calls[-1]!r}"
+        )
+        # The target should still exist and have the content.
+        assert (target / "README.md").read_text() == "hello\n"
+
     def test_two_calls_pick_up_upstream_change(self, settings, tmp_path, local_remote, log_collector):
         """Cache refresh path: second materialize sees the new commit."""
         settings.GIT_CACHE_DIR = str(tmp_path / "cache")

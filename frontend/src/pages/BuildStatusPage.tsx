@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { booksApi } from '../api/books';
 import { useToast } from '../components/Toast';
+import BuildStepsList from '../components/BuildStepsList';
 import type { BuildJob } from '../types';
 
 export default function BuildStatusPage() {
@@ -40,7 +41,7 @@ export default function BuildStatusPage() {
   const cfg = statusConfig[status] ?? { label: status, color: 'text-gray-500', icon: '?' };
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <div className="flex items-center gap-3 mb-6">
         <Link to="/books" className="text-sm text-gray-400 hover:text-gray-600">
           ← My Books
@@ -74,6 +75,14 @@ export default function BuildStatusPage() {
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">Finished:</span>{' '}
                   {new Date(job.finished_at).toLocaleString()}
+                </div>
+              )}
+              {job.steps && job.steps.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    Pipeline
+                  </p>
+                  <BuildStepsList steps={job.steps} />
                 </div>
               )}
               {status === 'complete' && (hasPdf || hasHtml) && (

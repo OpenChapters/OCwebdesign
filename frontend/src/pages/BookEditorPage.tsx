@@ -13,6 +13,7 @@ import {
 import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
 import { booksApi } from '../api/books';
 import { chaptersApi } from '../api/chapters';
+import { currentStepSummary } from '../components/BuildStepsList';
 import ChapterCard from '../components/ChapterCard';
 import ExampleSelectionModal from '../components/ExampleSelectionModal';
 import SortableChapterList from '../components/SortableChapterList';
@@ -405,27 +406,52 @@ export default function BookEditorPage() {
         </div>
         <span className="text-sm text-gray-500">{chapterCount} chapters</span>
 
-        {/* Build status indicator */}
-        {buildStatus === 'queued' && (
-          <span className="text-xs bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-full font-medium animate-pulse">
-            Queued…
-          </span>
-        )}
-        {buildStatus === 'building' && (
-          <span className="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full font-medium animate-pulse">
-            Building…
-          </span>
-        )}
-        {buildStatus === 'complete' && (
-          <Link to={`/books/${bookId}/status`} className="text-xs bg-green-100 text-green-800 px-3 py-1.5 rounded-full font-medium hover:bg-green-200">
-            Build complete — View
-          </Link>
-        )}
-        {buildStatus === 'failed' && (
-          <Link to={`/books/${bookId}/status`} className="text-xs bg-red-100 text-red-800 px-3 py-1.5 rounded-full font-medium hover:bg-red-200">
-            Build Failed — View
-          </Link>
-        )}
+        {/* Build status indicator — surfaces the current pipeline step
+            so the user sees real progress instead of a static badge. */}
+        {(() => {
+          const steps = buildData?.build_job?.steps ?? [];
+          const summary = currentStepSummary(steps);
+
+          if (buildStatus === 'queued') {
+            return (
+              <Link
+                to={`/books/${bookId}/status`}
+                className="text-xs bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-full font-medium animate-pulse hover:bg-yellow-200"
+              >
+                Queued…
+              </Link>
+            );
+          }
+          if (buildStatus === 'building') {
+            const text = summary
+              ? `Building • ${summary.order}/${summary.total} ${summary.label}${summary.detail ? ` — ${summary.detail}` : ''}`
+              : 'Building…';
+            return (
+              <Link
+                to={`/books/${bookId}/status`}
+                className="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full font-medium animate-pulse hover:bg-blue-200 max-w-md truncate"
+                title={text}
+              >
+                {text}
+              </Link>
+            );
+          }
+          if (buildStatus === 'complete') {
+            return (
+              <Link to={`/books/${bookId}/status`} className="text-xs bg-green-100 text-green-800 px-3 py-1.5 rounded-full font-medium hover:bg-green-200">
+                Build complete — View
+              </Link>
+            );
+          }
+          if (buildStatus === 'failed') {
+            return (
+              <Link to={`/books/${bookId}/status`} className="text-xs bg-red-100 text-red-800 px-3 py-1.5 rounded-full font-medium hover:bg-red-200">
+                Build Failed — View
+              </Link>
+            );
+          }
+          return null;
+        })()}
 
         {book.examples_count > 0 && (
           <label

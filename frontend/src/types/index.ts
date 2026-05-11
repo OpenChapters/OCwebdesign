@@ -44,12 +44,31 @@ export interface BookPart {
   chapters: BookChapter[];
 }
 
+export type BuildStepStatus =
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'skipped';
+
+export interface BuildStep {
+  name: string;
+  label: string;
+  order: number;
+  status: BuildStepStatus;
+  detail: string;
+  started_at: string | null;
+  finished_at: string | null;
+  log_tail: string;
+}
+
 export interface BuildJob {
   celery_task_id: string;
   started_at: string | null;
   finished_at: string | null;
   pdf_path: string;
   error_message: string;
+  steps: BuildStep[];
 }
 
 export interface Book {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { booksApi } from '../api/books';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import type { ExampleDifficulty } from '../types';
 
 const DIFFICULTY_LABEL: Record<ExampleDifficulty, string> = {
@@ -35,6 +36,7 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [initialized, setInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
 
   useEffect(() => {
     if (data && !initialized) {
@@ -87,11 +89,21 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+    <div
+      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="example-picker-title"
+        className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-start sm:items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Customize examples</h2>
+            <h2 id="example-picker-title" className="text-lg font-semibold text-gray-900">Customize examples</h2>
             <p className="text-xs text-gray-500 mt-0.5">
               Uncheck any examples you don't want in this build. Selections are
               saved on the book and reused on every future build until changed.
@@ -106,7 +118,7 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
           {isLoading && <p className="text-gray-500 text-sm py-8 text-center">Loading…</p>}
           {error && (
             <p className="text-red-600 text-sm py-8 text-center">
@@ -215,7 +227,7 @@ export default function ExampleSelectionModal({ bookId, onClose, onSaved }: Prop
           })}
         </div>
 
-        <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <p className="text-xs text-gray-500">
             {totalExamples > 0
               ? `${selectedCount} of ${totalExamples} included`

@@ -227,6 +227,14 @@ CELERY_BEAT_SCHEDULE = {
 BUILD_TEMPLATE_DIR = BASE_DIR / "Build" / "template"
 BUILD_SCRIPTS_DIR = BASE_DIR / "Build" / "scripts"
 
+# Persistent warm-clone directory for the build pipeline. Each
+# referenced chapter repo lives here as <GIT_CACHE_DIR>/<repo>/; the
+# build refreshes it via `git fetch` instead of re-cloning from GitHub
+# on every run. In prod and dev this is a named Docker volume mounted
+# on the worker-builds container so the cache survives container
+# recreates.
+GIT_CACHE_DIR = env.path("GIT_CACHE_DIR", default=str(BASE_DIR / "git-cache"))
+
 # Local directory where generated PDFs are stored in dev.
 # In production this will be replaced by S3 upload logic in build_book.
 BUILD_OUTPUT_DIR = env.path("BUILD_OUTPUT_DIR", default=str(BASE_DIR / "media" / "pdfs"))

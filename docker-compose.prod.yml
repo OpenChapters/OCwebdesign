@@ -76,6 +76,10 @@ services:
       - media_pdf_labels:/app/media/pdf_labels
       - media_examples:/app/media/examples
       - media_example_figures:/app/media/example_figures
+      # Warm-clone cache for chapter repos. The first build after a
+      # fresh deploy still pays the full clone cost; subsequent builds
+      # `git fetch` and hardlink the cache into the workspace.
+      - git_cache:/app/git-cache
     env_file: .env.prod
     environment:
       - DJANGO_SETTINGS_MODULE=ocweb.settings.prod
@@ -167,3 +171,4 @@ volumes:
   media_examples:
   media_example_figures:
   beat_data:
+  git_cache:

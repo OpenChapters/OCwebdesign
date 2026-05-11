@@ -305,6 +305,18 @@ _CLONE_MAX_ATTEMPTS = 3
 _CLONE_BACKOFF_BASE = 2  # seconds; doubles each attempt
 
 
+def _cache_dir_for_repo(repo: str) -> Path:
+    """Path to the persistent warm-clone for *repo* under GIT_CACHE_DIR.
+
+    The repo name (e.g. "OpenChapters/OpenChapters") is flattened to a
+    single directory name with `/` → `__` so all caches live as
+    siblings under one mount point. Whitespace-free identifier means
+    no shell-quoting subtleties downstream.
+    """
+    safe = repo.replace("/", "__")
+    return Path(settings.GIT_CACHE_DIR) / safe
+
+
 def _clone_repo(clone_url: str, repo_dir: Path, log_fn) -> None:
     """`git clone --depth=1` with exponential-backoff retry.
 
@@ -340,6 +352,72 @@ def _clone_repo(clone_url: str, repo_dir: Path, log_fn) -> None:
             time.sleep(backoff)
     assert last_exc is not None
     raise last_exc
+
+
+def _refresh_cache(clone_url: str, cache_dir: Path, log_fn) -> None:
+    """Bring the warm-clone at *cache_dir* up to current origin/HEAD.
+
+    First call (no cache_dir yet): does a shallow clone via _clone_repo.
+    Subsequent calls: `git fetch --depth=1 origin` then a hard reset to
+    FETCH_HEAD so the working tree matches upstream byte-for-byte. If
+    the fetch path fails for any reason (corrupted cache, history
+    rewrite, etc.) the directory is wiped and a fresh clone takes its
+    place — slow but self-healing.
+
+    Concurrency: callers must hold a per-cache fcntl.flock so two
+    builds for the same repo don't fight over the working tree. See
+    _materialize_via_cache for the wrapper that handles the lock.
+    """
+    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    if not (cache_dir / ".git").is_dir():
+        _clone_repo(clone_url, cache_dir, log_fn)
+        return
+    try:
+        _run(["git", "-C", str(cache_dir), "fetch", "--depth=1", "origin"], log_fn)
+        _run(["git", "-C", str(cache_dir), "reset", "--hard", "FETCH_HEAD"], log_fn)
+        # `git clean -fdx` removes everything not tracked, including any
+        # stray files a prior build's post-clone scripts may have written.
+        _run(["git", "-C", str(cache_dir), "clean", "-fdx"], log_fn)
+    except subprocess.CalledProcessError:
+        log_fn("  ! warm cache refresh failed; rebuilding from scratch")
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        _clone_repo(clone_url, cache_dir, log_fn)
+
+
+def _materialize_via_cache(clone_url: str, repo: str, target_dir: Path, log_fn) -> None:
+    """Update the warm cache for *repo* and hardlink it into *target_dir*.
+
+    Replaces the previous "git clone --depth=1 directly into the build
+    workspace" path: instead of pulling tens of megabytes from GitHub
+    on every build, refresh a persistent clone once and `cp -al` it
+    into the workspace — hardlinks share inodes so this is effectively
+    instant and uses no extra disk until the build modifies a file
+    (figures, generated .aux, etc.) and copy-on-write kicks in.
+
+    Acquires an exclusive fcntl.flock on the per-repo cache so two
+    concurrent build_book runs for the same repo can't race on the
+    `git fetch` + `git reset` sequence.
+    """
+    import fcntl
+
+    cache_dir = _cache_dir_for_repo(repo)
+    lock_path = cache_dir.parent / f"{cache_dir.name}.lock"
+    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    # Open the lockfile (created on first use) — flock-on-fd, so the
+    # lock is released when fd_lock falls out of scope at function exit.
+    with open(lock_path, "w") as fd_lock:
+        fcntl.flock(fd_lock.fileno(), fcntl.LOCK_EX)
+        _refresh_cache(clone_url, cache_dir, log_fn)
+        # `cp -al` = archive + hardlinks. POSIX-portable on the Linux
+        # filesystems Docker uses; cache and workspace must live on
+        # the same filesystem (they do — both under /tmp or /app).
+        if target_dir.exists():
+            shutil.rmtree(target_dir, ignore_errors=True)
+        target_dir.parent.mkdir(parents=True, exist_ok=True)
+        _run(["cp", "-al", str(cache_dir), str(target_dir)], log_fn)
+        # The hardlinked tree includes .git, which downstream scripts
+        # don't care about — leaving it is harmless and lets us inspect
+        # the resolved commit from inside a failed build's archive.
 
 
 # ---------------------------------------------------------------------------
@@ -440,7 +518,9 @@ def build_book(self, book_id: int) -> None:
             for i, repo in enumerate(repos, start=1):
                 _set_step_detail(step, f"{i} of {len(repos)}: {repo}")
                 repo_dir = workdir / repo.split("/")[-1]
-                _clone_repo(provider.clone_url(repo), repo_dir, log)
+                _materialize_via_cache(
+                    provider.clone_url(repo), repo, repo_dir, log,
+                )
             _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
 
         # ── Step 2: assemble matter/, frontmatter, cover, bibs, figures ──────
@@ -926,7 +1006,9 @@ def build_book_html(self, book_id: int, send_email: bool = True) -> None:
             for i, repo in enumerate(repos, start=1):
                 _set_step_detail(step, f"{i} of {len(repos)}: {repo}")
                 repo_dir = workdir / repo.split("/")[-1]
-                _clone_repo(provider.clone_url(repo), repo_dir, log)
+                _materialize_via_cache(
+                    provider.clone_url(repo), repo, repo_dir, log,
+                )
             _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
 
         # ── Step 2: assemble images, bibs, figures, SVG conversion ───────

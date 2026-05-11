@@ -309,13 +309,19 @@ class BuildTriggerView(APIView):
 
 
 class BuildStatusView(APIView):
-    """GET /api/books/<book_pk>/build/status/"""
+    """GET /api/books/<book_pk>/build/status/
+
+    Polled every ~3s from the editor and the build-status page. Pulls
+    the steps eagerly so the response is a single DB hit; per-step
+    `log_tail` is non-empty only for failed steps so the payload stays
+    small during a running build.
+    """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, book_pk):
         book = get_object_or_404(
-            Book.objects.select_related("build_job"),
+            Book.objects.select_related("build_job").prefetch_related("build_job__steps"),
             pk=book_pk,
             user=request.user,
         )

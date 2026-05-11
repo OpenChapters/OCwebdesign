@@ -142,3 +142,60 @@ class BuildJob(models.Model):
 
     def __str__(self):
         return f"BuildJob({self.book.title})"
+
+
+class BuildStep(models.Model):
+    """
+    A single stage within a BuildJob (clone, assemble, typeset, …).
+
+    Stages are written as the build task progresses so the user can see
+    real-time progress instead of an opaque "Building…" badge for the
+    full 1–10 minute window. On failure, ``log_tail`` captures the last
+    few KB of build output for the stage so the build status page can
+    point straight at the relevant noise.
+
+    Reset wholesale at the start of each build, so a Book only ever has
+    the steps from its most recent build.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RUNNING = "running", "Running"
+        SUCCEEDED = "succeeded", "Succeeded"
+        FAILED = "failed", "Failed"
+        SKIPPED = "skipped", "Skipped"
+
+    build_job = models.ForeignKey(
+        BuildJob,
+        on_delete=models.CASCADE,
+        related_name="steps",
+    )
+    # Internal key — stable identifier the frontend can match against
+    # (e.g. for an icon map). Not shown to users directly.
+    name = models.CharField(max_length=50)
+    # Human-readable label shown in the progress strip.
+    label = models.CharField(max_length=200)
+    order = models.PositiveIntegerField()
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    # Short sub-message updated during the run (e.g. "3 of 12 repos").
+    detail = models.CharField(max_length=500, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    # Tail of build output captured for failed steps, bounded to ~4KB.
+    log_tail = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["build_job_id", "order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["build_job", "order"],
+                name="unique_step_order_per_job",
+            ),
+        ]
+
+    def __str__(self):
+        return f"BuildStep({self.build_job_id}/{self.order}:{self.name})"

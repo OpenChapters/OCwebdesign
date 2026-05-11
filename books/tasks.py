@@ -16,6 +16,7 @@ import subprocess
 import sys
 import uuid
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from celery import shared_task
@@ -24,6 +25,68 @@ from django.conf import settings
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Per-step build progress
+# ---------------------------------------------------------------------------
+
+def _reset_steps(build_job) -> None:
+    """Drop any leftover steps from a previous run on this job. Each
+    build_book / build_book_html invocation re-populates the list from
+    scratch."""
+    from books.models import BuildStep
+    BuildStep.objects.filter(build_job=build_job).delete()
+
+
+def _set_step_detail(step, detail: str) -> None:
+    """Update the live "current sub-message" on a running step. Cheap —
+    issues a single column UPDATE."""
+    step.detail = detail[:500]
+    step.save(update_fields=["detail"])
+
+
+@contextmanager
+def _build_step(build_job, *, name: str, label: str, order: int, log_lines: list[str]):
+    """Wrap a stage of the pipeline so its lifecycle (start/finish/fail)
+    is recorded as a BuildStep row.
+
+    Use as:
+        with _build_step(job, name="clone", label="Cloning sources",
+                         order=1, log_lines=log_lines) as step:
+            ...
+            _set_step_detail(step, f"{i} of {n}")
+            ...
+
+    On success the step is marked SUCCEEDED at exit. On exception the
+    step is marked FAILED with the exception summary and the tail of
+    the build log captured for the status page — then re-raised so the
+    outer except in build_book still records the job-level failure.
+    """
+    from books.models import BuildStep
+    step = BuildStep.objects.create(
+        build_job=build_job,
+        name=name,
+        label=label,
+        order=order,
+        status=BuildStep.Status.RUNNING,
+        started_at=timezone.now(),
+    )
+    try:
+        yield step
+    except Exception as exc:
+        step.status = BuildStep.Status.FAILED
+        step.finished_at = timezone.now()
+        step.detail = f"{type(exc).__name__}: {exc}"[:500]
+        step.log_tail = "\n".join(log_lines[-80:])[:8000]
+        step.save()
+        raise
+    else:
+        # Caller may have already populated detail via _set_step_detail;
+        # only set the closing status here.
+        step.status = BuildStep.Status.SUCCEEDED
+        step.finished_at = timezone.now()
+        step.save(update_fields=["status", "finished_at"])
 
 # Patterns for validating chapter metadata used in subprocess calls.
 _SAFE_REPO = re.compile(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")
@@ -280,6 +343,7 @@ def build_book(self, book_id: int) -> None:
     job.log_output = ""
     job.error_message = ""
     job.save()
+    _reset_steps(job)
 
     book.status = Book.Status.BUILDING
     book.save(update_fields=["status"])
@@ -298,154 +362,153 @@ def build_book(self, book_id: int) -> None:
     output_dir = Path(settings.BUILD_OUTPUT_DIR)
 
     try:
-        # 1. Create workspace
-        workdir.mkdir(parents=True, exist_ok=False)
-        log(f"Workspace: {workdir}")
+        # ── Step 0: setup workspace + validated request payload ─────────────
+        with _build_step(job, name="setup", label="Preparing workspace",
+                         order=0, log_lines=log_lines):
+            workdir.mkdir(parents=True, exist_ok=False)
+            log(f"Workspace: {workdir}")
 
-        # 2. Copy template files (.sty, .ins, .ist) into workspace root
-        for f in template_dir.iterdir():
-            if f.is_file():
-                shutil.copy2(f, workdir / f.name)
-        log(f"Copied template files from {template_dir}")
+            for f in template_dir.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, workdir / f.name)
+            log(f"Copied template files from {template_dir}")
 
-        # 3. Write build_request.json
-        request_data = _build_request_data(book)
-        (workdir / "build_request.json").write_text(
-            json.dumps(request_data, indent=2), encoding="utf-8"
-        )
-        log("Wrote build_request.json")
-
-        # 3a. Validate all repo names and paths before subprocess calls
-        _validate_build_data(request_data)
-        log("Validated build request data")
-
-        # 4. Clone chapter repo(s) — deduplicated; shallow clone for speed
-        from catalog.git_provider import get_provider
-        provider = get_provider()
-        repos = {ch["repo"] for p in request_data["parts"] for ch in p["chapters"]}
-        for repo in repos:
-            repo_dir = workdir / repo.split("/")[-1]
-            _run(
-                ["git", "clone", "--depth=1", provider.clone_url(repo), str(repo_dir)],
-                log,
+            request_data = _build_request_data(book)
+            (workdir / "build_request.json").write_text(
+                json.dumps(request_data, indent=2), encoding="utf-8"
             )
+            log("Wrote build_request.json")
 
-        # 5. Copy matter/ from the cloned monorepo into the workspace
-        #    main.tex.j2 expects \input{matter/Frontmatter} relative to workdir.
-        monorepo_dir = workdir / "OpenChapters"
-        matter_src = monorepo_dir / "Build" / "matter"
-        if not matter_src.is_dir():
-            raise FileNotFoundError(
-                f"matter/ not found in cloned repo at {matter_src}. "
-                "Expected OpenChapters/Build/matter/ to exist in the monorepo."
-            )
-        def _skip_symlinks(src: str, names: list) -> set:
-            """Ignore symlinks to avoid circular references (e.g. matter/matter)."""
-            return {n for n in names if os.path.islink(os.path.join(src, n))}
+            _validate_build_data(request_data)
+            log("Validated build request data")
 
-        shutil.copytree(matter_src, workdir / "matter", ignore=_skip_symlinks)
-        log(f"Copied matter/ from {matter_src}")
+        # ── Step 1: clone chapter repos ──────────────────────────────────────
+        with _build_step(job, name="clone", label="Cloning chapter sources",
+                         order=1, log_lines=log_lines) as step:
+            from catalog.git_provider import get_provider
+            provider = get_provider()
+            repos = sorted({
+                ch["repo"]
+                for p in request_data["parts"]
+                for ch in p["chapters"]
+            })
+            for i, repo in enumerate(repos, start=1):
+                _set_step_detail(step, f"{i} of {len(repos)}: {repo}")
+                repo_dir = workdir / repo.split("/")[-1]
+                _run(
+                    ["git", "clone", "--depth=1",
+                     provider.clone_url(repo), str(repo_dir)],
+                    log,
+                )
+            _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
 
-        # 5a. Process Frontmatter.tex.template → Frontmatter.tex
-        #     Replace ##COVERIMAGE##, ##BOOKTITLE##, ##USERNAME##
-        fm_template = workdir / "matter" / "Frontmatter.tex.template"
-        fm_output = workdir / "matter" / "Frontmatter.tex"
-        if fm_template.is_file():
-            cover_filename = "background.pdf"  # default
+        # ── Step 2: assemble matter/, frontmatter, cover, bibs, figures ──────
+        with _build_step(job, name="assemble", label="Assembling chapters and figures",
+                         order=2, log_lines=log_lines):
+            monorepo_dir = workdir / "OpenChapters"
+            matter_src = monorepo_dir / "Build" / "matter"
+            if not matter_src.is_dir():
+                raise FileNotFoundError(
+                    f"matter/ not found in cloned repo at {matter_src}. "
+                    "Expected OpenChapters/Build/matter/ to exist in the monorepo."
+                )
+
+            def _skip_symlinks(src: str, names: list) -> set:
+                """Ignore symlinks to avoid circular references (e.g. matter/matter)."""
+                return {n for n in names if os.path.islink(os.path.join(src, n))}
+
+            shutil.copytree(matter_src, workdir / "matter", ignore=_skip_symlinks)
+            log(f"Copied matter/ from {matter_src}")
+
+            # Frontmatter.tex.template → Frontmatter.tex (cover, title, author)
+            fm_template = workdir / "matter" / "Frontmatter.tex.template"
+            fm_output = workdir / "matter" / "Frontmatter.tex"
+            if fm_template.is_file():
+                cover_filename = "background.pdf"
+                if book.cover_image:
+                    cover_filename = Path(book.cover_image.name).name
+                fm_text = fm_template.read_text()
+                fm_text = fm_text.replace("##COVERIMAGE##", cover_filename)
+                fm_text = fm_text.replace("##BOOKTITLE##", book.title)
+                fm_text = fm_text.replace("##USERNAME##", book.user.full_name or book.user.email)
+                fm_output.write_text(fm_text)
+                log(f"Processed Frontmatter.tex (cover={cover_filename}, title={book.title}, user={book.user.full_name or book.user.email})")
+
+            img_folder = workdir / "ImageFolder"
+            img_folder.mkdir(exist_ok=True)
             if book.cover_image:
-                cover_filename = Path(book.cover_image.name).name
-            fm_text = fm_template.read_text()
-            fm_text = fm_text.replace("##COVERIMAGE##", cover_filename)
-            fm_text = fm_text.replace("##BOOKTITLE##", book.title)
-            fm_text = fm_text.replace("##USERNAME##", book.user.full_name or book.user.email)
-            fm_output.write_text(fm_text)
-            log(f"Processed Frontmatter.tex (cover={cover_filename}, title={book.title}, user={book.user.full_name or book.user.email})")
+                cover_src = Path(book.cover_image.path)
+                if cover_src.is_file():
+                    shutil.copy2(str(cover_src), str(img_folder / Path(book.cover_image.name).name))
+                    log(f"Copied user cover image to ImageFolder/{Path(book.cover_image.name).name}")
 
-        # 5b. Copy cover image to ImageFolder/
-        img_folder = workdir / "ImageFolder"
-        img_folder.mkdir(exist_ok=True)
-        if book.cover_image:
-            cover_src = Path(book.cover_image.path)
-            if cover_src.is_file():
-                shutil.copy2(str(cover_src), str(img_folder / Path(book.cover_image.name).name))
-                log(f"Copied user cover image to ImageFolder/{Path(book.cover_image.name).name}")
-        # Default background.pdf is already in matter/pdf/ which is on the graphics path
+            _run_script(scripts_dir / "concat_bibs.py", workdir, log)
+            _run_script(scripts_dir / "collect_images.py", workdir, log)
+            _copy_example_figures(workdir, request_data, log)
 
-        # 6. Merge bibliography files → OpenChapters.bib
-        _run_script(scripts_dir / "concat_bibs.py", workdir, log)
-
-        # 7. Collect figures → ImageFolder/
-        _run_script(scripts_dir / "collect_images.py", workdir, log)
-
-        # 7a. Copy worked-example figures → example_figures/<id>/
-        _copy_example_figures(workdir, request_data, log)
-
-        # 8. Render main.tex from Jinja2 template
-        _run_script(
-            scripts_dir / "build_main_tex.py", workdir, log,
-            extra_args=["--build-id", build_id],
-        )
-
-        # 9. Write synthetic gitHeadLocal.gin (required by gitinfo2)
-        _run_script(
-            scripts_dir / "generate_gin.py", workdir, log,
-            extra_args=["--build-id", build_id],
-        )
-
-        # 10. Run arara to typeset the PDF
-        # -w enables whole-file directive scanning (the pre-7.0 default);
-        # arara 7.x uses header-only mode by default which misses directives
-        # that follow non-directive comment lines (e.g. % !TEX TS-program).
-        try:
-            _run(["arara", "-w", "main.tex"], log, cwd=workdir)
-        except subprocess.CalledProcessError:
-            # Capture the LaTeX log for diagnostics
-            tex_log = workdir / "main.log"
-            if tex_log.exists():
-                log_text = tex_log.read_text(errors="replace")
-                # Extract error lines (! prefix) and surrounding context
-                lines = log_text.splitlines()
-                error_lines = []
-                for i, line in enumerate(lines):
-                    if line.startswith("!") or "Fatal error" in line:
-                        start = max(0, i - 2)
-                        end = min(len(lines), i + 6)
-                        error_lines.extend(lines[start:end])
-                        error_lines.append("---")
-                if error_lines:
-                    log("--- LaTeX errors from main.log ---")
-                    log("\n".join(error_lines[:80]))
-                else:
-                    # No obvious error lines; show last 30 lines
-                    log("--- Last 30 lines of main.log ---")
-                    log("\n".join(lines[-30:]))
-            raise
-
-        # 11a. Verify PDF was produced
-        pdf_src = workdir / "main.pdf"
-        if not pdf_src.exists():
-            raise FileNotFoundError(
-                "arara completed without error but main.pdf was not found"
+        # ── Step 3: generate main.tex + git metadata ─────────────────────────
+        with _build_step(job, name="generate", label="Generating main.tex",
+                         order=3, log_lines=log_lines):
+            _run_script(
+                scripts_dir / "build_main_tex.py", workdir, log,
+                extra_args=["--build-id", build_id],
+            )
+            _run_script(
+                scripts_dir / "generate_gin.py", workdir, log,
+                extra_args=["--build-id", build_id],
             )
 
-        # 11b. Store PDF
-        output_dir.mkdir(parents=True, exist_ok=True)
-        pdf_filename = f"book_{book.id}_{build_id[:8]}.pdf"
-        pdf_dst = output_dir / pdf_filename
-        shutil.copy2(pdf_src, pdf_dst)
-        log(f"PDF saved: {pdf_dst}")
+        # ── Step 4: typeset (the long one) ───────────────────────────────────
+        with _build_step(job, name="typeset", label="Typesetting with LaTeX (arara)",
+                         order=4, log_lines=log_lines):
+            # -w enables whole-file directive scanning (pre-7.0 default).
+            try:
+                _run(["arara", "-w", "main.tex"], log, cwd=workdir)
+            except subprocess.CalledProcessError:
+                tex_log = workdir / "main.log"
+                if tex_log.exists():
+                    log_text = tex_log.read_text(errors="replace")
+                    lines = log_text.splitlines()
+                    error_lines = []
+                    for i, line in enumerate(lines):
+                        if line.startswith("!") or "Fatal error" in line:
+                            start = max(0, i - 2)
+                            end = min(len(lines), i + 6)
+                            error_lines.extend(lines[start:end])
+                            error_lines.append("---")
+                    if error_lines:
+                        log("--- LaTeX errors from main.log ---")
+                        log("\n".join(error_lines[:80]))
+                    else:
+                        log("--- Last 30 lines of main.log ---")
+                        log("\n".join(lines[-30:]))
+                raise
 
-        # 11c. Update job and book status
-        job.pdf_path = str(pdf_dst)
-        job.finished_at = timezone.now()
-        job.log_output = "\n".join(log_lines)
-        job.save()
+        # ── Step 5: finalize (move PDF, update job/book) ─────────────────────
+        with _build_step(job, name="finalize", label="Finalizing PDF",
+                         order=5, log_lines=log_lines):
+            pdf_src = workdir / "main.pdf"
+            if not pdf_src.exists():
+                raise FileNotFoundError(
+                    "arara completed without error but main.pdf was not found"
+                )
 
-        book.status = Book.Status.COMPLETE
-        book.save(update_fields=["status"])
-        log("Build complete.")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            pdf_filename = f"book_{book.id}_{build_id[:8]}.pdf"
+            pdf_dst = output_dir / pdf_filename
+            shutil.copy2(pdf_src, pdf_dst)
+            log(f"PDF saved: {pdf_dst}")
 
-        # 12. Trigger email delivery
+            job.pdf_path = str(pdf_dst)
+            job.finished_at = timezone.now()
+            job.log_output = "\n".join(log_lines)
+            job.save()
+
+            book.status = Book.Status.COMPLETE
+            book.save(update_fields=["status"])
+            log("Build complete.")
+
+        # Trigger email delivery (separate Celery task; not a step here).
         deliver_pdf.delay(book.id)
 
     except SoftTimeLimitExceeded:
@@ -759,6 +822,7 @@ def build_book_html(self, book_id: int, send_email: bool = True) -> None:
     job.log_output = ""
     job.error_message = ""
     job.save()
+    _reset_steps(job)
 
     book.status = Book.Status.BUILDING
     book.save(update_fields=["status"])
@@ -777,215 +841,206 @@ def build_book_html(self, book_id: int, send_email: bool = True) -> None:
     html_output_root = Path(settings.BUILD_HTML_OUTPUT_DIR)
 
     try:
-        # 1. Workspace
-        workdir.mkdir(parents=True, exist_ok=False)
-        log(f"Workspace: {workdir}")
+        # ── Step 0: setup workspace + validated request payload ──────────
+        with _build_step(job, name="setup", label="Preparing workspace",
+                         order=0, log_lines=log_lines):
+            workdir.mkdir(parents=True, exist_ok=False)
+            log(f"Workspace: {workdir}")
 
-        # 2. Copy HTML-specific templates first (OpenChaptersHTML.sty, CSS, etc.)
-        for f in template_html_dir.iterdir():
-            if f.is_file():
-                shutil.copy2(f, workdir / f.name)
-        log(f"Copied HTML template files from {template_html_dir}")
+            for f in template_html_dir.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, workdir / f.name)
+            log(f"Copied HTML template files from {template_html_dir}")
 
-        # Also copy supporting .sty files from the PDF template dir
-        # (arara.sty, mytodonotes.sty). OpenChapters.sty / preamble.ins
-        # are NOT copied — the HTML build uses the lwarp-safe variants.
-        for sty_name in ("arara.sty", "mytodonotes.sty", "StyleInd.ist"):
-            sty_path = template_dir / sty_name
-            if sty_path.is_file():
-                shutil.copy2(sty_path, workdir / sty_name)
+            # Pull a small set of .sty files from the PDF template dir.
+            for sty_name in ("arara.sty", "mytodonotes.sty", "StyleInd.ist"):
+                sty_path = template_dir / sty_name
+                if sty_path.is_file():
+                    shutil.copy2(sty_path, workdir / sty_name)
 
-        # Ensure latexmk invocations (including those from lwarpmk) run
-        # non-interactively so the build never hangs on a pdflatex prompt.
-        (workdir / ".latexmkrc").write_text(
-            "$pdflatex = 'pdflatex -interaction=nonstopmode -halt-on-error "
-            "--shell-escape %O %S';\n",
-            encoding="utf-8",
-        )
-
-        # 3. Write build_request.json
-        request_data = _build_request_data(book)
-        (workdir / "build_request.json").write_text(
-            json.dumps(request_data, indent=2), encoding="utf-8"
-        )
-        log("Wrote build_request.json")
-        _validate_build_data(request_data)
-
-        # 4. Clone chapter repo(s)
-        from catalog.git_provider import get_provider
-        provider = get_provider()
-        repos = {ch["repo"] for p in request_data["parts"] for ch in p["chapters"]}
-        for repo in repos:
-            repo_dir = workdir / repo.split("/")[-1]
-            _run(
-                ["git", "clone", "--depth=1", provider.clone_url(repo), str(repo_dir)],
-                log,
+            # Force latexmk runs (incl. via lwarpmk) to be non-interactive.
+            (workdir / ".latexmkrc").write_text(
+                "$pdflatex = 'pdflatex -interaction=nonstopmode -halt-on-error "
+                "--shell-escape %O %S';\n",
+                encoding="utf-8",
             )
 
-        # 5. HTML builds skip matter/Frontmatter and matter/Postmatter —
-        #    they rely on tikz-positioning, custom title-page commands
-        #    (e.g. \OC, \chapterimage, \noheaderimage), and PDF-only
-        #    graphics paths that lwarp can't render. The sidetoc +
-        #    lwarp's own landing page replace the PDF front cover.
-        img_folder = workdir / "ImageFolder"
-        img_folder.mkdir(exist_ok=True)
+            request_data = _build_request_data(book)
+            (workdir / "build_request.json").write_text(
+                json.dumps(request_data, indent=2), encoding="utf-8"
+            )
+            log("Wrote build_request.json")
+            _validate_build_data(request_data)
 
-        # 6. Merge bibs → OpenChapters.bib
-        _run_script(scripts_dir / "concat_bibs.py", workdir, log)
+        # ── Step 1: clone chapter repos ──────────────────────────────────
+        with _build_step(job, name="clone", label="Cloning chapter sources",
+                         order=1, log_lines=log_lines) as step:
+            from catalog.git_provider import get_provider
+            provider = get_provider()
+            repos = sorted({
+                ch["repo"]
+                for p in request_data["parts"]
+                for ch in p["chapters"]
+            })
+            for i, repo in enumerate(repos, start=1):
+                _set_step_detail(step, f"{i} of {len(repos)}: {repo}")
+                repo_dir = workdir / repo.split("/")[-1]
+                _run(
+                    ["git", "clone", "--depth=1", provider.clone_url(repo), str(repo_dir)],
+                    log,
+                )
+            _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
 
-        # 7. Collect figures into ImageFolder/
-        _run_script(scripts_dir / "collect_images.py", workdir, log)
+        # ── Step 2: assemble images, bibs, figures, SVG conversion ───────
+        with _build_step(job, name="assemble", label="Assembling figures and bibliography",
+                         order=2, log_lines=log_lines):
+            # HTML builds skip matter/Frontmatter/Postmatter — the sidetoc
+            # plus lwarp's landing page replace the PDF front cover.
+            img_folder = workdir / "ImageFolder"
+            img_folder.mkdir(exist_ok=True)
 
-        # 7a. Convert PDF figures to SVG (required for lwarp HTML output)
-        _convert_pdfs_to_svg(img_folder, log)
+            _run_script(scripts_dir / "concat_bibs.py", workdir, log)
+            _run_script(scripts_dir / "collect_images.py", workdir, log)
+            _convert_pdfs_to_svg(img_folder, log)
 
-        # 7b. Copy worked-example figures → example_figures/<id>/
-        _copy_example_figures(workdir, request_data, log)
-        # PDF figures inside example_figures/ also need SVG counterparts
-        # for the HTML build.
-        if (workdir / "example_figures").is_dir():
-            for ex_subdir in (workdir / "example_figures").iterdir():
-                if ex_subdir.is_dir():
-                    _convert_pdfs_to_svg(ex_subdir, log)
+            _copy_example_figures(workdir, request_data, log)
+            if (workdir / "example_figures").is_dir():
+                for ex_subdir in (workdir / "example_figures").iterdir():
+                    if ex_subdir.is_dir():
+                        _convert_pdfs_to_svg(ex_subdir, log)
 
-        # 8. Render main.tex + main_html.tex from Jinja2 template
-        author = book.user.full_name or book.user.email
-        _run_script(
-            scripts_dir / "build_main_book_html_tex.py", workdir, log,
-            extra_args=[
-                "--build-id", build_id,
-                "--book-author", author,
-            ],
-        )
+        # ── Step 3: generate main.tex + git metadata ─────────────────────
+        with _build_step(job, name="generate", label="Generating main.tex",
+                         order=3, log_lines=log_lines):
+            author = book.user.full_name or book.user.email
+            _run_script(
+                scripts_dir / "build_main_book_html_tex.py", workdir, log,
+                extra_args=[
+                    "--build-id", build_id,
+                    "--book-author", author,
+                ],
+            )
+            # generate_gin.py emits \usepackage[...]{gitexinfo}, which lwarp
+            # rejects (no braces in package options). Use the HTML-safe
+            # \renewcommand variant instead.
+            _write_html_gin(workdir, build_id)
 
-        # 9. Write a lwarp-safe gitHeadLocal.gin for gitinfo2.
-        #    generate_gin.py writes \usepackage[...]{gitexinfo}, which
-        #    lwarp rejects (it refuses braces in package options). We
-        #    use the same \renewcommand style that build_chapter_html
-        #    uses for its HTML builds.
-        _write_html_gin(workdir, build_id)
+        # ── Step 4: typeset (arara → full lwarp chain) ───────────────────
+        with _build_step(job, name="typeset", label="Typesetting (arara → lwarp → MathJax)",
+                         order=4, log_lines=log_lines):
+            env = os.environ.copy()
+            env["OCBUILD_SCRIPTS_DIR"] = str(scripts_dir)
+            env["PATH"] = "/usr/local/bin:" + env.get("PATH", "")
+            # Isolate the Perl PAR cache per build so concurrent biber runs
+            # don't clobber each other's module cache.
+            par_cache = workdir / ".par_cache"
+            par_cache.mkdir(exist_ok=True)
+            env["PAR_GLOBAL_TEMP"] = str(par_cache)
+            env["PAR_TEMP"] = str(par_cache)
 
-        # 10. Run arara — triggers the full lwarp chain
-        env = os.environ.copy()
-        env["OCBUILD_SCRIPTS_DIR"] = str(scripts_dir)
-        env["PATH"] = "/usr/local/bin:" + env.get("PATH", "")
-        # Isolate the Perl PAR cache per build so concurrent biber runs
-        # don't clobber each other's module cache.
-        par_cache = workdir / ".par_cache"
-        par_cache.mkdir(exist_ok=True)
-        env["PAR_GLOBAL_TEMP"] = str(par_cache)
-        env["PAR_TEMP"] = str(par_cache)
+            log("$ arara -w main.tex")
+            result = subprocess.run(
+                ["arara", "-w", "main.tex"],
+                cwd=str(workdir),
+                capture_output=True,
+                text=True,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                timeout=1500,
+            )
+            if result.stdout:
+                log(result.stdout.rstrip())
+            if result.stderr:
+                log(result.stderr.rstrip())
+            if result.returncode != 0:
+                tex_log = workdir / "main.log"
+                if tex_log.exists():
+                    lines = tex_log.read_text(errors="replace").splitlines()
+                    errs = [l for l in lines if l.startswith("!")][:10]
+                    if errs:
+                        log("--- LaTeX errors ---")
+                        log("\n".join(errs))
+                raise subprocess.CalledProcessError(result.returncode, ["arara", "main.tex"])
 
-        log("$ arara -w main.tex")
-        result = subprocess.run(
-            ["arara", "-w", "main.tex"],
-            cwd=str(workdir),
-            capture_output=True,
-            text=True,
-            env=env,
-            stdin=subprocess.DEVNULL,
-            timeout=1500,
-        )
-        if result.stdout:
-            log(result.stdout.rstrip())
-        if result.stderr:
-            log(result.stderr.rstrip())
-        if result.returncode != 0:
-            tex_log = workdir / "main.log"
-            if tex_log.exists():
-                lines = tex_log.read_text(errors="replace").splitlines()
-                errs = [l for l in lines if l.startswith("!")][:10]
-                if errs:
-                    log("--- LaTeX errors ---")
-                    log("\n".join(errs))
-            raise subprocess.CalledProcessError(result.returncode, ["arara", "main.tex"])
+            index_html = workdir / "index.html"
+            if not index_html.exists():
+                raise FileNotFoundError("arara completed but index.html was not generated")
 
-        # 10a. Verify lwarp produced the expected HTML landing page
-        index_html = workdir / "index.html"
-        if not index_html.exists():
-            raise FileNotFoundError("arara completed but index.html was not generated")
+        # ── Step 5: bundle the HTML output into the live directory ───────
+        with _build_step(job, name="bundle", label="Bundling HTML output",
+                         order=5, log_lines=log_lines):
+            _postprocess_book_html(workdir, log)
 
-        # 11. Post-process the HTML (inject ocweb_overrides.css)
-        _postprocess_book_html(workdir, log)
+            html_output_root.mkdir(parents=True, exist_ok=True)
+            output_dir = html_output_root / f"book_{book.id}"
 
-        # 12. Collect output → <html_output_root>/book_<id>/
-        html_output_root.mkdir(parents=True, exist_ok=True)
-        output_dir = html_output_root / f"book_{book.id}"
+            # Atomic swap via a temporary directory.
+            tmp_dir = html_output_root / f".tmp-book-{book.id}-{build_id[:8]}"
+            tmp_dir.mkdir(parents=True, exist_ok=False)
 
-        # Atomic swap via a temporary directory.
-        tmp_dir = html_output_root / f".tmp-book-{book.id}-{build_id[:8]}"
-        tmp_dir.mkdir(parents=True, exist_ok=False)
+            try:
+                for ext in ("*.html", "*.css", "*.js"):
+                    for src in workdir.glob(ext):
+                        shutil.copy2(src, tmp_dir / src.name)
 
-        try:
-            for ext in ("*.html", "*.css", "*.js"):
-                for src in workdir.glob(ext):
-                    shutil.copy2(src, tmp_dir / src.name)
+                img_src = workdir / "ImageFolder"
+                if img_src.is_dir():
+                    img_dest = tmp_dir / "ImageFolder"
+                    img_dest.mkdir()
+                    for f in img_src.iterdir():
+                        if f.suffix.lower() in (".svg", ".png") and f.is_file():
+                            shutil.copy2(f, img_dest / f.name)
 
-            img_src = workdir / "ImageFolder"
-            if img_src.is_dir():
-                img_dest = tmp_dir / "ImageFolder"
-                img_dest.mkdir()
-                for f in img_src.iterdir():
-                    if f.suffix.lower() in (".svg", ".png") and f.is_file():
-                        shutil.copy2(f, img_dest / f.name)
+                ex_figures_src = workdir / "example_figures"
+                if ex_figures_src.is_dir():
+                    ex_figures_dest = tmp_dir / "example_figures"
+                    ex_figures_dest.mkdir()
+                    for ex_dir in ex_figures_src.iterdir():
+                        if not ex_dir.is_dir():
+                            continue
+                        out_dir = ex_figures_dest / ex_dir.name
+                        out_dir.mkdir()
+                        for f in ex_dir.iterdir():
+                            if f.suffix.lower() in (".svg", ".png", ".jpg", ".jpeg") and f.is_file():
+                                shutil.copy2(f, out_dir / f.name)
 
-            # Worked-example figures are emitted under example_figures/<id>/
-            # by main_book_html.tex.j2's \chaptergraphicspath swap; lwarp
-            # references them at the same relative path, so the subtree
-            # needs to land alongside index.html in the output.
-            ex_figures_src = workdir / "example_figures"
-            if ex_figures_src.is_dir():
-                ex_figures_dest = tmp_dir / "example_figures"
-                ex_figures_dest.mkdir()
-                for ex_dir in ex_figures_src.iterdir():
-                    if not ex_dir.is_dir():
-                        continue
-                    out_dir = ex_figures_dest / ex_dir.name
-                    out_dir.mkdir()
-                    for f in ex_dir.iterdir():
-                        if f.suffix.lower() in (".svg", ".png", ".jpg", ".jpeg") and f.is_file():
-                            shutil.copy2(f, out_dir / f.name)
+                mathjax_txt = workdir / "lwarp_mathjax.txt"
+                if mathjax_txt.exists():
+                    shutil.copy2(mathjax_txt, tmp_dir / mathjax_txt.name)
 
-            mathjax_txt = workdir / "lwarp_mathjax.txt"
-            if mathjax_txt.exists():
-                shutil.copy2(mathjax_txt, tmp_dir / mathjax_txt.name)
+                if not (tmp_dir / "index.html").exists():
+                    raise RuntimeError("No index.html was copied to output")
 
-            if not (tmp_dir / "index.html").exists():
-                raise RuntimeError("No index.html was copied to output")
+                # Pre-build the zip archive so downloads are O(1).
+                staging_zip = html_output_root / f".tmp-book-{book.id}-{build_id[:8]}.zip"
+                _zip_directory(tmp_dir, staging_zip)
+                shutil.move(str(staging_zip), str(tmp_dir / "book.zip"))
+                log(f"Wrote zip archive ({(tmp_dir / 'book.zip').stat().st_size} bytes)")
 
-            # 12a. Pre-build the zip archive so downloads are O(1) rather
-            # than re-zipped per request. Write the archive to a location
-            # OUTSIDE tmp_dir first so os.walk doesn't capture the
-            # archive mid-write, then move it in.
-            staging_zip = html_output_root / f".tmp-book-{book.id}-{build_id[:8]}.zip"
-            _zip_directory(tmp_dir, staging_zip)
-            shutil.move(str(staging_zip), str(tmp_dir / "book.zip"))
-            log(f"Wrote zip archive ({(tmp_dir / 'book.zip').stat().st_size} bytes)")
+                if output_dir.exists():
+                    shutil.rmtree(output_dir)
+                tmp_dir.rename(output_dir)
+            except Exception:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                raise
 
-            if output_dir.exists():
-                shutil.rmtree(output_dir)
-            tmp_dir.rename(output_dir)
-        except Exception:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            raise
+            log(f"HTML output: {output_dir}")
 
-        log(f"HTML output: {output_dir}")
+        # ── Step 6: finalize (update Book + BuildJob) ───────────────────
+        with _build_step(job, name="finalize", label="Finalizing",
+                         order=6, log_lines=log_lines):
+            book.html_path = str(output_dir)
+            book.html_built_at = timezone.now()
+            book.status = Book.Status.COMPLETE
+            book.save(update_fields=["html_path", "html_built_at", "status"])
 
-        # 13. Update Book + BuildJob
-        book.html_path = str(output_dir)
-        book.html_built_at = timezone.now()
-        book.status = Book.Status.COMPLETE
-        book.save(update_fields=["html_path", "html_built_at", "status"])
+            job.finished_at = timezone.now()
+            job.log_output = "\n".join(log_lines)
+            job.save()
 
-        job.finished_at = timezone.now()
-        job.log_output = "\n".join(log_lines)
-        job.save()
+            log("HTML build complete.")
 
-        log("HTML build complete.")
-
-        # 14. Email the user a link to view / download the HTML output.
-        # Skipped when chained after a PDF build — the PDF email already
-        # went out and a duplicate would be redundant.
+        # Email is a separate Celery task (not a step on this job).
         if send_email:
             deliver_book_html.delay(book.id)
         else:

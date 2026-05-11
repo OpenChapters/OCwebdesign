@@ -2,7 +2,7 @@ from catalog.models import Chapter
 from catalog.serializers import ChapterSerializer
 from rest_framework import serializers
 
-from .models import Book, BookChapter, BookPart, BuildJob
+from .models import Book, BookChapter, BookPart, BuildJob, BuildStep
 
 
 class BookChapterSerializer(serializers.ModelSerializer):
@@ -26,7 +26,25 @@ class BookPartSerializer(serializers.ModelSerializer):
         fields = ["id", "title", "order", "chapters"]
 
 
+class BuildStepSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BuildStep
+        fields = [
+            "name",
+            "label",
+            "order",
+            "status",
+            "detail",
+            "started_at",
+            "finished_at",
+            "log_tail",
+        ]
+        read_only_fields = fields
+
+
 class BuildJobSerializer(serializers.ModelSerializer):
+    steps = BuildStepSerializer(many=True, read_only=True)
+
     class Meta:
         model = BuildJob
         fields = [
@@ -34,6 +52,7 @@ class BuildJobSerializer(serializers.ModelSerializer):
             "started_at",
             "finished_at",
             "error_message",
+            "steps",
         ]
         read_only_fields = fields
 

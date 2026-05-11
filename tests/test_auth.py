@@ -106,10 +106,16 @@ class TestProfile:
         user.refresh_from_db()
         assert user.full_name == "Updated Name"
 
-    def test_delete_account(self, auth_client, user):
+    def test_delete_account_schedules_purge(self, auth_client, user):
+        # As of the deletion-grace-period change, DELETE schedules
+        # rather than immediately removes; covered in depth in
+        # tests/test_account_deletion.py.
         resp = auth_client.delete(self.URL)
-        assert resp.status_code == 204
-        assert not User.objects.filter(pk=user.pk).exists()
+        assert resp.status_code == 200
+        user.refresh_from_db()
+        assert user.deletion_scheduled_at is not None
+        # Row should still exist until the beat task purges it.
+        assert User.objects.filter(pk=user.pk).exists()
 
     def test_unauthenticated_profile(self, api_client):
         resp = api_client.get(self.URL)

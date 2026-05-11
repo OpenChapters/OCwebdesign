@@ -1,9 +1,8 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import client from '../api/client';
 import { examplesApi } from '../api/examples';
-import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import type { ExampleListItem, ExampleStatus } from '../types';
 
@@ -15,12 +14,12 @@ interface Profile {
   date_joined: string;
   last_login: string | null;
   share_builds: boolean;
+  /** ISO 8601 — non-null when the account is on the deletion calendar. */
+  deletion_scheduled_at: string | null;
 }
 
 export default function ProfilePage() {
   const toast = useToast();
-  const { logout } = useAuth();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: profile, isLoading } = useQuery({
@@ -74,18 +73,32 @@ export default function ProfilePage() {
     }
   }
 
-  // Delete account
+  // Schedule account deletion (7-day grace).
   async function handleDeleteAccount() {
-    if (!confirm('Are you sure you want to permanently delete your account? All your books and data will be lost.')) return;
-    if (!confirm('This cannot be undone. Delete your account?')) return;
+    if (!confirm(
+      'Schedule your account for deletion?\n\n'
+      + 'Your account will be permanently removed in 7 days. Until then '
+      + 'you can sign in and cancel the deletion at any time.'
+    )) return;
     try {
       await client.delete('/auth/profile/');
-      logout();
-      navigate('/');
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      toast('Account scheduled for deletion in 7 days.', 'info');
     } catch {
-      toast('Failed to delete account.', 'error');
+      toast('Failed to schedule deletion.', 'error');
     }
   }
+
+  async function handleCancelDeletion() {
+    try {
+      await client.post('/auth/profile/cancel-deletion/');
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      toast('Deletion cancelled.', 'success');
+    } catch {
+      toast('Failed to cancel deletion.', 'error');
+    }
+  }
+
 
   if (isLoading || !profile) {
     return (
@@ -95,9 +108,37 @@ export default function ProfilePage() {
     );
   }
 
+  const deletionDate = profile.deletion_scheduled_at
+    ? new Date(profile.deletion_scheduled_at)
+    : null;
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Profile</h1>
+
+      {deletionDate && (
+        <div
+          role="alert"
+          className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+        >
+          <div>
+            <p className="text-sm font-medium text-amber-900">
+              Account scheduled for deletion
+            </p>
+            <p className="text-xs text-amber-800 mt-1">
+              Your account and all its data will be removed on{' '}
+              <strong>{deletionDate.toLocaleString()}</strong>. Cancel any
+              time before then to keep it.
+            </p>
+          </div>
+          <button
+            onClick={handleCancelDeletion}
+            className="text-sm bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 shrink-0"
+          >
+            Cancel deletion
+          </button>
+        </div>
+      )}
 
       {/* Account info */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
@@ -307,18 +348,22 @@ export default function ProfilePage() {
       </div>
 
       {/* Danger zone */}
-      <div className="bg-white border border-red-200 rounded-lg p-6">
-        <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-2">Danger zone</h2>
-        <p className="text-sm text-gray-500 mb-3">
-          Permanently delete your account and all associated data (books, builds).
-        </p>
-        <button
-          onClick={handleDeleteAccount}
-          className="text-sm bg-red-50 text-red-700 px-4 py-2 rounded-lg hover:bg-red-100 font-medium"
-        >
-          Delete my account
-        </button>
-      </div>
+      {!deletionDate && (
+        <div className="bg-white border border-red-200 rounded-lg p-6">
+          <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-2">Danger zone</h2>
+          <p className="text-sm text-gray-500 mb-3">
+            Schedule your account for deletion. Your data (books, builds,
+            worked examples) will be permanently removed seven days later.
+            You can sign in and cancel any time before then.
+          </p>
+          <button
+            onClick={handleDeleteAccount}
+            className="text-sm bg-red-50 text-red-700 px-4 py-2 rounded-lg hover:bg-red-100 font-medium"
+          >
+            Schedule deletion (7 days)
+          </button>
+        </div>
+      )}
     </div>
   );
 }

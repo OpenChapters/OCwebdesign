@@ -35,6 +35,12 @@ class User(AbstractUser):
     # and may carry personal info, so visibility is the user's choice.
     share_builds = models.BooleanField(default=False)
 
+    # Scheduled-deletion grace period. Setting this to a future datetime
+    # marks the account for purge by a Celery beat task once it elapses.
+    # Cleared (set back to NULL) by the user's "Cancel deletion" action
+    # to call off a pending removal.
+    deletion_scheduled_at = models.DateTimeField(null=True, blank=True)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 

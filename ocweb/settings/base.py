@@ -213,6 +213,12 @@ CELERY_BEAT_SCHEDULE = {
         "task": "catalog.sync_chapters",
         "schedule": crontab(hour=3, minute=0),  # 03:00 UTC every day
     },
+    # Hard-delete users whose 7-day deletion grace period has elapsed.
+    # Cheap query (indexed datetime filter) — runs daily.
+    "purge-expired-accounts": {
+        "task": "users.purge_expired_accounts",
+        "schedule": crontab(hour=4, minute=0),  # 04:00 UTC every day
+    },
 }
 
 # ── Build pipeline ────────────────────────────────────────────────────────────

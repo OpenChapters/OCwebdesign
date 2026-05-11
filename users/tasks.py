@@ -59,3 +59,30 @@ def send_reset_email_task(self, email: str, reset_url: str) -> None:
             email, self.request.retries + 1, 3, exc,
         )
         raise  # triggers autoretry
+
+
+@shared_task(name="users.purge_expired_accounts")
+def purge_expired_accounts() -> int:
+    """Hard-delete any user whose deletion_scheduled_at is in the past.
+
+    Driven by a daily Celery Beat job (see CELERY_BEAT_SCHEDULE). The
+    7-day window between scheduling and purge gives the user time to
+    sign in and cancel via /api/auth/profile/cancel-deletion/.
+
+    Returns the number of accounts removed (so the task log line is
+    useful for ops review).
+    """
+    from django.utils import timezone
+
+    from users.models import User
+
+    qs = User.objects.filter(deletion_scheduled_at__lte=timezone.now())
+    count = qs.count()
+    if count:
+        # .delete() cascades to Book / Example / etc. via the existing
+        # FK on_delete settings. We log emails before delete so the audit
+        # trail isn't blank if ops needs to investigate later.
+        emails = list(qs.values_list("email", flat=True))
+        logger.warning("Purging %d expired account(s): %s", count, emails)
+        qs.delete()
+    return count

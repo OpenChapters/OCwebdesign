@@ -151,6 +151,9 @@ class ProfileView(APIView):
             "date_joined": u.date_joined,
             "last_login": u.last_login,
             "share_builds": u.share_builds,
+            # ISO 8601 string or null — non-null means a purge is on the
+            # calendar; the frontend renders a "Cancel deletion" banner.
+            "deletion_scheduled_at": u.deletion_scheduled_at,
         }
 
     def get(self, request):
@@ -172,5 +175,29 @@ class ProfileView(APIView):
         return Response(self._payload(u))
 
     def delete(self, request):
-        request.user.delete()
-        return Response({"detail": "Account deleted."}, status=status.HTTP_204_NO_CONTENT)
+        """Schedule the account for deletion seven days from now rather
+        than removing the row immediately. The user stays signed in and
+        can hit POST /api/auth/profile/cancel-deletion/ to call it off
+        any time before the purge task runs."""
+        from datetime import timedelta
+        from django.utils import timezone
+
+        u = request.user
+        if u.deletion_scheduled_at is None:
+            u.deletion_scheduled_at = timezone.now() + timedelta(days=7)
+            u.save(update_fields=["deletion_scheduled_at"])
+        return Response(self._payload(u))
+
+
+class CancelDeletionView(APIView):
+    """POST /api/auth/profile/cancel-deletion/ — call off a pending
+    account purge. No-op if no deletion is currently scheduled."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        u = request.user
+        if u.deletion_scheduled_at is not None:
+            u.deletion_scheduled_at = None
+            u.save(update_fields=["deletion_scheduled_at"])
+        return Response({"detail": "Deletion cancelled."})

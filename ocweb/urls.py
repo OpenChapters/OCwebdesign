@@ -59,6 +59,7 @@ from catalog.views import (
     ExampleSubmitView,
 )
 from users.views import (
+    CancelDeletionView,
     ChangePasswordView,
     ForgotPasswordView,
     ProfileView,
@@ -117,6 +118,7 @@ urlpatterns = [
     path("api/auth/reset-password/", ResetPasswordView.as_view(), name="auth-reset-password"),
     path("api/auth/change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
     path("api/auth/profile/", ProfileView.as_view(), name="auth-profile"),
+    path("api/auth/profile/cancel-deletion/", CancelDeletionView.as_view(), name="auth-cancel-deletion"),
 
     # ── Catalog ───────────────────────────────────────────────────────────────
     path("api/disciplines/", DisciplineListView.as_view(), name="discipline-list"),

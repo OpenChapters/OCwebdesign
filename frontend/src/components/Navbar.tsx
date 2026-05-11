@@ -36,14 +36,16 @@ export default function Navbar() {
             My Books
           </NavLink>
         )}
-        <NavLink
-          to="/examples"
-          className={({ isActive }) =>
-            `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
-          }
-        >
-          Examples
-        </NavLink>
+        {isAuthenticated && (
+          <NavLink
+            to="/examples"
+            className={({ isActive }) =>
+              `text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-600 hover:text-gray-900'}`
+            }
+          >
+            Examples
+          </NavLink>
+        )}
         <NavLink
           to="/community"
           className={({ isActive }) =>

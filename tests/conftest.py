@@ -10,7 +10,9 @@ from tests.factories import (
     BookPartFactory,
     BuildJobFactory,
     ChapterFactory,
+    ExampleFactory,
     FoundationalChapterFactory,
+    PublishedExampleFactory,
     StaffUserFactory,
     UserFactory,
 )
@@ -62,6 +64,18 @@ def foundational_chapter(db):
 @pytest.fixture
 def book(user):
     return BookFactory(user=user)
+
+
+@pytest.fixture
+def example(user, chapter):
+    return ExampleFactory(author=user, primary_chapter=chapter, chapters=[chapter])
+
+
+@pytest.fixture
+def published_example(user, chapter):
+    return PublishedExampleFactory(
+        author=user, primary_chapter=chapter, chapters=[chapter]
+    )
 
 
 @pytest.fixture

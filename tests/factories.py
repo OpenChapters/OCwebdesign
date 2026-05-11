@@ -4,7 +4,7 @@ import factory
 from django.contrib.auth import get_user_model
 
 from books.models import Book, BookChapter, BookPart, BuildJob
-from catalog.models import Chapter
+from catalog.models import Chapter, Example, ExampleFigure, ExampleVersion
 
 User = get_user_model()
 
@@ -82,3 +82,60 @@ class BuildJobFactory(factory.django.DjangoModelFactory):
 
     book = factory.SubFactory(BookFactory)
     celery_task_id = factory.Faker("uuid4")
+
+
+class ExampleFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Example
+        skip_postgeneration_save = True
+
+    author = factory.SubFactory(UserFactory)
+    primary_chapter = factory.SubFactory(ChapterFactory)
+    statement_tex = factory.Sequence(lambda n: f"Statement {n}: prove that 2+2={2+2}.")
+    solution_tex = factory.Sequence(lambda n: f"Solution {n}: by direct calculation.")
+    difficulty = Example.Difficulty.STANDARD
+    status = Example.Status.DRAFT
+
+    @factory.post_generation
+    def chapters(self, create, extracted, **kwargs):
+        if not create:
+            return
+        if extracted:
+            for ch in extracted:
+                self.chapters.add(ch)
+        else:
+            # Default: tag the example to its primary chapter only.
+            self.chapters.add(self.primary_chapter)
+
+
+class PublishedExampleFactory(ExampleFactory):
+    status = Example.Status.PUBLISHED
+
+
+class ExampleFigureFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ExampleFigure
+
+    example = factory.SubFactory(ExampleFactory)
+    file = factory.django.FileField(filename="figure.png", data=b"\x89PNG\r\n\x1a\n")
+    original_filename = "figure.png"
+    order = 0
+
+
+class ExampleVersionFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ExampleVersion
+
+    example = factory.SubFactory(ExampleFactory)
+    version_no = factory.Sequence(lambda n: n + 1)
+    snapshot = factory.LazyFunction(
+        lambda: {
+            "statement_tex": "old statement",
+            "solution_tex": "old solution",
+            "difficulty": "standard",
+            "primary_chapter_chabbr": None,
+            "chapters_chabbrs": [],
+            "status": "draft",
+            "slug": None,
+        }
+    )

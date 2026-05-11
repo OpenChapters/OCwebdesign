@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "drf_spectacular",
+    "drf_spectacular_sidecar",
     # Project apps
     "users",
     "catalog",
@@ -152,6 +153,12 @@ SPECTACULAR_SETTINGS = {
     # Suggest sensible defaults in the rendered docs; auth is JWT.
     "SECURITY": [{"jwtAuth": []}],
     "COMPONENT_SPLIT_REQUEST": True,
+    # Ship the Swagger UI / ReDoc bundles from our own /static/ rather
+    # than a CDN, so the prod CSP (which only allows `'self'` for
+    # style-src and img-src) doesn't block them.
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
     # Resolve the three `status` enum collisions by giving each its own
     # component name in the generated schema.
     "ENUM_NAME_OVERRIDES": {

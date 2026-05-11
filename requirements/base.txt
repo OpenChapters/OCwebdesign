@@ -6,6 +6,7 @@ httpx==0.*
 djangorestframework==3.*
 djangorestframework-simplejwt==5.*
 drf-spectacular==0.28.*
+drf-spectacular-sidecar==2025.*
 Pillow==11.*
 beautifulsoup4==4.*
 sentry-sdk[django]==2.*

@@ -23,20 +23,23 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
    - [Removing Chapters and Parts](#removing-chapters-and-parts)
    - [Auto-Include Foundational Chapters](#auto-include-foundational-chapters)
 10. [Building Your Book](#building-your-book)
+    - [Preview structure](#preview-structure)
 11. [Build Status](#build-status)
 12. [Your Library](#your-library)
 13. [Community Library](#community-library)
 14. [Worked Examples](#worked-examples)
     - [Browsing](#browsing)
     - [Reading an Example](#reading-an-example)
+    - [Revision history](#revision-history)
     - [Submitting an Example](#submitting-an-example)
     - [Lifecycle](#lifecycle)
     - [Batch Import](#batch-import)
     - [Where Examples Appear](#where-examples-appear)
 15. [Managing Your Books](#managing-your-books)
-16. [Your Profile](#your-profile)
-17. [Resetting Your Password](#resetting-your-password)
-18. [Feature Requests and Bug Reports](#feature-requests-and-bug-reports)
+16. [Appearance](#appearance)
+17. [Your Profile](#your-profile)
+18. [Resetting Your Password](#resetting-your-password)
+19. [Feature Requests and Bug Reports](#feature-requests-and-bug-reports)
 
 ---
 
@@ -292,6 +295,12 @@ The build process typically takes 1–3 minutes per format depending on the numb
 - Typesets the book using LaTeX (pdflatex + biber + makeindex for PDF, plus lwarp + MathJax for HTML)
 - Produces the PDF and/or a complete HTML bundle ready for offline reading
 
+### Preview structure
+
+Next to the Build button is a **Preview structure** button. It runs the same build pipeline but emits a slimmer LaTeX document that contains only the title page, table of contents, and chapter headings — no chapter body content, no bibliography, no examples. A preview typically completes in well under a minute, so it's the right tool when you only want to confirm that the parts and chapters are in the right order before committing to a full build. The result is a regular PDF you can open and download; the Build Status page labels it **Structure preview ready** so you don't mistake it for a finished book.
+
+A subsequent full build replaces the preview PDF — the two share the same Book slot, and only the most recent build is kept.
+
 ## Build Status
 
 The Build Status page shows the current state of your build:
@@ -364,6 +373,10 @@ The detail page renders both the statement and the solution. Inline math (`$..$`
 For full-fidelity rendering (the same LaTeX pipeline used to build chapters), click **Open preview PDF** to fetch the typeset version.
 
 A **Show / Hide** toggle on the solution lets you read the statement first and try the problem yourself before revealing the solution.
+
+### Revision history
+
+Authors (on their own examples) and administrators (on any example) see a **Revision history** disclosure near the bottom of the detail page. Expand it to see every prior version of the example — version number, who made the edit, when it was saved, and the full snapshot of statement, solution, difficulty, and chapter tags as they were at that time. Each row expands inline so you can read the historical content directly; nothing is lost when a published example is edited and sent back through review.
 
 ### Submitting an Example
 
@@ -461,6 +474,13 @@ From this page you can:
 - Click **Status** on building/queued books to view progress
 - Click **Delete** to remove a book permanently
 
+## Appearance
+
+The navigation bar has a small sun / system / moon toggle. Pick whichever you prefer; the choice is remembered across visits and applies to every page of the site.
+
+- **Light** and **Dark** force the corresponding theme.
+- **System** (the default) follows your operating system's appearance setting and switches automatically if you have a dark-mode schedule configured at the OS level.
+
 ## Your Profile
 
 Click **Profile** in the top-right corner of the navigation bar to view and manage your account.
@@ -499,9 +519,10 @@ Click **+ New example** at the top of the section to start a new submission.
 At the bottom of the profile page is a **Danger zone** section:
 
 1. Click **Delete my account**.
-2. Confirm twice (this action is permanent).
-3. Your account and all associated data (books, builds) will be permanently removed.
-4. You will be signed out and redirected to the home page.
+2. Confirm twice.
+3. Your account is **scheduled** for deletion. You stay signed in and a banner appears at the top of the profile page showing the cooling-off period: your account is fully removed seven days after the request.
+4. To change your mind during those seven days, sign in (or stay signed in) and click **Cancel deletion** on the banner — your account and all data are restored to exactly how they were before.
+5. After the seven-day window, a nightly task permanently purges the account and all associated data (books, builds, worked examples). At that point recovery is no longer possible.
 
 ## Resetting Your Password
 

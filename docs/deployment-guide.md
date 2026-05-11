@@ -55,21 +55,29 @@ Internet
      │  :8000 (internal)
 ┌────▼─────┐
 │ gunicorn │  Django API (3 workers)
-│          │  Static files via whitenoise
+│          │  Static files via whitenoise (incl. Swagger UI / ReDoc bundles)
 └──┬────┬──┘
    │    │
 ┌──▼──┐ ┌▼──────────┐
 │ PG  │ │ RabbitMQ  │
 └─────┘ └──┬────────┘
             │
-       ┌────▼────┐
-       │ Celery  │  TeX Live worker
-       │ worker  │  - On-demand custom PDF books (build_book)
-       │         │  - Per-chapter HTML via lwarp (build_chapter_html)
-       │         │  - Per-book HTML via lwarp (build_book_html)
-       │         │  - Foundational labels-PDF (build_chapter_pdf_labels)
-       └─────────┘
+   ┌────────┼──────────────────┐
+   │        │                  │
+┌──▼───┐ ┌─▼──────┐ ┌──────────▼────────┐
+│beat  │ │worker- │ │  worker-default   │
+│sched.│ │builds  │ │ short tasks:      │
+│      │ │long    │ │  - email retries  │
+│      │ │LaTeX:  │ │  - sync_chapters  │
+│      │ │ book + │ │  - HTML signals   │
+│      │ │ chap.  │ │  - example prev.  │
+│      │ │ PDF +  │ │  - account purge  │
+│      │ │ HTML   │ │                   │
+│      │ │ builds │ │                   │
+└──────┘ └────────┘ └───────────────────┘
 ```
+
+The Celery queue is split into two named queues so a 5–10 minute LaTeX build never blocks short tasks like password-reset emails. `worker-builds` consumes the `builds` queue (book + chapter + per-book HTML + example preview builds); `worker-default` consumes everything else (email retries, the nightly chapter sync, HTML signal handlers, the account-deletion purge). `beat` is a single replica because more than one would double-fire scheduled tasks.
 
 All services run as Docker containers managed by `docker-compose.prod.yml`. Build artifacts:
 
@@ -920,15 +928,16 @@ git pull origin main
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 
 # Rebuild and restart
-docker compose -f docker-compose.prod.yml build web worker-builds worker-default nginx
-docker compose -f docker-compose.prod.yml up -d --force-recreate web worker-builds worker-default nginx
+docker compose -f docker-compose.prod.yml build web worker-builds worker-default beat nginx
+docker compose -f docker-compose.prod.yml up -d --force-recreate web worker-builds worker-default beat nginx
 ```
 
 A few subtleties worth following on every deploy:
 
 - **Migrations first.** Run `migrate` (no app argument) before bringing the new web container up. Plain `migrate` catches every app's drift in one go — easy to skip an app-specific argument and end up with a missing table on prod (the exact thing that hid `0013_example` from the worked-examples library).
-- **`--force-recreate` is not a default.** Without it, `up -d` is a no-op against a running container even when the underlying image has been rebuilt. The web container survives this most of the time because gunicorn re-imports per request, but **Celery workers cache imports at process start** — a `restart` (or unforced `up -d`) keeps the old `tasks.py` / management-command code in memory. Always `--force-recreate worker` after touching Python that the worker imports.
-- **Which services to rebuild.** A backend-only change needs `web worker`. A frontend-only change needs `nginx`. A LaTeX template change needs `worker` (templates are baked into the worker image). When in doubt, rebuild all three — the rebuild is fast because the layers are cached.
+- **`--force-recreate` is not a default.** Without it, `up -d` is a no-op against a running container even when the underlying image has been rebuilt. The web container survives this most of the time because gunicorn re-imports per request, but **Celery workers cache imports at process start** — a `restart` (or unforced `up -d`) keeps the old `tasks.py` / management-command code in memory. Always `--force-recreate worker-builds worker-default beat` after touching Python that any of them imports.
+- **Which services to rebuild.** A backend-only change needs `web worker-builds worker-default beat`. A frontend-only change needs `nginx`. A LaTeX template change needs `worker-builds` (templates are read from disk by the build scripts each run, but the scripts themselves are baked into the image). When in doubt, rebuild all of them — the rebuild is fast because the layers are cached.
+- **Validate on staging first.** Run the same `git pull` + `build` + `up -d` against `docker-compose.staging.yml` (see [Staging Environment](#staging-environment)) and click through the affected surface on `http://localhost:8081` before touching prod.
 
 ## Backups
 

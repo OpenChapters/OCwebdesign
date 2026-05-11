@@ -2,6 +2,13 @@
 
 The OpenChapters API is a RESTful JSON API built with Django REST Framework. All endpoints are served under the `/api/` prefix.
 
+> **Live reference.** A live OpenAPI 3 schema is generated from the server by [drf-spectacular](https://drf-spectacular.readthedocs.io/) and exposed under `/api/schema/`. Two interactive doc viewers are also wired up:
+>
+> - `/api/schema/swagger-ui/` — Swagger UI; try endpoints from the browser after authorizing with a JWT.
+> - `/api/schema/redoc/` — ReDoc; cleaner read-only browser, better for reading the contracts.
+>
+> The schema is the source of truth for the request/response shapes documented below. If a payload here ever disagrees with what `/api/schema/` returns, trust the schema.
+
 ---
 
 ## Table of Contents
@@ -840,6 +847,14 @@ The body can additionally carry `include_examples` and `include_solutions` overr
 
 See [Worked Examples](#worked-examples) for what these flags do at build time.
 
+A `preview_structure` flag enqueues a slimmer build that renders only the title page, table of contents, and chapter headings (no chapter body, no bibliography, no examples). Useful for verifying part/chapter order without paying for a full typeset.
+
+```json
+{ "format": "pdf", "preview_structure": true }
+```
+
+`preview_structure` is only valid with `format: "pdf"`. Preview builds skip email delivery and the HTML auto-chain.
+
 **Response (202):**
 ```json
 {
@@ -850,7 +865,7 @@ See [Worked Examples](#worked-examples) for what these flags do at build time.
 ```
 
 **Errors:**
-- `400` — invalid `format` value
+- `400` — invalid `format` value, or `preview_structure: true` paired with a non-PDF format
 - `409` — a build is already in progress for this book
 
 #### Get Build Status
@@ -1153,6 +1168,36 @@ Authenticated. Moves a `draft` or `rejected` example to `pending`.
 Requires `preview_built_at >= updated_at` — i.e., the snippet must have a successful preview compile newer than the most recent edit. The frontend disables the submit button when this invariant fails; the server returns `400` with a hint to re-run Preview.
 
 **Response (200):** Full example object (now in `pending` status).
+
+#### Revision History
+
+```
+GET /api/examples/<id>/versions/
+```
+
+Returns the prior-state ledger for an example, newest first. Visible to the author of the example and to any staff user; everyone else gets `404` (kept the same as a missing example to avoid leaking existence).
+
+**Response (200):**
+```json
+[
+  {
+    "version_no": 2,
+    "created_at": "2026-05-09T18:21:03Z",
+    "editor_display": "Jane Doe",
+    "snapshot": {
+      "statement_tex": "...",
+      "solution_tex": "...",
+      "difficulty": "standard",
+      "primary_chapter_chabbr": "BASCRY",
+      "chapters_chabbrs": ["BASCRY", "DIFCAL"],
+      "status": "published",
+      "slug": null
+    }
+  }
+]
+```
+
+`editor_display` is the name of the user whose edit produced the next version (or `null` if unattributed). A version row is written every time an author saves a change to a non-draft example; drafts edit in place. An example that has never been edited returns `[]`, not `404`.
 
 #### Admin: Review Queue
 

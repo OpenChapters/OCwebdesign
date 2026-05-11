@@ -14,6 +14,34 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
+# ── Sentry / error tracking ────────────────────────────────────────────────
+# Initialized only when SENTRY_DSN is set, so unconfigured environments
+# (CI, fresh local dev) are a no-op. Works with sentry.io, self-hosted
+# Sentry, or GlitchTip — any DSN-compatible endpoint.
+SENTRY_DSN = env("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration(), CeleryIntegration()],
+        environment=env("SENTRY_ENVIRONMENT", default="development"),
+        release=env("SENTRY_RELEASE", default=""),
+        # send_default_pii=False keeps usernames/emails out of breadcrumbs.
+        # Authors and contributors are identifiable through their accounts;
+        # we don't want crash dumps to expose that PII to Sentry.
+        send_default_pii=False,
+        # Disable performance / tracing by default — turn on per-environment
+        # if/when the operator wants to pay for the spans.
+        traces_sample_rate=env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0),
+        # Capture unhandled exceptions but skip the noisy ones.
+        ignore_errors=[
+            "celery.exceptions.SoftTimeLimitExceeded",  # build hit time limit; already logged
+        ],
+    )
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

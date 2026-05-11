@@ -4,6 +4,13 @@ services:
     build:
       context: .
       dockerfile: docker/nginx/Dockerfile
+      args:
+        # Frontend Sentry DSN is inlined at build time. Set in .env.prod
+        # (or pass --build-arg) to ship browser errors to Sentry; leave
+        # unset to disable.
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN-}
+        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT-production}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE-}
     ports:
       - "8080:80"
       - "443:443"

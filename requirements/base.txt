@@ -7,3 +7,4 @@ djangorestframework==3.*
 djangorestframework-simplejwt==5.*
 Pillow==11.*
 beautifulsoup4==4.*
+sentry-sdk[django]==2.*

@@ -185,6 +185,20 @@ PDF_LINK_EXPIRY_DAYS=7
 TURNSTILE_SITE_KEY=<your_turnstile_site_key>
 TURNSTILE_SECRET_KEY=<your_turnstile_secret_key>
 
+# Optional: Sentry-compatible error tracking. Leave blank to disable.
+# Works with sentry.io, self-hosted Sentry, or GlitchTip. Captures
+# unhandled exceptions from Django, Celery, and the React SPA.
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=production
+# Optional: a release identifier so Sentry can group regressions by
+# deploy. Conventional value is the git short SHA.
+SENTRY_RELEASE=
+# Optional: VITE_-prefixed copies are read by the frontend bundle.
+# Configure with the same DSN if you want browser errors reported too.
+VITE_SENTRY_DSN=
+VITE_SENTRY_ENVIRONMENT=production
+VITE_SENTRY_RELEASE=
+
 # Optional: path to local monorepo clone (for admin thumbnail updates)
 # Only needed if the server has a local clone of the OpenChapters repo
 OPENCHAPTERS_MONOREPO_PATH=

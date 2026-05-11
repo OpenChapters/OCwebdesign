@@ -1,0 +1,71 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ocweb
+          POSTGRES_PASSWORD: ocweb
+          POSTGRES_DB: ocweb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ocweb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Settings module — uses dev settings; the only thing dev overrides
+      # in base is DEBUG/ALLOWED_HOSTS, both fine for tests.
+      DJANGO_SETTINGS_MODULE: ocweb.settings.dev
+      # Point Django at the Postgres service container.
+      DATABASE_URL: postgres://ocweb:ocweb@localhost:5432/ocweb
+      # In-memory Celery broker — `.delay()` succeeds without RabbitMQ;
+      # tasks are enqueued and never executed (no worker consuming).
+      CELERY_BROKER_URL: memory://
+      # SECRET_KEY has no default in base.py and is read at module load.
+      SECRET_KEY: ci-test-secret-key-not-used-in-prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements/dev.txt
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev
+
+      - name: Install Python deps
+        run: pip install -r requirements/dev.txt
+
+      - name: Create media directories
+        # The settings defaults point under BASE_DIR/media/<sub>; mkdir
+        # them so anything that writes through Django's storage succeeds.
+        run: |
+          mkdir -p media/pdfs media/html media/html_books \
+                   media/pdf_labels media/examples media/example_figures \
+                   media/covers
+
+      - name: Run migrations (smoke check)
+        run: python manage.py migrate --noinput
+
+      - name: Run pytest
+        run: python -m pytest --tb=short -v

@@ -4,6 +4,7 @@ import type {
   ExampleFigure,
   ExampleListItem,
   ExampleStatus,
+  ExampleVersion,
   ExampleWritePayload,
   PaginatedResponse,
 } from '../types';
@@ -49,6 +50,12 @@ export const examplesApi = {
   preview: (id: number) =>
     client
       .post<{ task_id: string }>(`/examples/${id}/preview/`)
+      .then((r) => r.data),
+
+  // ── Revision history (author + staff) ─────────────────────────────────────
+  versions: (id: number) =>
+    client
+      .get<ExampleVersion[]>(`/examples/${id}/versions/`)
       .then((r) => r.data),
 
   // ── Figures ──────────────────────────────────────────────────────────────

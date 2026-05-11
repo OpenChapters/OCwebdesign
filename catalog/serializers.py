@@ -3,7 +3,7 @@ from pathlib import Path
 from django.conf import settings
 from rest_framework import serializers
 
-from .models import Chapter, Discipline, Example, ExampleFigure
+from .models import Chapter, Discipline, Example, ExampleFigure, ExampleVersion
 
 
 class DisciplineSerializer(serializers.ModelSerializer):
@@ -255,3 +255,30 @@ class ExampleWriteSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({field: "This field cannot be empty."})
 
         return data
+
+
+class ExampleVersionSerializer(serializers.ModelSerializer):
+    """A single row of the prior-state ledger for an Example.
+
+    The full snapshot is exposed as a nested object so the frontend
+    can render the historical content directly. `editor_display` is
+    the best-effort attribution of who made the edit that *caused*
+    this snapshot to be written (i.e. the author of version_no+1).
+    """
+
+    editor_display = serializers.SerializerMethodField()
+
+    def get_editor_display(self, obj):
+        if obj.created_by is None:
+            return None
+        return obj.created_by.full_name or "Anonymous"
+
+    class Meta:
+        model = ExampleVersion
+        fields = [
+            "version_no",
+            "snapshot",
+            "created_at",
+            "editor_display",
+        ]
+        read_only_fields = fields

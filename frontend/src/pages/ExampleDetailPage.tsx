@@ -5,6 +5,7 @@ import { examplesApi } from '../api/examples';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import MathText from '../components/MathText';
+import ExampleVersionHistory from '../components/ExampleVersionHistory';
 import type { ExampleDetail, ExampleDifficulty, ExampleStatus } from '../types';
 
 const DIFFICULTY_LABEL: Record<ExampleDifficulty, string> = {
@@ -258,6 +259,10 @@ export default function ExampleDetailPage() {
       <p className="mt-6 text-xs text-gray-400">
         License: {example.license}
       </p>
+
+      {(isOwn || isStaff) && (
+        <ExampleVersionHistory exampleId={example.id} />
+      )}
 
       {/* Author actions */}
       {(canEdit || canSubmit || canDelete) && (

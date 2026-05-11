@@ -15,13 +15,14 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Chapter, ChapterSearchIndex, Discipline, Example, ExampleFigure
+from .models import Chapter, ChapterSearchIndex, Discipline, Example, ExampleFigure, ExampleVersion
 from .serializers import (
     ChapterSerializer,
     DisciplineSerializer,
     ExampleDetailSerializer,
     ExampleFigureSerializer,
     ExampleListSerializer,
+    ExampleVersionSerializer,
     ExampleWriteSerializer,
 )
 
@@ -563,6 +564,51 @@ class ExampleAuthorManageView(APIView):
             )
         ex.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ExampleVersionListView(generics.ListAPIView):
+    """GET /api/examples/<id>/versions/
+
+    Returns the prior-state ledger for *id* in newest-first order so
+    the most recent revision is at the top. Access is restricted to
+    the example's author and staff — versions can contain pre-
+    rejection content the author later removed, and that history
+    shouldn't be public.
+
+    Returns 404 for both "example does not exist" and "you can't see
+    this one" so the endpoint doesn't leak which examples have a
+    history.
+    """
+
+    serializer_class = ExampleVersionSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        pk = self.kwargs["pk"]
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return ExampleVersion.objects.none()
+        user = self.request.user
+        if ex.author_id != user.id and not user.is_staff:
+            return ExampleVersion.objects.none()
+        return (
+            ExampleVersion.objects
+            .filter(example_id=pk)
+            .select_related("created_by")
+            .order_by("-version_no")
+        )
+
+    def list(self, request, *args, **kwargs):
+        pk = self.kwargs["pk"]
+        try:
+            ex = Example.objects.get(pk=pk)
+        except Example.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if ex.author_id != request.user.id and not request.user.is_staff:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return super().list(request, *args, **kwargs)
 
 
 class ExampleSubmitView(APIView):

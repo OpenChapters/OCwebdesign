@@ -160,3 +160,20 @@ export interface ExampleWritePayload {
   solution_tex: string;
   difficulty: ExampleDifficulty;
 }
+
+export interface ExampleVersionSnapshot {
+  statement_tex: string;
+  solution_tex: string;
+  difficulty: ExampleDifficulty;
+  primary_chapter_chabbr: string | null;
+  chapters_chabbrs: string[];
+  status: ExampleStatus;
+  slug: string | null;
+}
+
+export interface ExampleVersion {
+  version_no: number;
+  snapshot: ExampleVersionSnapshot;
+  created_at: string;
+  editor_display: string | null;
+}

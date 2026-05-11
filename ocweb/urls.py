@@ -57,6 +57,7 @@ from catalog.views import (
     ExamplePublicDetailView,
     ExamplePublicListCreateView,
     ExampleSubmitView,
+    ExampleVersionListView,
 )
 from users.views import (
     CancelDeletionView,
@@ -136,6 +137,7 @@ urlpatterns = [
     path("api/examples/mine/", ExampleMineView.as_view(), name="example-mine"),
     path("api/examples/<int:pk>/", ExamplePublicDetailView.as_view(), name="example-detail"),
     path("api/examples/<int:pk>/manage/", ExampleAuthorManageView.as_view(), name="example-manage"),
+    path("api/examples/<int:pk>/versions/", ExampleVersionListView.as_view(), name="example-versions"),
     path("api/examples/<int:pk>/submit/", ExampleSubmitView.as_view(), name="example-submit"),
     path("api/examples/<int:pk>/preview/", ExamplePreviewTriggerView.as_view(), name="example-preview-trigger"),
     path("api/examples/<int:pk>/preview.pdf", ExamplePreviewPdfView.as_view(), name="example-preview-pdf"),

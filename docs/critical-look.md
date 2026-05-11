@@ -420,25 +420,30 @@ flag and conditionally include the section).
 ## 4. Recommended priorities
 
 Ranked by ratio of impact to effort. Numbers are rough effort buckets
-(days of focused work).
+(days of focused work). ✅ marks items shipped to production during
+the May 2026 push.
 
-| # | Item | Effort | Impact |
-|---|---|---|---|
-| 1 | CI workflow runs pytest on every push | 0.5 | Prevents future regressions |
-| 2 | Integration tests for example lifecycle + batch import + picker | 2 | Closes the §2.2 gap directly |
-| 3 | Strict-mode TypeScript on new files + eslint | 1 | Catches a class of runtime bugs |
-| 4 | Mobile responsive pass on Browse / Examples / Detail / User Guide | 5 | Doubles usable surface |
-| 5 | A11y pass — labels, ARIA, focus traps, axe-core audit | 5 | Unblocks institutional use |
-| 6 | Per-step BuildJob (model + worker emit + UI strip) | 4 | Makes builds feel fast; enables retry granularity; unlocks unit tests |
-| 7 | Sentry or equivalent error tracking | 0.5 | Catches the next silent 500 in seconds |
-| 8 | Toast: sticky errors with action links | 0.5 | Stops losing error messages |
-| 9 | ExampleVersion UI (author + admin) | 2 | Realizes the ledger investment |
-| 10 | drf-spectacular + auto-generated OpenAPI | 1 | Eliminates doc drift |
-| 11 | Dark mode | 2 | High visibility, low cost |
-| 12 | "Preview structure" book build | 2 | Big iteration-speed win for authors |
-| 13 | Celery queue separation (builds vs default) | 0.5 | Email retries no longer blocked by long builds |
-| 14 | Staging environment | 1 | Catches the next STORAGES-shaped regression |
-| 15 | Cooling-off period on account deletion | 0.5 | Recovers from accidental clicks |
+| # | Item | Effort | Impact | Status |
+|---|---|---|---|---|
+| 1 | CI workflow runs pytest on every push | 0.5 | Prevents future regressions | ✅ |
+| 2 | Integration tests for example lifecycle + batch import + picker | 2 | Closes the §2.2 gap directly | ✅ |
+| 3 | Strict-mode TypeScript on new files + eslint | 1 | Catches a class of runtime bugs |  |
+| 4 | Mobile responsive pass on Browse / Examples / Detail / User Guide | 5 | Doubles usable surface | ✅ |
+| 5 | A11y pass — labels, ARIA, focus traps, axe-core audit | 5 | Unblocks institutional use | ✅ |
+| 6 | Per-step BuildJob (model + worker emit + UI strip) | 4 | Makes builds feel fast; enables retry granularity; unlocks unit tests | ✅ |
+| 7 | Sentry or equivalent error tracking | 0.5 | Catches the next silent 500 in seconds | ✅ |
+| 8 | Toast: sticky errors with action links | 0.5 | Stops losing error messages | ✅ |
+| 9 | ExampleVersion UI (author + admin) | 2 | Realizes the ledger investment | ✅ |
+| 10 | drf-spectacular + auto-generated OpenAPI | 1 | Eliminates doc drift |  |
+| 11 | Dark mode | 2 | High visibility, low cost |  |
+| 12 | "Preview structure" book build | 2 | Big iteration-speed win for authors |  |
+| 13 | Celery queue separation (builds vs default) | 0.5 | Email retries no longer blocked by long builds | ✅ |
+| 14 | Staging environment | 1 | Catches the next STORAGES-shaped regression |  |
+| 15 | Cooling-off period on account deletion | 0.5 | Recovers from accidental clicks | ✅ |
+
+Bonus shipped alongside item 6: the build pipeline now retries
+transient `git clone` failures (GitHub 5xx) and keeps a per-repo
+warm-clone cache so subsequent builds skip re-cloning from GitHub.
 
 If I were budgeting one focused month, I'd pick items 1, 2, 4, 5, 6
 (CI + tests + mobile + a11y + per-step build progress). That single

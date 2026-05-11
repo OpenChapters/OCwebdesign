@@ -303,7 +303,9 @@ export default function BookEditorPage() {
         toast('Build complete! Your book is ready.', 'success');
         refresh();
       } else if (buildData.status === 'failed') {
-        toast('Build failed. Check the build status page for details.', 'error');
+        toast('Build failed.', 'error', {
+          action: { to: `/books/${bookId}/status`, label: 'View details' },
+        });
       }
     }
   }, [buildData?.status]);

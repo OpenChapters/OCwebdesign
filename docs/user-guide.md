@@ -27,6 +27,12 @@ OpenChapters is a free, open-source platform for building custom PDF textbooks f
 12. [Your Library](#your-library)
 13. [Community Library](#community-library)
 14. [Worked Examples](#worked-examples)
+    - [Browsing](#browsing)
+    - [Reading an Example](#reading-an-example)
+    - [Submitting an Example](#submitting-an-example)
+    - [Lifecycle](#lifecycle)
+    - [Batch Import](#batch-import)
+    - [Where Examples Appear](#where-examples-appear)
 15. [Managing Your Books](#managing-your-books)
 16. [Your Profile](#your-profile)
 17. [Resetting Your Password](#resetting-your-password)
@@ -379,8 +385,57 @@ Editing the form after a successful preview marks the preview stale; the **Save 
 |---|---|
 | **Draft** | You have saved an example but not submitted it. Visible only to you. |
 | **Pending review** | Submitted, waiting for an admin. You cannot edit a pending example — wait for approval or rejection. |
-| **Published** | Approved by an admin. Visible on `/examples` and on each tagged chapter's detail page; eligible for inclusion in book builds. |
+| **Published** | Approved by an admin. Visible on `/examples` and on each tagged chapter's detail page; eligible for inclusion in book builds. After publication, the original author can still click **Edit (re-review)** to submit a correction — saving sends the example back to **Pending review** so an admin re-approves the new revision before it returns to the public listing. |
 | **Rejected** | An admin asked for changes. The rejection reason appears at the top of the editor. Editing the example moves it back to **Draft** with the reason cleared, so you can iterate and re-submit. |
+
+### Batch Import
+
+Anyone with an account can upload multiple examples at once as a single zip, provided an administrator has enabled author batch imports (a **Batch import…** button appears next to **Submit an example** on `/examples` when the feature is on). The same workflow is always available to administrators under the admin panel at **Admin → Examples → Import**.
+
+**Zip layout.** The archive must contain a `manifest.json` at its root plus one directory per example:
+
+```
+batch.zip
+├── manifest.json
+└── ex001/
+    ├── statement.tex
+    ├── solution.tex
+    └── figures/          (optional)
+        ├── fig1.pdf
+        └── fig2.png
+```
+
+`manifest.json` is a JSON array, one entry per example:
+
+```json
+[
+  {
+    "dir": "ex001",
+    "slug": "intro-rotation",
+    "primary_chapter": "BASCRY",
+    "chapters": ["BASCRY", "DIFCAL"],
+    "difficulty": "standard"
+  }
+]
+```
+
+- `dir` *(required)* — directory name inside the zip.
+- `primary_chapter` *(required)* — `chabbr` of the primary chapter. Must appear in `chapters`.
+- `chapters` *(required)* — list of `chabbr` values the example is tagged to.
+- `difficulty` — `introductory`, `standard`, or `advanced` (defaults to `standard`).
+- `slug` *(optional)* — a stable per-author identifier. Re-importing the same `slug` updates the existing example rather than creating a duplicate, which makes the import idempotent across iterations.
+
+Figure files must be `.pdf`, `.png`, or `.jpg/.jpeg`. The total archive size is capped at 50 MB and a single import is limited to 200 entries.
+
+**Workflow.**
+
+1. Click **Batch import…** on `/examples`.
+2. Choose the **default status** for the import:
+   - **Draft** — examples land in your personal drafts; you can review each one and submit them individually for review.
+   - **Pending review** — examples skip the draft state and queue for admin review immediately.
+   (Admins also see a **Published** option, which bypasses review.)
+3. Pick the zip file and click **Validate**. The server parses the manifest, checks the chapter abbreviations, figure formats, and per-entry well-formedness, and returns a per-entry report. Nothing is written to the database during this step.
+4. If the report shows no blocking errors, click **Confirm and import**. The commit runs in a single transaction; if anything fails, no rows are created. Successful entries appear in **My worked examples** (under the chosen status) and, if marked Pending review, in the admin queue.
 
 ### Where Examples Appear
 

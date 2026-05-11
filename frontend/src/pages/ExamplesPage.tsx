@@ -60,8 +60,8 @@ export default function ExamplesPage() {
   const examples = data?.results ?? [];
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8">
-      <div className="flex items-start justify-between mb-6 gap-4">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Worked examples</h1>
           <p className="text-sm text-gray-600 mt-1 max-w-2xl">
@@ -89,38 +89,56 @@ export default function ExamplesPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-3 mb-6">
-        <select
-          value={chapter}
-          onChange={(e) => setChapter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All chapters</option>
-          {chapters
-            .filter((c) => c.chabbr)
-            .map((c) => (
-              <option key={c.id} value={c.chabbr}>
-                {c.title} ({c.chabbr})
-              </option>
-            ))}
-        </select>
-        <select
-          value={difficulty}
-          onChange={(e) => setDifficulty(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All difficulties</option>
-          <option value="introductory">Introductory</option>
-          <option value="standard">Standard</option>
-          <option value="advanced">Advanced</option>
-        </select>
-        <input
-          type="search"
-          placeholder="Search statement / solution…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
+        <div className="sm:w-auto">
+          <label htmlFor="examples-chapter-filter" className="sr-only">
+            Filter examples by chapter
+          </label>
+          <select
+            id="examples-chapter-filter"
+            value={chapter}
+            onChange={(e) => setChapter(e.target.value)}
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All chapters</option>
+            {chapters
+              .filter((c) => c.chabbr)
+              .map((c) => (
+                <option key={c.id} value={c.chabbr}>
+                  {c.title} ({c.chabbr})
+                </option>
+              ))}
+          </select>
+        </div>
+        <div className="sm:w-auto">
+          <label htmlFor="examples-difficulty-filter" className="sr-only">
+            Filter examples by difficulty
+          </label>
+          <select
+            id="examples-difficulty-filter"
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value)}
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All difficulties</option>
+            <option value="introductory">Introductory</option>
+            <option value="standard">Standard</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+        <div className="flex-1">
+          <label htmlFor="examples-search" className="sr-only">
+            Search statement and solution text
+          </label>
+          <input
+            id="examples-search"
+            type="search"
+            placeholder="Search statement / solution…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       {isLoading && <p className="text-gray-500 py-12 text-center">Loading…</p>}

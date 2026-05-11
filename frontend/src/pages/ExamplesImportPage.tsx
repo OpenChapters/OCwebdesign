@@ -78,8 +78,8 @@ export default function ExamplesImportPage() {
     report.summary.errors === 0;
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-1">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
         <h1 className="text-2xl font-bold text-gray-900">Batch import examples</h1>
         <Link to="/examples" className="text-sm text-blue-600 hover:underline">
           ← Back to examples
@@ -97,10 +97,11 @@ export default function ExamplesImportPage() {
 
       <div className="bg-white border border-gray-200 rounded-lg p-5 mb-4 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="batch-zip" className="block text-sm font-medium text-gray-700 mb-1">
             Batch zip
           </label>
           <input
+            id="batch-zip"
             type="file"
             accept=".zip,application/zip"
             onChange={(e) => {

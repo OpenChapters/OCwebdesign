@@ -23,15 +23,26 @@ export default function ChapterCard({
 }: Props) {
   const navigate = useNavigate();
   const [imgStatus, setImgStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [tocOpen, setTocOpen] = useState(false);
   const cacheBust = chapter.cached_at ? `?v=${new Date(chapter.cached_at).getTime()}` : '';
   const coverUrl = chapter.cover_image_url ? `/api/chapters/${chapter.id}/cover/${cacheBust}` : '';
   const hasUrl = !!coverUrl;
+  const tocId = `chapter-toc-${chapter.id}`;
+  const hasToc = chapter.toc.length > 0;
 
   return (
     <div className="relative group flex flex-col">
-      {/* TOC popover on hover */}
-      {chapter.toc.length > 0 && (
-        <div className="absolute z-20 left-0 right-0 bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-lg p-3 hidden group-hover:block pointer-events-none">
+      {/* TOC popover: shown on hover (desktop), keyboard focus, or explicit
+          toggle (touch). Pointer-events-auto so it can be read on mobile. */}
+      {hasToc && (
+        <div
+          id={tocId}
+          className={
+            `absolute z-20 left-0 right-0 bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-lg p-3 group-hover:block group-focus-within:block ${
+              tocOpen ? 'block' : 'hidden'
+            }`
+          }
+        >
           <p className="text-xs font-semibold text-gray-700 mb-1">Contents</p>
           <ul className="text-xs text-gray-600 space-y-0.5">
             {chapter.toc.map((item, i) => (
@@ -63,9 +74,23 @@ export default function ChapterCard({
         </div>
 
         <div className="p-3 flex flex-col flex-1 gap-1">
-          <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-snug">
-            {chapter.title}
-          </h3>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-snug flex-1">
+              {chapter.title}
+            </h3>
+            {hasToc && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setTocOpen((v) => !v); }}
+                aria-expanded={tocOpen}
+                aria-controls={tocId}
+                aria-label={tocOpen ? 'Hide table of contents' : 'Show table of contents'}
+                className="md:hidden shrink-0 text-xs text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1"
+              >
+                {tocOpen ? 'Hide TOC' : 'TOC'}
+              </button>
+            )}
+          </div>
           {showDisciplineBadge && chapter.discipline && (
             <span
               className="text-xs px-1.5 py-0.5 rounded text-white w-fit"

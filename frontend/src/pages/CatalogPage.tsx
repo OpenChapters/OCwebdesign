@@ -23,7 +23,7 @@ export default function CatalogPage() {
     : chapters;
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Chapter catalog</h1>
         <p className="text-sm text-gray-600">
@@ -32,21 +32,27 @@ export default function CatalogPage() {
         </p>
       </div>
 
-      <div className="flex items-center justify-between mb-4 gap-3">
-        <select
-          value={selectedDiscipline}
-          onChange={(e) => setSelectedDiscipline(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All disciplines</option>
-          {disciplines.map((d) => (
-            <option key={d.id} value={d.slug}>{d.name}</option>
-          ))}
-        </select>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div>
+          <label htmlFor="catalog-discipline" className="sr-only">
+            Filter by discipline
+          </label>
+          <select
+            id="catalog-discipline"
+            value={selectedDiscipline}
+            onChange={(e) => setSelectedDiscipline(e.target.value)}
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All disciplines</option>
+            {disciplines.map((d) => (
+              <option key={d.id} value={d.slug}>{d.name}</option>
+            ))}
+          </select>
+        </div>
         <a
           href="/api/chapters/catalog.csv"
           download
-          className="text-sm bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900"
+          className="text-sm bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 text-center"
         >
           Download CSV
         </a>
@@ -55,8 +61,8 @@ export default function CatalogPage() {
       {isLoading ? (
         <p className="text-gray-500 py-8 text-center">Loading…</p>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-left">
                 <th className="px-4 py-2 font-medium text-gray-500">Title</th>

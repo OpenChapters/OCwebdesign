@@ -17,7 +17,7 @@ export default function UserGuidePage() {
   if (loading) return <div className="text-center text-gray-500 py-16">Loading…</div>;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <div className="prose prose-gray max-w-none">
         <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSlug]}>{content}</Markdown>
       </div>

@@ -230,7 +230,7 @@ export default function ChapterBrowserPage() {
   const announcementBanner = publicSettings?.announcement_banner || '';
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Welcome banner */}
       {welcomeMessage && (
         <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl px-6 py-5">
@@ -282,20 +282,26 @@ export default function ChapterBrowserPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Chapter Browser</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {data ? `${data.count} chapters available` : ''}
           </p>
         </div>
-        <input
-          type="search"
-          placeholder="Search chapters…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div>
+          <label htmlFor="chapter-quick-filter" className="sr-only">
+            Filter chapters by title, author, or keyword
+          </label>
+          <input
+            id="chapter-quick-filter"
+            type="search"
+            placeholder="Search chapters…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full sm:w-64 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       {isLoading && <SkeletonCardGrid count={10} />}

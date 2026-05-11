@@ -32,18 +32,20 @@ export function SortableItem({
       <span
         {...attributes}
         {...listeners}
-        className="cursor-grab text-gray-300 hover:text-gray-500 select-none"
-        title="Drag to reorder or move to another part"
+        role="button"
+        tabIndex={0}
+        aria-label={`Drag handle for ${bookChapter.chapter_detail.title} — use the keyboard to reorder or move between parts`}
+        className="cursor-grab text-gray-300 hover:text-gray-500 select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
       >
-        ⠿
+        <span aria-hidden="true">⠿</span>
       </span>
       <span className="flex-1 truncate text-gray-800">{bookChapter.chapter_detail.title}</span>
       <button
         onClick={onRemove}
-        className="text-gray-300 hover:text-red-500 transition-colors font-bold text-base leading-none"
-        title="Remove chapter"
+        aria-label={`Remove chapter "${bookChapter.chapter_detail.title}" from this part`}
+        className="text-gray-300 hover:text-red-500 transition-colors font-bold text-base leading-none focus:outline-none focus:ring-2 focus:ring-red-500 rounded px-1"
       >
-        ×
+        <span aria-hidden="true">×</span>
       </button>
     </div>
   );

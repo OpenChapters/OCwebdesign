@@ -280,7 +280,7 @@ export default function ExampleEditorPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <Link to="/examples" className="text-sm text-blue-600 hover:underline">
         ← Back to examples
       </Link>
@@ -332,10 +332,11 @@ export default function ExampleEditorPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="primary-chapter" className="block text-sm font-medium text-gray-700 mb-1">
             Primary chapter <span className="text-red-500">*</span>
           </label>
           <select
+            id="primary-chapter"
             value={form.primary_chapter ?? ''}
             onChange={(e) => {
               updateField('primary_chapter', e.target.value ? Number(e.target.value) : null);
@@ -375,10 +376,11 @@ export default function ExampleEditorPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="statement-tex" className="block text-sm font-medium text-gray-700 mb-1">
             Statement (LaTeX) <span className="text-red-500">*</span>
           </label>
           <textarea
+            id="statement-tex"
             value={form.statement_tex}
             onChange={(e) => updateField('statement_tex', e.target.value)}
             rows={10}
@@ -389,10 +391,11 @@ export default function ExampleEditorPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="solution-tex" className="block text-sm font-medium text-gray-700 mb-1">
             Solution (LaTeX) <span className="text-red-500">*</span>
           </label>
           <textarea
+            id="solution-tex"
             value={form.solution_tex}
             onChange={(e) => updateField('solution_tex', e.target.value)}
             rows={14}

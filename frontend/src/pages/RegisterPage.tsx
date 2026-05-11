@@ -89,9 +89,11 @@ export default function RegisterPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Create account</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <label htmlFor="register-fullname" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
             <input
+              id="register-fullname"
               type="text"
+              autoComplete="name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
@@ -99,9 +101,11 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
+              id="register-email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -109,11 +113,13 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 mb-1">
               Password <span className="text-gray-400 font-normal">(min. 8 characters)</span>
             </label>
             <input
+              id="register-password"
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -123,7 +129,7 @@ export default function RegisterPage() {
           </div>
           {/* Turnstile widget */}
           <div ref={widgetRef} className="flex justify-center" />
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
           <button
             type="submit"
             disabled={loading}

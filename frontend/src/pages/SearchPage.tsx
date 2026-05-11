@@ -52,11 +52,15 @@ export default function SearchPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Search Chapters</h1>
 
+      <label htmlFor="full-text-search" className="sr-only">
+        Search across all published chapter content
+      </label>
       <input
+        id="full-text-search"
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search chapter content..."
+        placeholder="Search chapter content…"
         autoFocus
         className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       />

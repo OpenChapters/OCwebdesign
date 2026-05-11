@@ -38,6 +38,9 @@ export default function BookEditorPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [buildFormat, setBuildFormat] = useState<BuildFormat>('pdf');
   const [showExamplePicker, setShowExamplePicker] = useState(false);
+  // On screens narrower than md the two-pane layout collapses to a
+  // toggle: show either the chapter catalog or the book structure.
+  const [mobileView, setMobileView] = useState<'catalog' | 'structure'>('structure');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -374,23 +377,29 @@ export default function BookEditorPage() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <Link to="/books" className="text-sm text-gray-400 hover:text-gray-600">← My Books</Link>
-        <div className="flex-1">
+        <div className="flex-1 min-w-[180px]">
           {editingTitle ? (
             <div className="flex items-center gap-2">
+              <label htmlFor="book-title-input" className="sr-only">Book title</label>
               <input
+                id="book-title-input"
                 autoFocus value={bookTitle}
                 onChange={(e) => setBookTitle(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && saveTitle()}
-                className="border border-blue-400 rounded px-2 py-1 text-base font-bold focus:outline-none"
+                className="flex-1 border border-blue-400 rounded px-2 py-1 text-base font-bold focus:outline-none"
               />
               <button onClick={saveTitle} className="text-sm text-blue-600 hover:underline">Save</button>
               <button onClick={() => { setEditingTitle(false); setBookTitle(book.title); }} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
             </div>
           ) : (
-            <button onClick={() => setEditingTitle(true)} className="text-base font-bold text-gray-900 hover:text-blue-600 text-left" title="Click to edit book title">
-              {book.title} ✎
+            <button
+              onClick={() => setEditingTitle(true)}
+              className="text-base font-bold text-gray-900 hover:text-blue-600 text-left"
+              aria-label={`Edit book title (currently "${book.title}")`}
+            >
+              {book.title} <span aria-hidden="true">✎</span>
             </button>
           )}
         </div>
@@ -466,15 +475,18 @@ export default function BookEditorPage() {
         <button
           onClick={() => setShowPreview(!showPreview)}
           className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50"
+          aria-expanded={showPreview}
+          aria-controls="book-toc-preview"
         >
           {showPreview ? 'Hide Preview' : 'Preview TOC'}
         </button>
+        <label htmlFor="build-format" className="sr-only">Build output format</label>
         <select
+          id="build-format"
           value={buildFormat}
           onChange={(e) => setBuildFormat(e.target.value as BuildFormat)}
           disabled={building || buildStatus === 'queued' || buildStatus === 'building'}
           className="text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
-          title="Select the build output format"
         >
           <option value="pdf">PDF</option>
           <option value="html">HTML</option>
@@ -491,9 +503,31 @@ export default function BookEditorPage() {
         </button>
       </div>
 
+      {/* Mobile-only pane toggle */}
+      <div className="md:hidden bg-white border-b border-gray-200 px-4 py-2 flex gap-2" role="tablist" aria-label="Book editor panes">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobileView === 'catalog'}
+          onClick={() => setMobileView('catalog')}
+          className={`flex-1 text-sm py-1.5 rounded ${mobileView === 'catalog' ? 'bg-blue-100 text-blue-800 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+        >
+          Catalog
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobileView === 'structure'}
+          onClick={() => setMobileView('structure')}
+          className={`flex-1 text-sm py-1.5 rounded ${mobileView === 'structure' ? 'bg-blue-100 text-blue-800 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+        >
+          Book Structure
+        </button>
+      </div>
+
       {/* TOC Preview panel */}
       {showPreview && (
-        <div className="bg-white border-b border-gray-200 px-6 py-4 max-h-64 overflow-y-auto">
+        <div id="book-toc-preview" className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 max-h-64 overflow-y-auto">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Book Preview</p>
           <div className="text-sm">
             <p className="font-bold text-gray-900 mb-2">{book.title}</p>
@@ -524,26 +558,34 @@ export default function BookEditorPage() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Chapter catalog */}
-        <div className="w-2/5 border-r border-gray-200 flex flex-col overflow-hidden bg-gray-50">
+        <div
+          className={`${mobileView === 'catalog' ? 'flex' : 'hidden'} md:flex w-full md:w-2/5 md:border-r border-gray-200 flex-col overflow-hidden bg-gray-50`}
+        >
           <div className="px-4 py-3 border-b border-gray-200 bg-white">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Chapter Catalog</p>
-            <div className="flex gap-2 mb-2">
+            <div className="flex flex-col sm:flex-row gap-2 mb-2">
+              <label htmlFor="editor-chapter-search" className="sr-only">Search chapters in catalog</label>
               <input
+                id="editor-chapter-search"
                 type="search" placeholder="Search chapters…" value={chapterSearch}
                 onChange={(e) => setChapterSearch(e.target.value)}
                 className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {disciplines.length > 1 && (
-                <select
-                  value={editorDiscipline}
-                  onChange={(e) => setEditorDiscipline(e.target.value)}
-                  className="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">All</option>
-                  {disciplines.map((d: any) => (
-                    <option key={d.slug} value={d.slug}>{d.name}</option>
-                  ))}
-                </select>
+                <>
+                  <label htmlFor="editor-discipline" className="sr-only">Discipline filter</label>
+                  <select
+                    id="editor-discipline"
+                    value={editorDiscipline}
+                    onChange={(e) => setEditorDiscipline(e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {disciplines.map((d: any) => (
+                      <option key={d.slug} value={d.slug}>{d.name}</option>
+                    ))}
+                  </select>
+                </>
               )}
             </div>
             {activePart && (
@@ -553,7 +595,7 @@ export default function BookEditorPage() {
             )}
           </div>
           <div className="flex-1 overflow-y-auto p-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {filteredChapters.map((chapter) => (
                 <ChapterCard
                   key={chapter.id} chapter={chapter}
@@ -567,7 +609,9 @@ export default function BookEditorPage() {
         </div>
 
         {/* Right: Book structure with cross-part DnD */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div
+          className={`${mobileView === 'structure' ? 'flex' : 'hidden'} md:flex flex-1 flex-col overflow-hidden`}
+        >
           <div className="px-5 py-3 border-b border-gray-200 bg-white">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Book Structure</p>
           </div>
@@ -696,14 +740,26 @@ export default function BookEditorPage() {
                         </span>
                         <button onClick={(e) => { e.stopPropagation(); movePartUp(part.id); }}
                           disabled={book.parts.indexOf(part) === 0}
-                          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-20" title="Move up">▲</button>
+                          aria-label={`Move part "${part.title}" up`}
+                          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-20 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1">
+                          <span aria-hidden="true">▲</span>
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); movePartDown(part.id); }}
                           disabled={book.parts.indexOf(part) === book.parts.length - 1}
-                          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-20" title="Move down">▼</button>
+                          aria-label={`Move part "${part.title}" down`}
+                          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-20 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1">
+                          <span aria-hidden="true">▼</span>
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); setEditingPartId(part.id); setEditingPartTitle(part.title); }}
-                          className="text-xs text-gray-400 hover:text-gray-600" title="Rename part">✎</button>
+                          aria-label={`Rename part "${part.title}"`}
+                          className="text-xs text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1">
+                          <span aria-hidden="true">✎</span>
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); deletePart(part.id); }}
-                          className="text-xs text-gray-400 hover:text-red-500" title="Delete part">🗑</button>
+                          aria-label={`Delete part "${part.title}"`}
+                          className="text-xs text-gray-400 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 rounded p-1">
+                          <span aria-hidden="true">🗑</span>
+                        </button>
                       </>
                     )}
                   </div>

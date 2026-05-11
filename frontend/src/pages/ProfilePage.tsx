@@ -89,14 +89,14 @@ export default function ProfilePage() {
 
   if (isLoading || !profile) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <p className="text-gray-500">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Profile</h1>
 
       {/* Account info */}
@@ -121,7 +121,9 @@ export default function ProfilePage() {
                   }}
                   className="flex items-center gap-1"
                 >
+                  <label htmlFor="profile-fullname" className="sr-only">Full name</label>
                   <input
+                    id="profile-fullname"
                     value={nameValue}
                     onChange={(e) => setNameValue(e.target.value)}
                     autoFocus
@@ -246,9 +248,11 @@ export default function ProfilePage() {
         {showPwForm && (
           <form onSubmit={handleChangePassword} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+              <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
               <input
+                id="current-password"
                 type="password"
+                autoComplete="current-password"
                 value={currentPw}
                 onChange={(e) => setCurrentPw(e.target.value)}
                 required
@@ -256,9 +260,11 @@ export default function ProfilePage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+              <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">New password</label>
               <input
+                id="new-password"
                 type="password"
+                autoComplete="new-password"
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
                 required
@@ -267,9 +273,11 @@ export default function ProfilePage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+              <label htmlFor="confirm-new-password" className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
               <input
+                id="confirm-new-password"
                 type="password"
+                autoComplete="new-password"
                 value={confirmPw}
                 onChange={(e) => setConfirmPw(e.target.value)}
                 required

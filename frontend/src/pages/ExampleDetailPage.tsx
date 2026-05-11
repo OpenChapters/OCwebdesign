@@ -106,10 +106,10 @@ export default function ExampleDetailPage() {
     onError: () => toast('Could not delete.', 'error'),
   });
 
-  if (isLoading) return <div className="max-w-4xl mx-auto px-6 py-8 text-gray-500">Loading…</div>;
+  if (isLoading) return <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 text-gray-500">Loading…</div>;
   if (error || !example) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-8 text-center">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 text-center">
         <p className="text-lg text-gray-700 mb-1">Example not found</p>
         <Link to="/examples" className="text-sm text-blue-600 hover:underline">
           Back to examples
@@ -131,7 +131,7 @@ export default function ExampleDetailPage() {
   const canDelete = isOwn && example.status === 'draft';
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <Link to="/examples" className="text-sm text-blue-600 hover:underline">
         ← Back to examples
       </Link>
@@ -335,10 +335,14 @@ export default function ExampleDetailPage() {
             </div>
           ) : example.status === 'pending' && showReject ? (
             <div className="space-y-2">
+              <label htmlFor="rejection-reason" className="block text-xs font-medium text-gray-700">
+                Reason for rejection (visible to author)
+              </label>
               <textarea
+                id="rejection-reason"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Reason for rejection (visible to author)"
+                placeholder="Explain what needs to change before this example can be published."
                 rows={3}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               />

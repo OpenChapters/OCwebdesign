@@ -64,20 +64,26 @@ export default function MyBooksPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="flex items-center justify-between mb-6 gap-2">
         <h1 className="text-2xl font-bold text-gray-900">My Books</h1>
         <button
           onClick={() => setShowForm(!showForm)}
           className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700"
+          aria-expanded={showForm}
+          aria-controls="new-book-form"
         >
           + New Book
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreate} className="flex gap-2 mb-6">
+        <form id="new-book-form" onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-2 mb-6">
+          <label htmlFor="new-book-title" className="sr-only">
+            New book title
+          </label>
           <input
+            id="new-book-title"
             type="text"
             placeholder="Book title"
             value={newTitle}

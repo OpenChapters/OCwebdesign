@@ -62,8 +62,17 @@ export const booksApi = {
     client.patch(`/books/${bookId}/parts/${partId}/chapters/reorder/`, { order }),
 
   // Build
-  triggerBuild: (bookId: number, format: BuildFormat = 'pdf') =>
-    client.post(`/books/${bookId}/build/`, { format }).then((r) => r.data),
+  triggerBuild: (
+    bookId: number,
+    format: BuildFormat = 'pdf',
+    options: { previewStructure?: boolean } = {},
+  ) =>
+    client
+      .post(`/books/${bookId}/build/`, {
+        format,
+        preview_structure: options.previewStructure ?? false,
+      })
+      .then((r) => r.data),
 
   getBuildStatus: (bookId: number) =>
     client.get(`/books/${bookId}/build/status/`).then((r) => r.data),

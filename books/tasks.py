@@ -116,7 +116,7 @@ def _validate_build_data(request_data: dict) -> None:
                 raise ValueError(f"Invalid entry_file: {entry!r}")
 
 
-def _build_request_data(book) -> dict:
+def _build_request_data(book, *, preview_structure: bool = False) -> dict:
     """Serialize a Book's chapter selection into the build_request.json schema.
 
     Automatically includes any foundational chapters that are listed in
@@ -129,6 +129,11 @@ def _build_request_data(book) -> dict:
     Example only renders under the earliest in-book chapter that includes
     it. ``book.include_solutions`` is propagated as a top-level flag for
     the template to consume.
+
+    When ``preview_structure`` is True, the resulting payload signals
+    that the build pipeline should render only the book skeleton (TOC +
+    chapter titles, no body). Chapter titles are included so the stub
+    main.tex can emit \\chapter{Title} for each entry.
     """
     from catalog.models import Chapter, Example
 
@@ -145,6 +150,7 @@ def _build_request_data(book) -> dict:
                 "repo": ch.github_repo,
                 "chapter_subdir": ch.chapter_subdir,
                 "entry_file": ch.latex_entry_file,
+                "title": ch.title,
                 "_chapter_id": ch.id,
             })
             book_chapter_order.append(ch.id)
@@ -176,6 +182,7 @@ def _build_request_data(book) -> dict:
                 "repo": ch.github_repo,
                 "chapter_subdir": ch.chapter_subdir,
                 "entry_file": ch.latex_entry_file,
+                "title": ch.title,
                 "_chapter_id": ch.id,
             })
             book_chapter_order.insert(0, ch.id)
@@ -239,6 +246,7 @@ def _build_request_data(book) -> dict:
         "book_title": book.title,
         "include_examples": bool(getattr(book, "include_examples", True)),
         "include_solutions": bool(getattr(book, "include_solutions", True)),
+        "preview_structure": preview_structure,
         "parts": parts,
     }
 
@@ -440,7 +448,7 @@ def _materialize_via_cache(clone_url: str, repo: str, target_dir: Path, log_fn) 
     time_limit=1800,       # hard kill after 30 min
     soft_time_limit=1500,  # SoftTimeLimitExceeded raised at 25 min
 )
-def build_book(self, book_id: int) -> None:
+def build_book(self, book_id: int, preview_structure: bool = False) -> None:
     """
     Full LaTeX build pipeline for a Book.
 
@@ -458,6 +466,16 @@ def build_book(self, book_id: int) -> None:
      11. Store PDF, update BuildJob + Book status
      12. Trigger deliver_pdf
      13. Clean up temp workspace
+
+    When ``preview_structure`` is True, the pipeline takes a fast-path
+    variant that renders only the book's frontmatter + TOC + chapter
+    titles. The clone step still pulls the chapter repos (so the
+    matter/, cover, and .sty assets from the monorepo are available),
+    but the generated main.tex uses ``main_structure.tex.j2`` and the
+    arara run drops biber + makeindex + extra pdflatex passes. The
+    resulting PDF is saved alongside regular PDFs but flagged on
+    BuildJob so the UI can label it accordingly. Email delivery is
+    skipped for previews.
     """
     from books.models import Book, BuildJob
 
@@ -475,6 +493,7 @@ def build_book(self, book_id: int) -> None:
     job.pdf_path = ""
     job.log_output = ""
     job.error_message = ""
+    job.preview_structure = preview_structure
     job.save()
     _reset_steps(job)
 
@@ -506,11 +525,15 @@ def build_book(self, book_id: int) -> None:
                     shutil.copy2(f, workdir / f.name)
             log(f"Copied template files from {template_dir}")
 
-            request_data = _build_request_data(book)
+            request_data = _build_request_data(
+                book, preview_structure=preview_structure,
+            )
             (workdir / "build_request.json").write_text(
                 json.dumps(request_data, indent=2), encoding="utf-8"
             )
             log("Wrote build_request.json")
+            if preview_structure:
+                log("Structure preview mode — TOC + chapter titles only.")
 
             _validate_build_data(request_data)
             log("Validated build request data")
@@ -625,7 +648,8 @@ def build_book(self, book_id: int) -> None:
                 )
 
             output_dir.mkdir(parents=True, exist_ok=True)
-            pdf_filename = f"book_{book.id}_{build_id[:8]}.pdf"
+            preview_tag = "structure_" if preview_structure else ""
+            pdf_filename = f"book_{book.id}_{preview_tag}{build_id[:8]}.pdf"
             pdf_dst = output_dir / pdf_filename
             shutil.copy2(pdf_src, pdf_dst)
             log(f"PDF saved: {pdf_dst}")
@@ -639,8 +663,11 @@ def build_book(self, book_id: int) -> None:
             book.save(update_fields=["status"])
             log("Build complete.")
 
-        # Trigger email delivery (separate Celery task; not a step here).
-        deliver_pdf.delay(book.id)
+        # Trigger email delivery — skipped for structure previews, which
+        # are an in-app iteration tool, not something the user wants
+        # mailed to them.
+        if not preview_structure:
+            deliver_pdf.delay(book.id)
 
     except SoftTimeLimitExceeded:
         error_msg = "Build exceeded 25-minute time limit and was cancelled."

@@ -68,6 +68,7 @@ export interface BuildJob {
   finished_at: string | null;
   pdf_path: string;
   error_message: string;
+  preview_structure: boolean;
   steps: BuildStep[];
 }
 

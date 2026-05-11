@@ -140,6 +140,11 @@ class BuildJob(models.Model):
     # Human-readable error summary on failure; empty on success
     error_message = models.TextField(blank=True)
 
+    # True when the most recent build was a "structure preview" — TOC +
+    # chapter titles only, no body content. Reset to False on every
+    # full build so the badge stays accurate.
+    preview_structure = models.BooleanField(default=False)
+
     def __str__(self):
         return f"BuildJob({self.book.title})"
 

@@ -436,7 +436,7 @@ the May 2026 push.
 | 9 | ExampleVersion UI (author + admin) | 2 | Realizes the ledger investment | ✅ |
 | 10 | drf-spectacular + auto-generated OpenAPI | 1 | Eliminates doc drift | ✅ |
 | 11 | Dark mode | 2 | High visibility, low cost | ✅ |
-| 12 | "Preview structure" book build | 2 | Big iteration-speed win for authors |  |
+| 12 | "Preview structure" book build | 2 | Big iteration-speed win for authors | ✅ |
 | 13 | Celery queue separation (builds vs default) | 0.5 | Email retries no longer blocked by long builds | ✅ |
 | 14 | Staging environment | 1 | Catches the next STORAGES-shaped regression | ✅ |
 | 15 | Cooling-off period on account deletion | 0.5 | Recovers from accidental clicks | ✅ |

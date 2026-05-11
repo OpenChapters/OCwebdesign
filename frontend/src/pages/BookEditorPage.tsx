@@ -325,9 +325,11 @@ export default function BookEditorPage() {
     }
   }
 
-  async function triggerBuild() {
-    const confirmMsg =
-      buildFormat === 'pdf'
+  async function triggerBuild(opts: { previewStructure?: boolean } = {}) {
+    const previewStructure = opts.previewStructure ?? false;
+    const confirmMsg = previewStructure
+      ? 'Start a structure preview? This skips all chapter content and renders only the title page + TOC + chapter headings — typically under a minute.'
+      : buildFormat === 'pdf'
         ? 'Start building this book as a PDF? This typically takes 1–3 minutes.'
         : buildFormat === 'html'
           ? 'Start building this book as HTML?\n\nHTML builds run lwarp plus MathJax and SVG conversion for every figure, so they take noticeably longer than PDF builds — expect several minutes.'
@@ -336,11 +338,16 @@ export default function BookEditorPage() {
 
     setBuilding(true);
     try {
-      const resp = await booksApi.triggerBuild(bookId, buildFormat);
+      const resp = await booksApi.triggerBuild(
+        bookId,
+        previewStructure ? 'pdf' : buildFormat,
+        { previewStructure },
+      );
       setBuildStatus('queued');
       const autoHtml = Boolean((resp as { auto_html?: boolean })?.auto_html);
-      const queuedMsg =
-        buildFormat === 'html'
+      const queuedMsg = previewStructure
+        ? 'Structure preview queued — usually under a minute.'
+        : buildFormat === 'html'
           ? 'HTML build queued — this may take several minutes.'
           : buildFormat === 'both' || autoHtml
             ? 'PDF + HTML build queued — the HTML pass will take several minutes.'
@@ -519,7 +526,11 @@ export default function BookEditorPage() {
           <option value="html">HTML</option>
           <option value="both">PDF + HTML</option>
         </select>
-        <button onClick={triggerBuild} disabled={!canBuild || building || buildStatus === 'queued' || buildStatus === 'building'} className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-40">
+        <button
+          onClick={() => triggerBuild()}
+          disabled={!canBuild || building || buildStatus === 'queued' || buildStatus === 'building'}
+          className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-40"
+        >
           {building
             ? 'Starting…'
             : buildFormat === 'pdf'
@@ -527,6 +538,15 @@ export default function BookEditorPage() {
               : buildFormat === 'html'
                 ? 'Build HTML'
                 : 'Build PDF + HTML'}
+        </button>
+        <button
+          type="button"
+          onClick={() => triggerBuild({ previewStructure: true })}
+          disabled={!canBuild || building || buildStatus === 'queued' || buildStatus === 'building'}
+          title="Build a TOC-only PDF in under a minute — useful for checking the book structure without waiting for a full typeset."
+          className="text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40"
+        >
+          Preview structure
         </button>
       </div>
 

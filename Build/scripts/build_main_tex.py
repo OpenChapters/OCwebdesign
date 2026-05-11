@@ -76,6 +76,8 @@ def render(workdir: Path, build_id: str) -> None:
     with open(request_path) as f:
         request = json.load(f)
 
+    preview_structure = bool(request.get("preview_structure", False))
+
     # Resolve chapter include paths
     parts = []
     for part in request["parts"]:
@@ -87,6 +89,9 @@ def render(workdir: Path, build_id: str) -> None:
                     "entry_file": ch["entry_file"],
                     "include_path": include_path(ch["repo"], ch["entry_file"]),
                     "examples": ch.get("examples", []),
+                    # Used by the structure-preview template; backend
+                    # writes Chapter.title into this slot.
+                    "title": ch.get("title", ""),
                 }
             )
         parts.append({"title": part["title"], "chapters": chapters})
@@ -108,7 +113,10 @@ def render(workdir: Path, build_id: str) -> None:
         keep_trailing_newline=True,
     )
 
-    template = env.get_template("main.tex.j2")
+    template_name = (
+        "main_structure.tex.j2" if preview_structure else "main.tex.j2"
+    )
+    template = env.get_template(template_name)
     rendered = template.render(
         book_title=request["book_title"],
         parts=parts,

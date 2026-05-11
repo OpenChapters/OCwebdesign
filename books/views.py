@@ -232,7 +232,13 @@ class PartChapterReorderView(APIView):
 class BuildTriggerView(APIView):
     """POST /api/books/<book_pk>/build/ — enqueue a Celery build task.
 
-    Body (JSON): {"format": "pdf" | "html" | "both"}  (default: "pdf")
+    Body (JSON):
+      - "format": "pdf" | "html" | "both"   (default: "pdf")
+      - "preview_structure": true | false   (default: false)
+
+    When ``preview_structure`` is true the format is forced to "pdf" and
+    the pipeline takes the fast TOC-only path; the HTML auto-chain is
+    skipped because there is no body content to render to HTML.
     """
 
     permission_classes = [IsAuthenticated]
@@ -242,10 +248,17 @@ class BuildTriggerView(APIView):
     def post(self, request, book_pk):
         from celery import chain
 
+        preview_structure = bool(request.data.get("preview_structure", False))
+
         fmt = str(request.data.get("format", "pdf")).lower()
         if fmt not in ("pdf", "html", "both"):
             return Response(
                 {"detail": "format must be 'pdf', 'html', or 'both'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if preview_structure and fmt != "pdf":
+            return Response(
+                {"detail": "preview_structure is only valid with format='pdf'."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -281,8 +294,11 @@ class BuildTriggerView(APIView):
         # HTML rebuild so "View Online" doesn't go stale. The user's
         # explicit `last_build_format` stays "pdf" so future Retries
         # re-evaluate the auto-chain based on the current html_built_at.
+        # The auto-chain is skipped for structure previews since the
+        # stub PDF has no body content to mirror in HTML.
         auto_html = (
             fmt == "pdf"
+            and not preview_structure
             and Book.objects.filter(
                 pk=book_pk, user=request.user, html_built_at__isnull=False
             ).exists()
@@ -297,7 +313,7 @@ class BuildTriggerView(APIView):
                 build_book_html.si(book_pk, send_email=False),
             ).delay()
         else:
-            build_book.delay(book_pk)
+            build_book.delay(book_pk, preview_structure=preview_structure)
 
         return Response(
             {

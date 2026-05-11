@@ -92,7 +92,9 @@ export default function BuildStatusPage() {
                       ? 'PDF and HTML ready'
                       : hasHtml
                         ? 'HTML ready'
-                        : 'PDF ready'}
+                        : job?.preview_structure
+                          ? 'Structure preview ready (TOC + chapter titles only)'
+                          : 'PDF ready'}
                   </p>
                   {hasPdf && (
                     <button

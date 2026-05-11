@@ -48,15 +48,37 @@ services:
       - db
       - rabbitmq
 
-  worker:
+  worker-builds:
     build:
       context: .
       dockerfile: docker/worker/Dockerfile
-    command: celery -A ocweb worker -l info
+    # Dedicated worker for the long-running LaTeX build queue.
+    command: celery -A ocweb worker -l info -Q builds -n builds@%h
     volumes:
       - .:/app
       - ./media/pdfs:/app/media/pdfs
       # Live-reload build scripts in dev without rebuilding the worker image
+      - ./Build/scripts:/opt/ocbuild/Build/scripts
+      - ./Build/template:/opt/ocbuild/Build/template
+      - ./arara-rules:/opt/ocbuild/arara-rules
+    env_file: .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=ocweb.settings.dev
+    depends_on:
+      - db
+      - rabbitmq
+
+  worker-default:
+    build:
+      context: .
+      dockerfile: docker/worker/Dockerfile
+    # Worker for everything else (email retries, HTML signal handlers,
+    # the nightly chapter sync). Isolated from "builds" so a 10-minute
+    # LaTeX run never queues behind it.
+    command: celery -A ocweb worker -l info -Q default -n default@%h
+    volumes:
+      - .:/app
+      - ./media/pdfs:/app/media/pdfs
       - ./Build/scripts:/opt/ocbuild/Build/scripts
       - ./Build/template:/opt/ocbuild/Build/template
       - ./arara-rules:/opt/ocbuild/arara-rules

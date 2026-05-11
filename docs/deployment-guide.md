@@ -285,7 +285,7 @@ In addition to the PDF build pipeline, OpenChapters produces per-chapter HTML ou
 After the first catalog sync, trigger an HTML build for all published chapters. The command runs in the `worker` container — that image carries the LaTeX toolchain, `pdf2svg`, and the Jinja2 renderer that the build pipeline needs. Running it in `web` fails with `No module named 'jinja2'`.
 
 ```bash
-docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_html --parallel 4
+docker compose -f docker-compose.prod.yml exec worker-builds python manage.py build_chapter_html --parallel 4
 ```
 
 `--parallel N` builds N chapters concurrently using `ProcessPoolExecutor`. Each chapter typically takes 30 seconds to a few minutes. Long or complex chapters may take longer — the per-chapter timeout is 30 minutes.
@@ -293,7 +293,7 @@ docker compose -f docker-compose.prod.yml exec worker python manage.py build_cha
 To build a single chapter by its `chabbr`:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_html --chabbr BASCRY
+docker compose -f docker-compose.prod.yml exec worker-builds python manage.py build_chapter_html --chabbr BASCRY
 ```
 
 ### Nightly Automation
@@ -310,7 +310,7 @@ On the admin Chapters page (`/admin-panel/chapters`):
 Both dispatch tasks to the worker queue and return immediately. Check progress via:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs worker --tail 50
+docker compose -f docker-compose.prod.yml logs worker-builds worker-default --tail 50
 ```
 
 ### Full-Text Search Index
@@ -342,13 +342,13 @@ Output lives in `/app/media/pdf_labels/<chabbr>.pdf` inside the containers. The 
 After the first deploy of this feature, build all foundational labels-PDFs once to populate the volume:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_pdf_labels
+docker compose -f docker-compose.prod.yml exec worker-builds python manage.py build_chapter_pdf_labels
 ```
 
 To rebuild a single chapter:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_pdf_labels --chabbr NUMSYS
+docker compose -f docker-compose.prod.yml exec worker-builds python manage.py build_chapter_pdf_labels --chabbr NUMSYS
 ```
 
 Each chapter typically completes in 1–3 minutes. The per-chapter timeout is 15 minutes.
@@ -387,7 +387,7 @@ Output lives in `/app/media/examples/<id>.pdf` inside the containers. The direct
 Build a single example's preview from the worker:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec worker \
+docker compose -f docker-compose.prod.yml exec worker-builds \
   python manage.py build_example_preview --id 17
 ```
 
@@ -404,7 +404,7 @@ The view also sets `X-Frame-Options: SAMEORIGIN` on the response so the editor's
 - The Preview iframe shows blank but "Open in new tab" works → the response carries `X-Frame-Options: DENY`. Verify the response on the host: `curl -I https://<host>/api/examples/<id>/preview.pdf`. The header should be `SAMEORIGIN`.
 - Preview returns 404 for the author / admin → the cached PDF doesn't exist yet. Inspect `Example.preview_build_log` from `manage.py shell` to see if the build failed; check the worker logs for the task outcome.
 - "Permission denied" writing `/app/media/examples/.tmp-…` → the same volume-ownership trap as the labels-PDF rollout. Stop `web`/`worker`, `docker volume rm <project>_media_examples`, rebuild, bring them back up.
-- Stale code in the worker after editing `catalog/tasks.py`, `catalog/management/commands/build_example_preview.py`, or any imported module: a plain `restart` keeps the old code in Celery's import cache. Always use `docker compose -f docker-compose.prod.yml up -d --force-recreate worker` after rebuilds that change worker-imported Python.
+- Stale code in the worker after editing `catalog/tasks.py`, `catalog/management/commands/build_example_preview.py`, or any imported module: a plain `restart` keeps the old code in Celery's import cache. Always use `docker compose -f docker-compose.prod.yml up -d --force-recreate worker-builds worker-default` after rebuilds that change worker-imported Python.
 
 ## Per-Book HTML Builds
 
@@ -533,7 +533,7 @@ PDF_LINK_EXPIRY_DAYS=7
 Then restart:
 
 ```bash
-docker compose -f docker-compose.prod.yml restart web worker
+docker compose -f docker-compose.prod.yml restart web worker-builds worker-default
 ```
 
 **Notes:**
@@ -606,7 +606,7 @@ For other providers, only the four `EMAIL_*` variables change:
 After configuring SMTP, trigger a test build and check:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs worker --tail 20 | grep deliver_pdf
+docker compose -f docker-compose.prod.yml logs worker-builds worker-default --tail 20 | grep deliver_pdf
 ```
 
 You should see: `deliver_pdf: email sent to user@example.com`
@@ -906,8 +906,8 @@ git pull origin main
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 
 # Rebuild and restart
-docker compose -f docker-compose.prod.yml build web worker nginx
-docker compose -f docker-compose.prod.yml up -d --force-recreate web worker nginx
+docker compose -f docker-compose.prod.yml build web worker-builds worker-default nginx
+docker compose -f docker-compose.prod.yml up -d --force-recreate web worker-builds worker-default nginx
 ```
 
 A few subtleties worth following on every deploy:
@@ -979,11 +979,11 @@ docker compose -f docker-compose.prod.yml logs -f
 
 # Specific service
 docker compose -f docker-compose.prod.yml logs -f web
-docker compose -f docker-compose.prod.yml logs -f worker
+docker compose -f docker-compose.prod.yml logs -f worker-builds worker-default
 docker compose -f docker-compose.prod.yml logs -f nginx
 
 # Last 100 lines
-docker compose -f docker-compose.prod.yml logs --tail 100 worker
+docker compose -f docker-compose.prod.yml logs --tail 100 worker-builds worker-default
 ```
 
 ### Check Service Health

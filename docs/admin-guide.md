@@ -158,7 +158,7 @@ Both buttons dispatch individual Celery tasks to the worker queue. Celery's work
 Progress is visible in the worker logs:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs worker --tail 50
+docker compose -f docker-compose.prod.yml logs worker-builds worker-default --tail 50
 ```
 
 If `HTML_BUILD_ENABLED=True` is set in `.env.prod`, the nightly sync also dispatches stale HTML rebuilds automatically.
@@ -176,9 +176,9 @@ There is no admin button for this build (the artifact is not surfaced in the adm
 - **Nightly**, when `HTML_BUILD_ENABLED=True` is set in `.env.prod`. The `sync_chapters` task fans out a `build_chapter_pdf_labels` task for every published foundational chapter after dispatching the stale-HTML rebuilds.
 - **Manually**, by running the management command on the worker:
   ```bash
-  docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_pdf_labels
+  docker compose -f docker-compose.prod.yml exec worker-builds python manage.py build_chapter_pdf_labels
   # or for a single chapter:
-  docker compose -f docker-compose.prod.yml exec worker python manage.py build_chapter_pdf_labels --chabbr NUMSYS
+  docker compose -f docker-compose.prod.yml exec worker-builds python manage.py build_chapter_pdf_labels --chabbr NUMSYS
   ```
 
 The artifacts land under `media/pdf_labels/<chabbr>.pdf` (a shared named volume mounted on both `web` and `worker`). The `Download PDF (with labels)` button only appears on a foundational chapter's detail page when the artifact exists on disk — the chapter serializer reports `has_pdf_labels` based on a filesystem check.
@@ -245,7 +245,7 @@ The snippet preview pipeline is parallel to the chapter HTML / labels-PDF pipeli
 You can build an example's preview manually:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec worker python manage.py build_example_preview --id 17
+docker compose -f docker-compose.prod.yml exec worker-builds python manage.py build_example_preview --id 17
 ```
 
 If the build fails, the worker preserves the workspace at `/tmp/ocexample-<uuid>/` for inspection — `main.log` has the LaTeX error, `main.tex` shows the rendered template.

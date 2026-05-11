@@ -127,6 +127,18 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
+# Default queue for tasks that don't match an explicit route below.
+CELERY_TASK_DEFAULT_QUEUE = "default"
+
+# Route long-running LaTeX builds onto their own queue so they can't
+# hold up short tasks (email retries, HTML rebuild signals, the
+# nightly chapter sync). The worker compose runs one prefork pool
+# per queue, isolating their concurrency budgets.
+CELERY_TASK_ROUTES = {
+    "books.build_book": {"queue": "builds"},
+    "books.build_book_html": {"queue": "builds"},
+}
+
 # ── External services ─────────────────────────────────────────────────────────
 # ── Git provider ──────────────────────────────────────────────────────────────
 # Supported: "github" (default) or "gitlab"

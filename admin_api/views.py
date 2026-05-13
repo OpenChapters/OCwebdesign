@@ -14,6 +14,7 @@ from django.db.models import Count, Q
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import generics, status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -933,6 +934,88 @@ class AdminSettingsView(APIView):
         if updated:
             AuditEntry.log(request, "settings.update", "SiteSetting", detail={"keys": updated})
         return Response({"detail": f"Updated: {', '.join(updated)}", "settings": SiteSetting.get_all()})
+
+
+def _coerce_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ("true", "1", "yes", "on")
+    return bool(value)
+
+
+class AdminSiteConfigView(APIView):
+    """GET/PATCH /api/admin/site-config/ — structured site configuration (splash screen)."""
+
+    permission_classes = [IsStaffUser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        return Response(self._serialize(SiteConfig.load(), request))
+
+    def patch(self, request):
+        config = SiteConfig.load()
+        data = request.data
+        changed = []
+
+        if "splash_enabled" in data:
+            config.splash_enabled = _coerce_bool(data["splash_enabled"])
+            changed.append("splash_enabled")
+
+        if "splash_duration_ms" in data:
+            try:
+                ms = int(data["splash_duration_ms"])
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "splash_duration_ms must be an integer."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not 2000 <= ms <= 60000:
+                return Response(
+                    {"detail": "splash_duration_ms must be between 2000 and 60000."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            config.splash_duration_ms = ms
+            changed.append("splash_duration_ms")
+
+        if "splash_caption" in data:
+            config.splash_caption = str(data["splash_caption"])[:200]
+            changed.append("splash_caption")
+
+        if "splash_image" in request.FILES:
+            if config.splash_image:
+                config.splash_image.delete(save=False)
+            config.splash_image = request.FILES["splash_image"]
+            changed.append("splash_image")
+        elif _coerce_bool(data.get("clear_image", False)):
+            if config.splash_image:
+                config.splash_image.delete(save=False)
+                config.splash_image = None
+                changed.append("splash_image_cleared")
+
+        config.save()
+        if changed:
+            AuditEntry.log(
+                request,
+                "site_config.update",
+                "SiteConfig",
+                target_id=config.pk,
+                detail={"keys": changed},
+            )
+        return Response(self._serialize(config, request))
+
+    def _serialize(self, config, request):
+        return {
+            "splash_enabled": config.splash_enabled,
+            "splash_duration_ms": config.splash_duration_ms,
+            "splash_image_url": (
+                request.build_absolute_uri(config.splash_image.url)
+                if config.splash_image
+                else None
+            ),
+            "splash_caption": config.splash_caption,
+            "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+        }
 
 
 class PublicSettingsView(APIView):

@@ -19,6 +19,7 @@ from .views import (
     AdminDisciplineDetailView,
     AdminDisciplineListView,
     AdminSettingsView,
+    AdminSiteConfigView,
     AdminUserBooksView,
     AdminUserDetailView,
     AdminUserListView,
@@ -62,6 +63,7 @@ urlpatterns = [
 
     # Settings
     path("settings/", AdminSettingsView.as_view(), name="admin-settings"),
+    path("site-config/", AdminSiteConfigView.as_view(), name="admin-site-config"),
 
     # Audit log
     path("audit/", AdminAuditLogView.as_view(), name="admin-audit-log"),

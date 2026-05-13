@@ -78,3 +78,63 @@ class TestPublicSettingsSplashFields:
         # APIClient with no credentials must still get 200.
         resp = api_client.get("/api/settings/public/")
         assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+class TestAdminSiteConfigEndpoint:
+    """The /api/admin/site-config/ endpoint is staff-only and supports
+    JSON + multipart for image upload."""
+
+    def test_anonymous_blocked(self, api_client):
+        resp = api_client.get("/api/admin/site-config/")
+        assert resp.status_code in (401, 403)
+
+    def test_non_staff_blocked(self, auth_client):
+        resp = auth_client.get("/api/admin/site-config/")
+        assert resp.status_code == 403
+
+    def test_staff_can_read(self, staff_client):
+        resp = staff_client.get("/api/admin/site-config/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "splash_enabled" in data
+        assert "splash_duration_ms" in data
+        assert "splash_image_url" in data
+        assert "splash_caption" in data
+
+    def test_staff_can_patch_toggle(self, staff_client):
+        resp = staff_client.patch(
+            "/api/admin/site-config/",
+            data={"splash_enabled": True, "splash_caption": "Hello"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["splash_enabled"] is True
+        assert data["splash_caption"] == "Hello"
+        # Reading back the public endpoint confirms persistence.
+        public = staff_client.get("/api/settings/public/")
+        assert public.json()["splash_enabled"] is True
+
+    def test_duration_validated(self, staff_client):
+        resp = staff_client.patch(
+            "/api/admin/site-config/",
+            data={"splash_duration_ms": 500},
+            format="json",
+        )
+        assert resp.status_code == 400
+        resp = staff_client.patch(
+            "/api/admin/site-config/",
+            data={"splash_duration_ms": 1_000_000},
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_clear_image_when_none_is_noop(self, staff_client):
+        resp = staff_client.patch(
+            "/api/admin/site-config/",
+            data={"clear_image": True},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["splash_image_url"] is None

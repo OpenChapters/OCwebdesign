@@ -108,6 +108,22 @@ export interface SiteSettings {
   pdf_retention_days: number;
 }
 
+export interface SplashConfig {
+  splash_enabled: boolean;
+  splash_duration_ms: number;
+  splash_image_url: string | null;
+  splash_caption: string;
+  updated_at: string | null;
+}
+
+export interface SplashConfigUpdate {
+  splash_enabled?: boolean;
+  splash_duration_ms?: number;
+  splash_caption?: string;
+  splash_image?: File;
+  clear_image?: boolean;
+}
+
 // ── Builds ───────────────────────────────────────────────────────────────────
 
 export interface AdminBuild {
@@ -229,6 +245,28 @@ export const adminApi = {
     client.get<SiteSettings>('/admin/settings/').then((r) => r.data),
   settingsUpdate: (data: Partial<SiteSettings>) =>
     client.patch<{ detail: string; settings: SiteSettings }>('/admin/settings/', data).then((r) => r.data),
+
+  // Splash screen / site config
+  splashConfigGet: () =>
+    client.get<SplashConfig>('/admin/site-config/').then((r) => r.data),
+  splashConfigUpdate: (data: SplashConfigUpdate) => {
+    const form = new FormData();
+    if (data.splash_enabled !== undefined)
+      form.append('splash_enabled', String(data.splash_enabled));
+    if (data.splash_duration_ms !== undefined)
+      form.append('splash_duration_ms', String(data.splash_duration_ms));
+    if (data.splash_caption !== undefined)
+      form.append('splash_caption', data.splash_caption);
+    if (data.splash_image)
+      form.append('splash_image', data.splash_image);
+    if (data.clear_image)
+      form.append('clear_image', 'true');
+    return client
+      .patch<SplashConfig>('/admin/site-config/', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
 
   // Audit log
   auditLog: (params?: { action?: string; target_type?: string; user?: string; page?: number }) =>

@@ -707,26 +707,17 @@ export default function BookEditorPage() {
             </label>
           </div>
 
-          {/* DOI field */}
+          {/* DOI field — automatic DOI assignment is not yet implemented, so the
+              field is read-only with a placeholder notice until that work lands. */}
           <div className="mx-5 mt-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center gap-4">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-200 shrink-0">DOI</p>
             <input
               type="text"
-              placeholder="e.g. 10.1234/openchapters.2026"
-              defaultValue={book.doi || ''}
-              onBlur={async (e) => {
-                const val = e.target.value;
-                if (val !== (book.doi || '')) {
-                  try {
-                    await booksApi.update(bookId, { doi: val });
-                    toast('DOI saved.', 'success');
-                    refresh();
-                  } catch { /* ignore */ }
-                }
-              }}
-              className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600 dark:text-gray-300"
+              readOnly
+              value={book.doi || 'Feature under development; coming soon'}
+              className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 italic cursor-not-allowed focus:outline-none"
             />
-            <p className="text-xs text-gray-400 dark:text-gray-500 shrink-0">(optional)</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 shrink-0">(coming soon)</p>
           </div>
 
           {/* Auto-include suggestions */}

@@ -178,3 +178,15 @@ export interface ExampleVersion {
   created_at: string;
   editor_display: string | null;
 }
+
+export interface PublicSettings {
+  site_name: string;
+  welcome_message: string;
+  announcement_banner: string;
+  registration_enabled: boolean;
+  author_batch_import_enabled: boolean;
+  splash_enabled: boolean;
+  splash_duration_ms: number;
+  splash_image_url: string | null;
+  splash_caption: string;
+}

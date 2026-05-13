@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
@@ -22,6 +22,7 @@ import BookReadPage from './pages/BookReadPage';
 import BuildStatusPage from './pages/BuildStatusPage';
 import AboutPage from './pages/AboutPage';
 import UserGuidePage from './pages/UserGuidePage';
+import SplashScreen from './components/SplashScreen';
 
 // Admin
 import AdminRoute from './admin/AdminRoute';
@@ -41,6 +42,11 @@ import AnalyticsPage from './admin/pages/AnalyticsPage';
 import ExamplesQueuePage from './admin/pages/ExamplesQueuePage';
 import AdminExamplesImportPage from './admin/pages/ExamplesImportPage';
 
+function RootRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/chapters${search}`} replace />;
+}
+
 function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col">
@@ -59,8 +65,10 @@ function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <>
+      <SplashScreen />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
@@ -222,8 +230,10 @@ export default function App() {
         }
       />
 
-      {/* Default: browse chapters */}
-      <Route path="/" element={<Navigate to="/chapters" replace />} />
-    </Routes>
+      {/* Default: browse chapters (preserve query string so flags like
+          ?splash=preview survive the redirect). */}
+      <Route path="/" element={<RootRedirect />} />
+      </Routes>
+    </>
   );
 }

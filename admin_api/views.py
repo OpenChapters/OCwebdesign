@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 from catalog.models import Chapter, Discipline
 
-from .models import AuditEntry, SiteSetting
+from .models import AuditEntry, SiteConfig, SiteSetting
 
 from .permissions import IsStaffUser
 from .serializers import (
@@ -943,7 +943,13 @@ class PublicSettingsView(APIView):
 
     def get(self, request):
         all_settings = SiteSetting.get_all()
-        return Response({
+        config = SiteConfig.load()
+        splash_image_url = (
+            request.build_absolute_uri(config.splash_image.url)
+            if config.splash_image
+            else None
+        )
+        resp = Response({
             "site_name": all_settings.get("site_name", "OpenChapters"),
             "welcome_message": all_settings.get("welcome_message", ""),
             "announcement_banner": all_settings.get("announcement_banner", ""),
@@ -951,7 +957,13 @@ class PublicSettingsView(APIView):
             "author_batch_import_enabled": all_settings.get(
                 "author_batch_import_enabled", False
             ),
+            "splash_enabled": config.splash_enabled,
+            "splash_duration_ms": config.splash_duration_ms,
+            "splash_image_url": splash_image_url,
+            "splash_caption": config.splash_caption,
         })
+        resp["Cache-Control"] = "public, max-age=60"
+        return resp
 
 
 # ── Audit Log ─────────────────────────────────────────────────────────────────

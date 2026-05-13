@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -56,6 +57,44 @@ class SiteSetting(models.Model):
         for obj in cls.objects.all():
             result[obj.key] = obj.value
         return result
+
+
+class SiteConfig(models.Model):
+    """
+    Singleton holding structured site-wide settings that don't fit the
+    key-value SiteSetting store (notably file uploads). Edit the row at pk=1.
+    """
+
+    splash_enabled = models.BooleanField(default=False)
+    splash_duration_ms = models.PositiveIntegerField(
+        default=10000,
+        validators=[MinValueValidator(2000), MaxValueValidator(60000)],
+        help_text="Auto-dismiss timer in milliseconds (2000–60000).",
+    )
+    splash_image = models.ImageField(
+        upload_to="splash/",
+        blank=True,
+        null=True,
+        help_text="Leave blank to use the bundled placeholder SVG.",
+    )
+    splash_caption = models.CharField(max_length=200, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Site configuration"
+        verbose_name_plural = "Site configuration"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return "Site configuration"
 
 
 class AuditEntry(models.Model):

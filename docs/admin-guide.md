@@ -361,7 +361,37 @@ Click **Save settings** to apply changes. All settings changes are recorded in t
 
 ### Public Settings Endpoint
 
-The frontend reads public settings (site name, announcement banner, registration status) from `GET /api/settings/public/` without authentication. This allows the announcement banner and registration toggle to work without requiring a page reload.
+The frontend reads public settings (site name, announcement banner, registration status, splash screen) from `GET /api/settings/public/` without authentication. This allows the announcement banner and registration toggle to work without requiring a page reload. The response is sent with `Cache-Control: max-age=60`, so changes propagate within roughly one minute.
+
+## Splash Screen
+
+**Path:** Django admin → **Admin api → Site configuration**
+
+A full-screen welcome illustration shown once per browser session on the main landing page (`/chapters`). End users can dismiss it by clicking anywhere, pressing Escape, or pressing the Skip button, and can opt out permanently on their browser with the "Don't show this again" checkbox.
+
+The feature ships disabled by default. To enable:
+
+1. Open the Django admin (`/admin/`) and click **Site configuration** under the *Admin api* app.
+2. Tick **Splash enabled**.
+3. (Optional) Upload a **Splash image**. Recommended dimensions are 1600×900 (16:9) at PNG, JPEG, or SVG. Leave blank to use the bundled placeholder at `/splash-placeholder.svg`.
+4. (Optional) Set **Splash caption** — a short line of text overlaid at the bottom of the image.
+5. Adjust **Splash duration ms** if you want a faster or slower auto-dismiss (2000–60000 ms; default 10000).
+6. Click **Save**.
+
+### Previewing without affecting users
+
+After saving, the change form shows an **Open preview in new tab** link. Clicking it opens `/?splash=preview`, which forces the splash to display regardless of session / "don't-show-again" flags and does **not** persist any dismissal state. This lets you verify a new image or caption without exposing it to other visitors.
+
+### Visibility rules
+
+The splash only appears when **all** of the following are true:
+
+- `splash_enabled` is `true` in Site configuration.
+- The current page is `/` or `/chapters` (deep links such as `/chapters/:id` are skipped, so links shared by email or social media go straight to content).
+- The browser has not already seen the splash this session (`sessionStorage['oc.splashSeen']`).
+- The browser has not opted out permanently (`localStorage['oc.splashDisabled']`).
+
+Users who want to see the splash again can clear those keys in their browser's developer tools.
 
 ## Audit Log
 

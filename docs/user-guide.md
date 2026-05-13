@@ -424,7 +424,7 @@ batch.zip
 [
   {
     "dir": "ex001",
-    "slug": "intro-rotation",
+    "slug": "XXX-001",
     "primary_chapter": "BASCRY",
     "chapters": ["BASCRY", "DIFCAL"],
     "difficulty": "standard"
@@ -436,7 +436,7 @@ batch.zip
 - `primary_chapter` *(required)* — `chabbr` of the primary chapter. Must appear in `chapters`.
 - `chapters` *(required)* — list of `chabbr` values the example is tagged to.
 - `difficulty` — `introductory`, `standard`, or `advanced` (defaults to `standard`).
-- `slug` *(optional)* — a stable per-author identifier. Re-importing the same `slug` updates the existing example rather than creating a duplicate, which makes the import idempotent across iterations.
+- `slug` *(optional)* — a stable per-author identifier (this could be the author's initials along with a numerical identification). Re-importing the same `slug` updates the existing example rather than creating a duplicate, which makes the import idempotent across iterations.
 
 Figure files must be `.pdf`, `.png`, or `.jpg/.jpeg`. The total archive size is capped at 50 MB and a single import is limited to 200 entries.
 

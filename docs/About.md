@@ -33,3 +33,5 @@ The OpenChapters project started with partial financial support from a Vannevar 
 ## License
 
 Content (chapters, figures) is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+The web platform code in this repository is licensed under the [BSD 3-Clause License](https://github.com/OpenChapters/OCwebdesign/blob/main/LICENSE).

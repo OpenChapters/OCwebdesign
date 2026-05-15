@@ -66,6 +66,7 @@ export default function SplashScreen() {
 
   const imageUrl = config?.splash_image_url || '/splash-placeholder.svg';
   const caption = config?.splash_caption || '';
+  const isSvg = imageUrl.split('?')[0].toLowerCase().endsWith('.svg');
 
   return (
     <div
@@ -80,12 +81,26 @@ export default function SplashScreen() {
         (closing ? 'opacity-0 pointer-events-none' : 'opacity-100')
       }
     >
-      <img
-        src={imageUrl}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover select-none"
-        draggable={false}
-      />
+      {isSvg ? (
+        // Safari renders CSS-animated SVGs poorly via <img> — frames persist
+        // as artifacts. <object> embeds the SVG as a live document so the
+        // animations run cleanly. pointer-events: none keeps the overlay's
+        // click-to-dismiss behavior intact. Scaling/cropping is handled by
+        // the SVG's own preserveAspectRatio="slice", so no object-fit needed.
+        <object
+          type="image/svg+xml"
+          data={imageUrl}
+          aria-label=""
+          className="absolute inset-0 w-full h-full pointer-events-none"
+        />
+      ) : (
+        <img
+          src={imageUrl}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover select-none"
+          draggable={false}
+        />
+      )}
 
       {caption && (
         <p

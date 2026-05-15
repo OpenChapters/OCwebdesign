@@ -270,66 +270,12 @@ export default function ChapterDetailPage() {
           {/* Add to Book */}
           <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
             {isAuthenticated ? (
-              <div className="relative">
-                <button
-                  onClick={() => setShowAdd(!showAdd)}
-                  className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700"
-                >
-                  + Add to Book
-                </button>
-
-                {showAdd && (
-                  <div className="absolute left-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-10 w-72">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                      Choose a book
-                    </p>
-                    {draftBooks.length > 0 && (
-                      <div className="space-y-1 mb-3">
-                        {draftBooks.map((b: BookListItem) => (
-                          <button
-                            key={b.id}
-                            onClick={() => addToBook(b.id)}
-                            disabled={adding}
-                            className="w-full text-left text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 py-1.5 disabled:opacity-50"
-                          >
-                            {b.title}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {showNewBookInput ? (
-                      <form
-                        onSubmit={(e) => { e.preventDefault(); createBookAndAdd(newBookTitle); }}
-                        className="flex gap-1"
-                      >
-                        <input
-                          type="text"
-                          placeholder="Book title"
-                          value={newBookTitle}
-                          onChange={(e) => setNewBookTitle(e.target.value)}
-                          autoFocus
-                          required
-                          className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button
-                          type="submit"
-                          disabled={adding || !newBookTitle.trim()}
-                          className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {adding ? '…' : 'Create'}
-                        </button>
-                      </form>
-                    ) : (
-                      <button
-                        onClick={() => setShowNewBookInput(true)}
-                        className="w-full text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded px-2 py-1.5 text-left font-medium"
-                      >
-                        + Create new book
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={() => setShowAdd(true)}
+                className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700"
+              >
+                + Add to Book
+              </button>
             ) : (
               <Link
                 to="/login"
@@ -341,6 +287,81 @@ export default function ChapterDetailPage() {
           </div>
         </div>
       </div>
+
+      {showAdd && isAuthenticated && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onClick={() => { setShowAdd(false); setShowNewBookInput(false); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-to-book-title"
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-full max-w-sm p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <h2
+                id="add-to-book-title"
+                className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide"
+              >
+                Choose a book
+              </h2>
+              <button
+                onClick={() => { setShowAdd(false); setShowNewBookInput(false); }}
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-2xl leading-none px-1 -mt-1"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            {draftBooks.length > 0 && (
+              <div className="space-y-1 mb-3 max-h-64 overflow-y-auto">
+                {draftBooks.map((b: BookListItem) => (
+                  <button
+                    key={b.id}
+                    onClick={() => addToBook(b.id)}
+                    disabled={adding}
+                    className="w-full text-left text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 py-1.5 disabled:opacity-50"
+                  >
+                    {b.title}
+                  </button>
+                ))}
+              </div>
+            )}
+            {showNewBookInput ? (
+              <form
+                onSubmit={(e) => { e.preventDefault(); createBookAndAdd(newBookTitle); }}
+                className="flex gap-1"
+              >
+                <input
+                  type="text"
+                  placeholder="Book title"
+                  value={newBookTitle}
+                  onChange={(e) => setNewBookTitle(e.target.value)}
+                  autoFocus
+                  required
+                  className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                />
+                <button
+                  type="submit"
+                  disabled={adding || !newBookTitle.trim()}
+                  className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {adding ? '…' : 'Create'}
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => setShowNewBookInput(true)}
+                className="w-full text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded px-2 py-1.5 text-left font-medium"
+              >
+                + Create new book
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

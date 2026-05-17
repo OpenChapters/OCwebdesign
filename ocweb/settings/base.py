@@ -198,6 +198,7 @@ CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_ROUTES = {
     "books.build_book": {"queue": "builds"},
     "books.build_book_html": {"queue": "builds"},
+    "books.build_book_epub": {"queue": "builds"},
 }
 
 # ── External services ─────────────────────────────────────────────────────────
@@ -276,6 +277,20 @@ BUILD_OUTPUT_DIR = env.path("BUILD_OUTPUT_DIR", default=str(BASE_DIR / "media" /
 BUILD_HTML_OUTPUT_DIR = env.path(
     "BUILD_HTML_OUTPUT_DIR",
     default=str(BASE_DIR / "media" / "html_books"),
+)
+
+# Local directory where generated per-book EPUB output (tex4ebook) is stored.
+BUILD_EPUB_OUTPUT_DIR = env.path(
+    "BUILD_EPUB_OUTPUT_DIR",
+    default=str(BASE_DIR / "media" / "epubs"),
+)
+
+# Local directory where FrozenBook artifacts are kept (per-token
+# subdirectory). Separate from the live build dirs so a parent Book
+# rebuild or deletion does not touch frozen snapshots.
+FROZEN_OUTPUT_DIR = env.path(
+    "FROZEN_OUTPUT_DIR",
+    default=str(BASE_DIR / "media" / "frozen"),
 )
 
 # Additional directory holding HTML-specific LaTeX template files

@@ -392,6 +392,18 @@ def _refresh_cache(clone_url: str, cache_dir: Path, log_fn) -> None:
         _clone_repo(clone_url, cache_dir, log_fn)
 
 
+def _resolve_repo_sha(repo_dir: Path) -> str:
+    """Return the resolved HEAD commit SHA for a cloned repo, or '' on error."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_dir), "rev-parse", "HEAD"],
+            capture_output=True, text=True, check=True, timeout=10,
+        )
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        return ""
+
+
 def _materialize_via_cache(clone_url: str, repo: str, target_dir: Path, log_fn) -> None:
     """Update the warm cache for *repo* and hardlink it into *target_dir*.
 
@@ -548,12 +560,19 @@ def build_book(self, book_id: int, preview_structure: bool = False) -> None:
                 for p in request_data["parts"]
                 for ch in p["chapters"]
             })
+            chapter_shas: dict[str, str] = {}
             for i, repo in enumerate(repos, start=1):
                 _set_step_detail(step, f"{i} of {len(repos)}: {repo}")
                 repo_dir = workdir / repo.split("/")[-1]
                 _materialize_via_cache(
                     provider.clone_url(repo), repo, repo_dir, log,
                 )
+                sha = _resolve_repo_sha(repo_dir)
+                if sha:
+                    chapter_shas[repo] = sha
+                    log(f"  resolved {repo} @ {sha[:8]}")
+            job.chapter_shas = chapter_shas
+            job.save(update_fields=["chapter_shas"])
             _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
 
         # ── Step 2: assemble matter/, frontmatter, cover, bibs, figures ──────
@@ -1040,12 +1059,19 @@ def build_book_html(self, book_id: int, send_email: bool = True) -> None:
                 for p in request_data["parts"]
                 for ch in p["chapters"]
             })
+            chapter_shas: dict[str, str] = {}
             for i, repo in enumerate(repos, start=1):
                 _set_step_detail(step, f"{i} of {len(repos)}: {repo}")
                 repo_dir = workdir / repo.split("/")[-1]
                 _materialize_via_cache(
                     provider.clone_url(repo), repo, repo_dir, log,
                 )
+                sha = _resolve_repo_sha(repo_dir)
+                if sha:
+                    chapter_shas[repo] = sha
+                    log(f"  resolved {repo} @ {sha[:8]}")
+            job.chapter_shas = chapter_shas
+            job.save(update_fields=["chapter_shas"])
             _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
 
         # ── Step 2: assemble images, bibs, figures, SVG conversion ───────
@@ -1247,6 +1273,317 @@ def build_book_html(self, book_id: int, send_email: bool = True) -> None:
                 except Exception:
                     logger.exception("[book-html %s] archive failed", build_id[:8])
             shutil.rmtree(workdir, ignore_errors=True)
+
+
+@shared_task(
+    bind=True,
+    name="books.build_book_epub",
+    time_limit=1800,
+    soft_time_limit=1500,
+)
+def build_book_epub(self, book_id: int, send_email: bool = True) -> None:
+    """
+    Per-book EPUB build pipeline via tex4ebook.
+
+    Reuses the PDF main.tex template (build_main_tex.py) since tex4ebook
+    accepts standard LaTeX sources. The typeset step calls
+    ``tex4ebook -f epub3 main.tex`` which internally invokes pdflatex
+    plus the tex4ht/tex4ebook chain to emit main.epub. The resulting
+    file is moved to ``<BUILD_EPUB_OUTPUT_DIR>/book_<id>_<hash>.epub``.
+
+    ``send_email=False`` suppresses the deliver_epub notification — used
+    when this task is chained after build_book/build_book_html so the
+    user only receives one email per build batch.
+    """
+    from books.models import Book, BuildJob
+
+    try:
+        book = Book.objects.select_related("user").get(id=book_id)
+    except Book.DoesNotExist:
+        logger.error("build_book_epub: Book %d not found", book_id)
+        return
+
+    job, _ = BuildJob.objects.get_or_create(book=book)
+    job.celery_task_id = self.request.id or ""
+    job.started_at = timezone.now()
+    job.finished_at = None
+    job.log_output = ""
+    job.error_message = ""
+    job.save()
+    _reset_steps(job)
+
+    book.status = Book.Status.BUILDING
+    book.save(update_fields=["status"])
+
+    build_id = str(uuid.uuid4())
+    workdir = Path(f"/tmp/ocbuild-epub-{build_id}")
+    log_lines: list[str] = []
+
+    def log(msg: str) -> None:
+        log_lines.append(msg)
+        logger.info("[book-epub %s] %s", build_id[:8], msg)
+
+    scripts_dir = Path(settings.BUILD_SCRIPTS_DIR)
+    template_dir = Path(settings.BUILD_TEMPLATE_DIR)
+    output_dir = Path(settings.BUILD_EPUB_OUTPUT_DIR)
+
+    try:
+        # ── Step 0: setup workspace ──────────────────────────────────────
+        with _build_step(job, name="setup", label="Preparing workspace",
+                         order=0, log_lines=log_lines):
+            workdir.mkdir(parents=True, exist_ok=False)
+            log(f"Workspace: {workdir}")
+
+            for f in template_dir.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, workdir / f.name)
+            log(f"Copied template files from {template_dir}")
+
+            request_data = _build_request_data(book)
+            (workdir / "build_request.json").write_text(
+                json.dumps(request_data, indent=2), encoding="utf-8"
+            )
+            _validate_build_data(request_data)
+            log("Validated build request data")
+
+        # ── Step 1: clone chapter repos + capture SHAs ───────────────────
+        with _build_step(job, name="clone", label="Cloning chapter sources",
+                         order=1, log_lines=log_lines) as step:
+            from catalog.git_provider import get_provider
+            provider = get_provider()
+            repos = sorted({
+                ch["repo"]
+                for p in request_data["parts"]
+                for ch in p["chapters"]
+            })
+            chapter_shas: dict[str, str] = {}
+            for i, repo in enumerate(repos, start=1):
+                _set_step_detail(step, f"{i} of {len(repos)}: {repo}")
+                repo_dir = workdir / repo.split("/")[-1]
+                _materialize_via_cache(provider.clone_url(repo), repo, repo_dir, log)
+                sha = _resolve_repo_sha(repo_dir)
+                if sha:
+                    chapter_shas[repo] = sha
+                    log(f"  resolved {repo} @ {sha[:8]}")
+            job.chapter_shas = chapter_shas
+            job.save(update_fields=["chapter_shas"])
+            _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
+
+        # ── Step 2: assemble matter/, frontmatter, bibs, figures ─────────
+        with _build_step(job, name="assemble", label="Assembling chapters and figures",
+                         order=2, log_lines=log_lines):
+            monorepo_dir = workdir / "OpenChapters"
+            matter_src = monorepo_dir / "Build" / "matter"
+            if not matter_src.is_dir():
+                raise FileNotFoundError(
+                    f"matter/ not found in cloned repo at {matter_src}"
+                )
+
+            def _skip_symlinks(src: str, names: list) -> set:
+                return {n for n in names if os.path.islink(os.path.join(src, n))}
+
+            shutil.copytree(matter_src, workdir / "matter", ignore=_skip_symlinks)
+
+            fm_template = workdir / "matter" / "Frontmatter.tex.template"
+            fm_output = workdir / "matter" / "Frontmatter.tex"
+            if fm_template.is_file():
+                cover_filename = "background.pdf"
+                if book.cover_image:
+                    cover_filename = Path(book.cover_image.name).name
+                fm_text = fm_template.read_text()
+                fm_text = fm_text.replace("##COVERIMAGE##", cover_filename)
+                fm_text = fm_text.replace("##BOOKTITLE##", book.title)
+                fm_text = fm_text.replace("##USERNAME##", book.user.full_name or book.user.email)
+                fm_output.write_text(fm_text)
+
+            img_folder = workdir / "ImageFolder"
+            img_folder.mkdir(exist_ok=True)
+            if book.cover_image:
+                cover_src = Path(book.cover_image.path)
+                if cover_src.is_file():
+                    shutil.copy2(str(cover_src), str(img_folder / Path(book.cover_image.name).name))
+
+            _run_script(scripts_dir / "concat_bibs.py", workdir, log)
+            _run_script(scripts_dir / "collect_images.py", workdir, log)
+            _copy_example_figures(workdir, request_data, log)
+
+        # ── Step 3: generate main.tex + git metadata ─────────────────────
+        with _build_step(job, name="generate", label="Generating main.tex",
+                         order=3, log_lines=log_lines):
+            _run_script(
+                scripts_dir / "build_main_tex.py", workdir, log,
+                extra_args=["--build-id", build_id],
+            )
+            _run_script(
+                scripts_dir / "generate_gin.py", workdir, log,
+                extra_args=["--build-id", build_id],
+            )
+
+        # ── Step 4: typeset with tex4ebook ───────────────────────────────
+        with _build_step(job, name="typeset", label="Typesetting EPUB (tex4ebook)",
+                         order=4, log_lines=log_lines):
+            log("$ tex4ebook -f epub3 main.tex")
+            result = subprocess.run(
+                ["tex4ebook", "-f", "epub3", "main.tex"],
+                cwd=str(workdir),
+                capture_output=True,
+                text=True,
+                stdin=subprocess.DEVNULL,
+                timeout=1500,
+            )
+            if result.stdout:
+                log(result.stdout.rstrip())
+            if result.stderr:
+                log(result.stderr.rstrip())
+            if result.returncode != 0:
+                tex_log = workdir / "main.log"
+                if tex_log.exists():
+                    lines = tex_log.read_text(errors="replace").splitlines()
+                    errs = [l for l in lines if l.startswith("!")][:10]
+                    if errs:
+                        log("--- LaTeX errors ---")
+                        log("\n".join(errs))
+                raise subprocess.CalledProcessError(result.returncode, ["tex4ebook", "main.tex"])
+
+        # ── Step 5: finalize (move EPUB, update Book + BuildJob) ─────────
+        with _build_step(job, name="finalize", label="Finalizing EPUB",
+                         order=5, log_lines=log_lines):
+            epub_src = workdir / "main.epub"
+            if not epub_src.exists():
+                raise FileNotFoundError(
+                    "tex4ebook completed without error but main.epub was not found"
+                )
+
+            output_dir.mkdir(parents=True, exist_ok=True)
+            epub_filename = f"book_{book.id}_{build_id[:8]}.epub"
+            epub_dst = output_dir / epub_filename
+            shutil.copy2(epub_src, epub_dst)
+            log(f"EPUB saved: {epub_dst}")
+
+            job.epub_path = str(epub_dst)
+            job.finished_at = timezone.now()
+            job.log_output = "\n".join(log_lines)
+            job.save()
+
+            book.epub_path = str(epub_dst)
+            book.epub_built_at = timezone.now()
+            book.status = Book.Status.COMPLETE
+            book.save(update_fields=["epub_path", "epub_built_at", "status"])
+            log("EPUB build complete.")
+
+        if send_email:
+            deliver_epub.delay(book.id)
+        else:
+            log("EPUB email skipped (send_email=False).")
+
+    except SoftTimeLimitExceeded:
+        log("BUILD TIMEOUT: exceeded 25-minute time limit")
+        job.error_message = "EPUB build exceeded time limit."
+        job.finished_at = timezone.now()
+        job.log_output = "\n".join(log_lines)
+        job.save()
+        book.status = Book.Status.FAILED
+        book.save(update_fields=["status"])
+
+    except Exception as exc:
+        error_msg = f"{type(exc).__name__}: {exc}"
+        log(f"BUILD FAILED: {error_msg}")
+        job.error_message = error_msg
+        job.finished_at = timezone.now()
+        job.log_output = "\n".join(log_lines)
+        job.save()
+        book.status = Book.Status.FAILED
+        book.save(update_fields=["status"])
+        raise
+
+    finally:
+        if workdir.exists():
+            if book.status == Book.Status.FAILED:
+                archive_dir = output_dir / "failed_builds"
+                archive_dir.mkdir(parents=True, exist_ok=True)
+                archive_path = archive_dir / build_id[:8]
+                try:
+                    if archive_path.exists():
+                        shutil.rmtree(archive_path)
+                    archive_path.mkdir()
+                    for name in ("main.log", "main.tex", "build_request.json"):
+                        src = workdir / name
+                        if src.exists():
+                            shutil.copy2(src, archive_path / name)
+                    (archive_path / "build.log").write_text(
+                        "\n".join(log_lines), encoding="utf-8"
+                    )
+                    archives = sorted(archive_dir.iterdir(), key=lambda p: p.stat().st_mtime)
+                    for old in archives[:-10]:
+                        shutil.rmtree(old, ignore_errors=True)
+                except Exception:
+                    logger.exception("[book-epub %s] archive failed", build_id[:8])
+            shutil.rmtree(workdir, ignore_errors=True)
+
+
+@shared_task(
+    bind=True,
+    name="books.deliver_epub",
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3},
+    retry_backoff=60,
+    retry_backoff_max=600,
+)
+def deliver_epub(self, book_id: int) -> None:
+    """Email the user a link to download their book's EPUB output."""
+    from books.models import Book
+    from books.signing import make_download_token
+
+    try:
+        book = Book.objects.select_related("user").get(id=book_id)
+    except Book.DoesNotExist:
+        logger.error("deliver_epub: Book %d not found", book_id)
+        return
+
+    if not book.epub_built_at or not book.epub_path:
+        logger.warning("deliver_epub: Book %d has no EPUB build", book_id)
+        return
+
+    token = make_download_token(book.id, book.user_id)
+    site_url = getattr(settings, "SITE_URL", "http://localhost:5173").rstrip("/")
+    download_url = f"{site_url}/api/dl-epub/{token}/"
+    expiry_days = getattr(settings, "PDF_LINK_EXPIRY_DAYS", 7)
+
+    if not getattr(settings, "EMAIL_HOST", ""):
+        logger.info(
+            "deliver_epub: EMAIL_HOST not set; would email %s download link %s",
+            book.user.email, download_url,
+        )
+        return
+
+    from django.core.mail import EmailMultiAlternatives
+
+    from_email = getattr(settings, "FROM_EMAIL", "noreply@openchapters.org")
+    subject = f"Your EPUB is ready: {book.title}"
+    text_body = (
+        f"Hi,\n\n"
+        f'Your book "{book.title}" has been packaged as an EPUB '
+        f"and is ready for download.\n\n"
+        f"Download your EPUB:\n{download_url}\n\n"
+        f"This link expires in {expiry_days} days.\n\n"
+        f"— OpenChapters"
+    )
+    html_body = (
+        f"<p>Hi,</p>"
+        f'<p>Your book <strong>{book.title}</strong> has been packaged as an EPUB '
+        f"and is ready for download.</p>"
+        f'<p><a href="{download_url}" style="display:inline-block;padding:12px 24px;'
+        f"background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;"
+        f'font-weight:600;">Download EPUB</a></p>'
+        f"<p><small>This link expires in {expiry_days} days. "
+        f'You can also download from your <a href="{site_url}/library">Library</a>.</small></p>'
+        f"<p>— OpenChapters</p>"
+    )
+
+    msg = EmailMultiAlternatives(subject, text_body, from_email, [book.user.email])
+    msg.attach_alternative(html_body, "text/html")
+    msg.send()
+    logger.info("deliver_epub: email sent to %s", book.user.email)
 
 
 @shared_task(

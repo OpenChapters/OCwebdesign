@@ -52,6 +52,11 @@ class Book(models.Model):
         PDF = "pdf", "PDF"
         HTML = "html", "HTML"
         BOTH = "both", "PDF + HTML"
+        # EPUB and ALL are kept in the schema so the backend pipeline
+        # remains wired, but they are not surfaced in the 1.2 UI because
+        # tex4ebook cannot handle the OpenChapters preamble cleanly yet.
+        EPUB = "epub", "EPUB (experimental)"
+        ALL = "all", "All formats (PDF + HTML + EPUB, experimental)"
 
     last_build_format = models.CharField(
         max_length=8,
@@ -59,6 +64,14 @@ class Book(models.Model):
         default=BuildFormat.PDF,
         help_text="Format selected for the most recent build; used by Retry.",
     )
+
+    # Per-book EPUB build artifact (tex4ebook)
+    epub_path = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Filesystem path to the most recent EPUB output.",
+    )
+    epub_built_at = models.DateTimeField(null=True, blank=True)
 
     # ── Worked-examples integration (todo #5 Phase 3) ────────────────────────
     # When include_examples is True, the build pipeline appends a "Worked
@@ -134,6 +147,9 @@ class BuildJob(models.Model):
     # S3 key or local filesystem path to the generated PDF
     pdf_path = models.CharField(max_length=500, blank=True)
 
+    # Filesystem path to the generated EPUB (tex4ebook output).
+    epub_path = models.CharField(max_length=500, blank=True)
+
     # Full arara stdout/stderr captured on completion (success or failure)
     log_output = models.TextField(blank=True)
 
@@ -144,6 +160,12 @@ class BuildJob(models.Model):
     # chapter titles only, no body content. Reset to False on every
     # full build so the badge stays accurate.
     preview_structure = models.BooleanField(default=False)
+
+    # Resolved commit SHA per chapter repo at clone time. Shape:
+    #   {"OpenChapters/OpenChapters": "abc123...", ...}
+    # Captured so FrozenBook can snapshot exact source state without
+    # re-cloning. Empty {} for legacy jobs that pre-date this field.
+    chapter_shas = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"BuildJob({self.book.title})"
@@ -204,3 +226,83 @@ class BuildStep(models.Model):
 
     def __str__(self):
         return f"BuildStep({self.build_job_id}/{self.order}:{self.name})"
+
+
+def _generate_share_token() -> str:
+    import secrets
+    return secrets.token_urlsafe(16)
+
+
+class FrozenBook(models.Model):
+    """
+    A pinned snapshot of a Book at a moment in time — the "Freeze for
+    semester" feature. Frozen builds are immutable and accessible via a
+    stable share URL that does not require login, so an instructor can
+    distribute the link to students or LMS resources.
+
+    The parent Book remains editable and re-buildable; frozen versions
+    are insulated from those changes. The build artifacts are *copied*
+    into a per-token directory under settings.FROZEN_OUTPUT_DIR so the
+    frozen version survives even if the parent Book is later deleted
+    (book FK is SET_NULL).
+    """
+
+    book = models.ForeignKey(
+        Book,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="frozen_versions",
+    )
+    label = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Human label (e.g. 'Fall 2026'). Shown next to the title.",
+    )
+    share_token = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        default=_generate_share_token,
+    )
+
+    # Snapshots so display + citation survive parent-Book deletion.
+    title_snapshot = models.CharField(max_length=300)
+    author_snapshot = models.CharField(max_length=200, blank=True)
+
+    # Per-chapter snapshot. Shape (list of dicts, ordered as in the book):
+    #   [{"chabbr", "title", "repo", "commit_sha", "last_updated"}]
+    chapter_snapshot = models.JSONField(default=list, blank=True)
+
+    # Copied build artifacts. Empty when that format wasn't part of the
+    # source build (e.g. user only built PDF).
+    pdf_path = models.CharField(max_length=500, blank=True)
+    html_path = models.CharField(max_length=500, blank=True)
+    epub_path = models.CharField(max_length=500, blank=True)
+
+    frozen_at = models.DateTimeField(auto_now_add=True)
+    frozen_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="frozen_books",
+    )
+
+    class Meta:
+        ordering = ["-frozen_at"]
+
+    def __str__(self):
+        return f"FrozenBook({self.title_snapshot} @ {self.frozen_at:%Y-%m-%d})"
+
+    @property
+    def has_pdf(self) -> bool:
+        return bool(self.pdf_path)
+
+    @property
+    def has_html(self) -> bool:
+        return bool(self.html_path)
+
+    @property
+    def has_epub(self) -> bool:
+        return bool(self.epub_path)

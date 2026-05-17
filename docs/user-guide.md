@@ -318,6 +318,18 @@ The page also shows the **book title** so you know which build you're monitoring
 
 If the build **succeeds**, a **Download PDF** button appears (and, for an HTML build, a **View Online** link). If email delivery is configured on the server, you will also receive an email with download links that remain valid for 7 days. If the build **fails**, the error message from the LaTeX log is shown to help diagnose the issue.
 
+### Freezing a build for a semester
+
+After a build completes, the Build Status page shows a **Frozen versions** panel. Click **Freeze for semester** to pin the current build to a stable share URL that anyone can open without logging in. Optionally label the freeze (e.g. "Fall 2026").
+
+A frozen version:
+
+- captures the exact chapter commit SHAs used in the build, so the snapshot is reproducible even if upstream chapters change later;
+- copies the PDF, HTML, and EPUB artifacts into its own per-token directory, so subsequent rebuilds of the book do not affect it;
+- survives deletion of the parent book — students keep their access via the share URL.
+
+You can list, copy share URLs for, and delete frozen versions from the same panel. Sharing the URL with students or pasting it into an LMS gives them a stable download point for the semester.
+
 ## Your Library
 
 Click **Library** in the navigation bar to see all your completed books. Each entry shows:

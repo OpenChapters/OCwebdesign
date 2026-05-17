@@ -3,7 +3,7 @@ from catalog.serializers import ChapterSerializer
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from .models import Book, BookChapter, BookPart, BuildJob, BuildStep
+from .models import Book, BookChapter, BookPart, BuildJob, BuildStep, FrozenBook
 
 
 class BookChapterSerializer(serializers.ModelSerializer):
@@ -66,6 +66,7 @@ class BookSerializer(serializers.ModelSerializer):
     has_cover_image = serializers.SerializerMethodField()
     has_pdf = serializers.SerializerMethodField()
     has_html = serializers.SerializerMethodField()
+    has_epub = serializers.SerializerMethodField()
     examples_count = serializers.SerializerMethodField()
 
     def get_has_cover_image(self, obj) -> bool:
@@ -76,6 +77,9 @@ class BookSerializer(serializers.ModelSerializer):
 
     def get_has_html(self, obj) -> bool:
         return bool(obj.html_built_at and obj.html_path)
+
+    def get_has_epub(self, obj) -> bool:
+        return bool(obj.epub_built_at and obj.epub_path)
 
     def get_examples_count(self, obj) -> int:
         # Distinct PUBLISHED Examples tagged to any chapter in the book.
@@ -102,14 +106,16 @@ class BookSerializer(serializers.ModelSerializer):
         fields = [
             "id", "title", "doi", "status", "created_at", "updated_at",
             "parts", "build_job", "has_cover_image", "html_built_at",
-            "has_pdf", "has_html", "last_build_format",
+            "epub_built_at",
+            "has_pdf", "has_html", "has_epub", "last_build_format",
             "include_examples", "include_solutions", "examples_count",
             "excluded_example_ids",
         ]
         read_only_fields = [
             "id", "status", "created_at", "updated_at", "parts",
-            "build_job", "has_cover_image", "html_built_at",
-            "has_pdf", "has_html", "last_build_format", "examples_count",
+            "build_job", "has_cover_image", "html_built_at", "epub_built_at",
+            "has_pdf", "has_html", "has_epub", "last_build_format",
+            "examples_count",
         ]
 
     def validate_excluded_example_ids(self, value):
@@ -174,6 +180,7 @@ class BookListSerializer(serializers.ModelSerializer):
 
     has_pdf = serializers.SerializerMethodField()
     has_html = serializers.SerializerMethodField()
+    has_epub = serializers.SerializerMethodField()
 
     def get_has_pdf(self, obj) -> bool:
         return bool(getattr(obj, "build_job", None) and obj.build_job.pdf_path)
@@ -181,13 +188,55 @@ class BookListSerializer(serializers.ModelSerializer):
     def get_has_html(self, obj) -> bool:
         return bool(obj.html_built_at and obj.html_path)
 
+    def get_has_epub(self, obj) -> bool:
+        return bool(obj.epub_built_at and obj.epub_path)
+
     class Meta:
         model = Book
         fields = [
             "id", "title", "doi", "status", "created_at", "updated_at",
-            "html_built_at", "has_pdf", "has_html",
+            "html_built_at", "epub_built_at",
+            "has_pdf", "has_html", "has_epub",
         ]
         read_only_fields = [
-            "id", "status", "created_at", "updated_at", "html_built_at",
-            "has_pdf", "has_html",
+            "id", "status", "created_at", "updated_at",
+            "html_built_at", "epub_built_at",
+            "has_pdf", "has_html", "has_epub",
         ]
+
+
+class FrozenBookSerializer(serializers.ModelSerializer):
+    """Owner-facing serializer (used in the freeze management UI).
+
+    Includes the share_token because the owner needs it to construct the
+    shareable URL. Never expose this serializer on an unauthenticated
+    endpoint without scrubbing the token.
+    """
+
+    class Meta:
+        model = FrozenBook
+        fields = [
+            "id", "label", "share_token", "title_snapshot",
+            "author_snapshot", "chapter_snapshot",
+            "has_pdf", "has_html", "has_epub",
+            "frozen_at",
+        ]
+        read_only_fields = fields
+
+
+class FrozenBookPublicSerializer(serializers.ModelSerializer):
+    """Public-facing serializer for /api/frozen/<token>/.
+
+    Used when an anonymous reader follows a share link. Mirrors the
+    owner serializer minus any data that should stay private.
+    """
+
+    class Meta:
+        model = FrozenBook
+        fields = [
+            "label", "title_snapshot", "author_snapshot",
+            "chapter_snapshot",
+            "has_pdf", "has_html", "has_epub",
+            "frozen_at",
+        ]
+        read_only_fields = fields

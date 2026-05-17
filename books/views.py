@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .models import Book, BookChapter, BookPart, BuildJob
+from .models import Book, BookChapter, BookPart, BuildJob, FrozenBook
 
 import re
 
@@ -32,9 +32,11 @@ from .serializers import (
     BookPartSerializer,
     BookSerializer,
     BuildJobSerializer,
+    FrozenBookPublicSerializer,
+    FrozenBookSerializer,
     PublicBookSerializer,
 )
-from .tasks import build_book, build_book_html
+from .tasks import build_book, build_book_epub, build_book_html
 
 
 # ── Book CRUD ─────────────────────────────────────────────────────────────────
@@ -233,12 +235,14 @@ class BuildTriggerView(APIView):
     """POST /api/books/<book_pk>/build/ — enqueue a Celery build task.
 
     Body (JSON):
-      - "format": "pdf" | "html" | "both"   (default: "pdf")
-      - "preview_structure": true | false   (default: false)
+      - "format": "pdf" | "html" | "both" | "epub" | "all"   (default: "pdf")
+      - "preview_structure": true | false                    (default: false)
 
-    When ``preview_structure`` is true the format is forced to "pdf" and
-    the pipeline takes the fast TOC-only path; the HTML auto-chain is
-    skipped because there is no body content to render to HTML.
+    "both" chains PDF → HTML. "all" additionally chains EPUB but is not
+    exposed in the UI as of 1.2 because tex4ebook does not yet handle
+    the OpenChapters preamble cleanly — kept here so the path can be
+    re-enabled once that's resolved. ``preview_structure`` forces "pdf"
+    and skips chaining.
     """
 
     permission_classes = [IsAuthenticated]
@@ -251,9 +255,9 @@ class BuildTriggerView(APIView):
         preview_structure = bool(request.data.get("preview_structure", False))
 
         fmt = str(request.data.get("format", "pdf")).lower()
-        if fmt not in ("pdf", "html", "both"):
+        if fmt not in ("pdf", "html", "both", "epub", "all"):
             return Response(
-                {"detail": "format must be 'pdf', 'html', or 'both'."},
+                {"detail": "format must be 'pdf', 'html', 'both', 'epub', or 'all'."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if preview_structure and fmt != "pdf":
@@ -306,8 +310,18 @@ class BuildTriggerView(APIView):
 
         if fmt == "html":
             build_book_html.delay(book_pk)
+        elif fmt == "epub":
+            build_book_epub.delay(book_pk)
+        elif fmt == "all":
+            # PDF → HTML → EPUB. Only PDF emails the user; intermediate
+            # tasks suppress their own notifications so the inbox isn't spammed.
+            chain(
+                build_book.si(book_pk),
+                build_book_html.si(book_pk, send_email=False),
+                build_book_epub.si(book_pk, send_email=False),
+            ).delay()
         elif fmt == "both" or auto_html:
-            # Suppress the HTML email; the PDF email covers this build.
+            # PDF + HTML. Suppress the HTML email; PDF email covers this build.
             chain(
                 build_book.si(book_pk),
                 build_book_html.si(book_pk, send_email=False),
@@ -489,6 +503,70 @@ class DownloadPDFView(APIView):
             return Response({"detail": "PDF file not found."}, status=status.HTTP_404_NOT_FOUND)
 
         return _serve_pdf(pdf, book.title)
+
+
+def _serve_epub(epub_path: Path, title: str) -> FileResponse:
+    safe_title = re.sub(r'[^\w\s-]', '', title).strip() or "download"
+    response = FileResponse(open(epub_path, "rb"), content_type="application/epub+zip")
+    response["Content-Disposition"] = f'attachment; filename="{safe_title}.epub"'
+    return response
+
+
+@extend_schema(exclude=True)
+class DownloadEpubView(APIView):
+    """GET /api/books/<book_pk>/download-epub/ — serve the built EPUB file."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, book_pk):
+        book = get_object_or_404(Book, pk=book_pk, user=request.user)
+        if not book.epub_built_at or not book.epub_path:
+            return Response({"detail": "No EPUB build."}, status=status.HTTP_404_NOT_FOUND)
+        epub = Path(book.epub_path)
+        if not epub.is_file():
+            return Response({"detail": "EPUB file not found."}, status=status.HTTP_404_NOT_FOUND)
+        return _serve_epub(epub, book.title)
+
+
+@extend_schema(exclude=True)
+class DownloadEpubByTokenView(APIView):
+    """GET /api/dl-epub/<token>/ — token download for the EPUB email link."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token):
+        import logging
+        from .signing import verify_download_token
+
+        logger = logging.getLogger(__name__)
+
+        result = verify_download_token(token)
+        if result is None:
+            return Response(
+                {"detail": "Download link is invalid or has expired."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        book_id, user_id = result
+        book = get_object_or_404(Book, pk=book_id)
+        if user_id and book.user_id != user_id:
+            return Response(
+                {"detail": "Download link is invalid."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not book.epub_built_at or not book.epub_path:
+            return Response({"detail": "No EPUB build."}, status=status.HTTP_404_NOT_FOUND)
+        epub = Path(book.epub_path)
+        if not epub.is_file():
+            return Response({"detail": "EPUB file not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+        if not ip:
+            ip = request.META.get("REMOTE_ADDR", "")
+        logger.info("Token EPUB download: book_id=%d user_id=%d ip=%s",
+                    book_id, user_id or 0, ip)
+
+        return _serve_epub(epub, book.title)
 
 
 @extend_schema(exclude=True)
@@ -879,3 +957,255 @@ class DownloadBookHtmlByTokenView(APIView):
         )
 
         return _serve_book_html_zip(book)
+
+
+# ── Freeze (semester snapshot) ────────────────────────────────────────────────
+
+def _frozen_root() -> Path:
+    return Path(settings.FROZEN_OUTPUT_DIR)
+
+
+def _frozen_dir(token: str) -> Path:
+    return _frozen_root() / token
+
+
+def _build_chapter_snapshot(book: Book, build_job: BuildJob) -> list[dict]:
+    """Compose the per-chapter snapshot list.
+
+    Combines the book's in-order chapter set with the SHAs captured by
+    the build pipeline. Chapters whose repo isn't in chapter_shas (e.g.
+    builds from before the SHA-capture migration) get commit_sha="".
+    """
+    snapshot: list[dict] = []
+    shas = build_job.chapter_shas or {}
+    seen: set[int] = set()
+    for part in book.parts.all():
+        for bc in part.book_chapters.all():
+            ch = bc.chapter
+            if ch.id in seen:
+                continue
+            seen.add(ch.id)
+            snapshot.append({
+                "chabbr": ch.chabbr,
+                "title": ch.title,
+                "repo": ch.github_repo,
+                "subdir": ch.chapter_subdir,
+                "commit_sha": shas.get(ch.github_repo, ""),
+                "last_updated": ch.last_updated.isoformat() if ch.last_updated else None,
+            })
+    return snapshot
+
+
+class BookFreezeView(APIView):
+    """POST /api/books/<book_pk>/freeze/ — snapshot the latest successful build.
+
+    Requires the book to be COMPLETE with at least one built artifact
+    (PDF, HTML, or EPUB). Copies those artifacts into a per-token
+    directory under settings.FROZEN_OUTPUT_DIR and records a
+    FrozenBook row. The owner can then share the resulting URL with
+    students; the frozen build is immune to subsequent rebuilds or
+    deletions of the parent book.
+
+    Body (optional JSON):
+      - "label": short label (e.g. "Fall 2026")
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, book_pk):
+        import shutil as _shutil
+        import logging
+        logger = logging.getLogger(__name__)
+
+        book = get_object_or_404(
+            Book.objects.select_related("build_job", "user")
+            .prefetch_related("parts__book_chapters__chapter"),
+            pk=book_pk, user=request.user,
+        )
+
+        if book.status != Book.Status.COMPLETE or not hasattr(book, "build_job"):
+            return Response(
+                {"detail": "Book has no completed build to freeze."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        job = book.build_job
+        pdf_src = Path(job.pdf_path) if job.pdf_path else None
+        html_src = Path(book.html_path) if book.html_path and book.html_built_at else None
+        epub_src = Path(job.epub_path) if job.epub_path else None
+
+        if not any([
+            pdf_src and pdf_src.is_file(),
+            html_src and html_src.is_dir(),
+            epub_src and epub_src.is_file(),
+        ]):
+            return Response(
+                {"detail": "No build artifacts found on disk to freeze."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        label = str(request.data.get("label", "")).strip()[:200]
+
+        frozen = FrozenBook(
+            book=book,
+            label=label,
+            title_snapshot=book.title,
+            author_snapshot=book.user.full_name or book.user.email,
+            chapter_snapshot=_build_chapter_snapshot(book, job),
+            frozen_by=request.user,
+        )
+        frozen.save()
+
+        dest = _frozen_dir(frozen.share_token)
+        try:
+            dest.mkdir(parents=True, exist_ok=False)
+
+            if pdf_src and pdf_src.is_file():
+                pdf_dst = dest / "book.pdf"
+                _shutil.copy2(str(pdf_src), str(pdf_dst))
+                frozen.pdf_path = str(pdf_dst)
+
+            if html_src and html_src.is_dir():
+                html_dst = dest / "html"
+                _shutil.copytree(str(html_src), str(html_dst))
+                frozen.html_path = str(html_dst)
+
+            if epub_src and epub_src.is_file():
+                epub_dst = dest / "book.epub"
+                _shutil.copy2(str(epub_src), str(epub_dst))
+                frozen.epub_path = str(epub_dst)
+
+            frozen.save(update_fields=["pdf_path", "html_path", "epub_path"])
+        except Exception:
+            logger.exception("Freeze copy failed for book %d", book.id)
+            _shutil.rmtree(dest, ignore_errors=True)
+            frozen.delete()
+            return Response(
+                {"detail": "Failed to copy build artifacts. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response(
+            FrozenBookSerializer(frozen).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class BookFrozenListView(APIView):
+    """GET /api/books/<book_pk>/frozen/ — list frozen versions of a book."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, book_pk):
+        book = get_object_or_404(Book, pk=book_pk, user=request.user)
+        frozen = book.frozen_versions.all()
+        return Response(FrozenBookSerializer(frozen, many=True).data)
+
+
+class FrozenBookOwnerDetailView(APIView):
+    """DELETE /api/frozen/<pk>/manage/ — owner-only delete of a frozen book."""
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        import shutil as _shutil
+        frozen = get_object_or_404(FrozenBook, pk=pk, frozen_by=request.user)
+        token = frozen.share_token
+        frozen.delete()
+        _shutil.rmtree(_frozen_dir(token), ignore_errors=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FrozenBookPublicView(APIView):
+    """GET /api/frozen/<token>/ — public metadata for a frozen book."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token):
+        frozen = get_object_or_404(FrozenBook, share_token=token)
+        return Response(FrozenBookPublicSerializer(frozen).data)
+
+
+def _serve_frozen_file(frozen: FrozenBook, path_attr: str, content_type: str,
+                       filename_suffix: str):
+    raw = getattr(frozen, path_attr, "")
+    if not raw:
+        return Response({"detail": "Not built."}, status=status.HTTP_404_NOT_FOUND)
+    p = Path(raw)
+    if not p.is_file():
+        return Response({"detail": "File not found."}, status=status.HTTP_404_NOT_FOUND)
+    safe_title = re.sub(r'[^\w\s-]', '', frozen.title_snapshot).strip() or "frozen-book"
+    response = FileResponse(open(p, "rb"), content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{safe_title}{filename_suffix}"'
+    return response
+
+
+class FrozenBookPdfView(APIView):
+    """GET /api/frozen/<token>/pdf/ — download a frozen book's PDF (public)."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token):
+        frozen = get_object_or_404(FrozenBook, share_token=token)
+        return _serve_frozen_file(frozen, "pdf_path", "application/pdf", ".pdf")
+
+
+class FrozenBookEpubView(APIView):
+    """GET /api/frozen/<token>/epub/ — download a frozen book's EPUB (public)."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token):
+        frozen = get_object_or_404(FrozenBook, share_token=token)
+        return _serve_frozen_file(frozen, "epub_path", "application/epub+zip", ".epub")
+
+
+class FrozenBookHtmlView(APIView):
+    """GET /api/frozen/<token>/html/[<path:filename>] — serve frozen HTML output.
+
+    Public. Path traversal is blocked by resolving the requested name
+    against the frozen html directory and rejecting any result that
+    escapes it.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token, filename=None):
+        frozen = get_object_or_404(FrozenBook, share_token=token)
+        if not frozen.html_path:
+            return Response({"detail": "No HTML build."}, status=status.HTTP_404_NOT_FOUND)
+        root = Path(frozen.html_path)
+        if not root.is_dir():
+            return Response({"detail": "HTML dir missing."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not filename:
+            filename = "index.html" if (root / "index.html").exists() else "node-1.html"
+
+        try:
+            target = (root / filename).resolve()
+            if not str(target).startswith(str(root.resolve())):
+                return HttpResponse(status=403)
+        except (ValueError, OSError):
+            return HttpResponse(status=400)
+
+        if not target.is_file():
+            target = (root / "ImageFolder" / filename).resolve()
+            if (
+                not str(target).startswith(str(root.resolve()))
+                or not target.is_file()
+            ):
+                return HttpResponse(status=404)
+
+        suffix = target.suffix.lower()
+        content_type = _HTML_BOOK_CONTENT_TYPES.get(suffix)
+        if not content_type:
+            content_type = (
+                mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+            )
+        response = FileResponse(open(target, "rb"), content_type=content_type)
+        response["Cache-Control"] = "public, max-age=3600"
+        return response

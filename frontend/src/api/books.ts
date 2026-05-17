@@ -1,5 +1,10 @@
 import client from './client';
-import type { Book, BookListItem, BuildFormat } from '../types';
+import type {
+  Book,
+  BookListItem,
+  BuildFormat,
+  FrozenBook,
+} from '../types';
 
 export const booksApi = {
   list: () =>
@@ -121,6 +126,31 @@ export const booksApi = {
       a.remove();
       window.URL.revokeObjectURL(url);
     }),
+
+  downloadEpub: (bookId: number) =>
+    client.get(`/books/${bookId}/download-epub/`, { responseType: 'blob' }).then((r) => {
+      const disposition = r.headers['content-disposition'] || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : `book_${bookId}.epub`;
+      const url = window.URL.createObjectURL(r.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    }),
+
+  // Freeze (semester snapshot)
+  freeze: (bookId: number, label?: string) =>
+    client.post<FrozenBook>(`/books/${bookId}/freeze/`, { label: label ?? '' }).then((r) => r.data),
+
+  listFrozen: (bookId: number) =>
+    client.get<FrozenBook[]>(`/books/${bookId}/frozen/`).then((r) => r.data),
+
+  deleteFrozen: (frozenId: number) =>
+    client.delete(`/frozen/${frozenId}/manage/`),
 
   publicLibrary: () =>
     client

@@ -30,7 +30,12 @@ RUN apt-get update \
       git \
       pdf2svg \
       poppler-utils \
+      xindy \
  && rm -rf /var/lib/apt/lists/*
+
+# tex4ebook ships with TeX Live (since 2014). Verify it's on PATH so a
+# failed image build catches a missing package before a real EPUB run.
+RUN command -v tex4ebook >/dev/null 2>&1 || (echo "tex4ebook missing from TL image" && exit 1)
 
 # ── Python dependencies ───────────────────────────────────────────────────────
 # jinja2  — used by build_main_tex.py to render main.tex from the template
@@ -101,7 +106,7 @@ ENV DJANGO_SETTINGS_MODULE=ocweb.settings.dev
 # this; in prod, the baked-in copy is what the worker runs.
 WORKDIR /app
 COPY . /app
-RUN mkdir -p /app/media/html /app/media/html_books /app/media/pdfs /app/media/pdf_labels /app/media/examples /app/media/example_figures /app/git-cache \
+RUN mkdir -p /app/media/html /app/media/html_books /app/media/pdfs /app/media/pdf_labels /app/media/examples /app/media/example_figures /app/media/epubs /app/media/frozen /app/git-cache \
  && chown -R texlive:texlive /app
 
 # texlive user (UID 1000) already exists in the base image

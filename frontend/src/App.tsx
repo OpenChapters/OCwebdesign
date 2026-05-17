@@ -20,6 +20,7 @@ import MyBooksPage from './pages/MyBooksPage';
 import BookEditorPage from './pages/BookEditorPage';
 import BookReadPage from './pages/BookReadPage';
 import BuildStatusPage from './pages/BuildStatusPage';
+import FrozenBookPage from './pages/FrozenBookPage';
 import AboutPage from './pages/AboutPage';
 import UserGuidePage from './pages/UserGuidePage';
 import SplashScreen from './components/SplashScreen';
@@ -226,6 +227,16 @@ export default function App() {
         element={
           <Layout>
             <UserGuidePage />
+          </Layout>
+        }
+      />
+
+      {/* Public: frozen-book share page (no login required) */}
+      <Route
+        path="/frozen/:token"
+        element={
+          <Layout>
+            <FrozenBookPage />
           </Layout>
         }
       />

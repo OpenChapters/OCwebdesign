@@ -15,6 +15,8 @@ from users.token import CustomTokenObtainPairView
 from books.views import (
     BookDetailView,
     BookExamplesAvailableView,
+    BookFreezeView,
+    BookFrozenListView,
     BookHtmlTokenView,
     BookHtmlView,
     BookListCreateView,
@@ -23,8 +25,15 @@ from books.views import (
     CoverImageView,
     DownloadBookHtmlByTokenView,
     DownloadBookHtmlView,
+    DownloadEpubByTokenView,
+    DownloadEpubView,
     DownloadPDFByTokenView,
     DownloadPDFView,
+    FrozenBookEpubView,
+    FrozenBookHtmlView,
+    FrozenBookOwnerDetailView,
+    FrozenBookPdfView,
+    FrozenBookPublicView,
     LibraryView,
     PartReorderView,
     PartChapterDetailView,
@@ -204,6 +213,7 @@ urlpatterns = [
     path("api/books/<int:book_pk>/examples-available/", BookExamplesAvailableView.as_view(), name="book-examples-available"),
     path("api/books/<int:book_pk>/download/", DownloadPDFView.as_view(), name="download-pdf"),
     path("api/books/<int:book_pk>/download-html/", DownloadBookHtmlView.as_view(), name="download-book-html"),
+    path("api/books/<int:book_pk>/download-epub/", DownloadEpubView.as_view(), name="download-epub"),
     path("api/books/<int:book_pk>/html-token/", BookHtmlTokenView.as_view(), name="book-html-token"),
     path("api/books/<int:book_pk>/html/", BookHtmlView.as_view(), name="book-html"),
     path("api/books/<int:book_pk>/html/<path:filename>", BookHtmlView.as_view(), name="book-html-file"),
@@ -222,6 +232,17 @@ urlpatterns = [
     # ── Signed PDF download (from email links, no auth required) ────────────
     path("api/dl/<str:token>/", DownloadPDFByTokenView.as_view(), name="download-pdf-token"),
     path("api/dl-html/<str:token>/", DownloadBookHtmlByTokenView.as_view(), name="download-book-html-token"),
+    path("api/dl-epub/<str:token>/", DownloadEpubByTokenView.as_view(), name="download-epub-token"),
+
+    # ── Frozen-book (semester snapshots) ────────────────────────────────────
+    path("api/books/<int:book_pk>/freeze/", BookFreezeView.as_view(), name="book-freeze"),
+    path("api/books/<int:book_pk>/frozen/", BookFrozenListView.as_view(), name="book-frozen-list"),
+    path("api/frozen/<int:pk>/manage/", FrozenBookOwnerDetailView.as_view(), name="frozen-manage"),
+    path("api/frozen/<str:token>/", FrozenBookPublicView.as_view(), name="frozen-public"),
+    path("api/frozen/<str:token>/pdf/", FrozenBookPdfView.as_view(), name="frozen-pdf"),
+    path("api/frozen/<str:token>/epub/", FrozenBookEpubView.as_view(), name="frozen-epub"),
+    path("api/frozen/<str:token>/html/", FrozenBookHtmlView.as_view(), name="frozen-html"),
+    path("api/frozen/<str:token>/html/<path:filename>", FrozenBookHtmlView.as_view(), name="frozen-html-file"),
 
     # ── About (serves markdown for frontend rendering) ────────────────────────
     path("api/about/", about_md, name="about"),

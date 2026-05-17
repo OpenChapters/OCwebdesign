@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { booksApi } from '../api/books';
 import { useToast } from '../components/Toast';
 import BuildStepsList from '../components/BuildStepsList';
+import FrozenVersionsPanel from '../components/FrozenVersionsPanel';
 import type { BuildJob } from '../types';
 
 export default function BuildStatusPage() {
@@ -30,6 +31,7 @@ export default function BuildStatusPage() {
 
   const hasPdf = Boolean(bookData?.has_pdf);
   const hasHtml = Boolean(bookData?.has_html);
+  const canFreeze = status === 'complete' && (hasPdf || hasHtml);
 
   const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
     queued:   { label: 'Queued',   color: 'text-yellow-600 dark:text-yellow-400', icon: '⏳' },
@@ -128,6 +130,8 @@ export default function BuildStatusPage() {
                   )}
                 </div>
               )}
+
+              <FrozenVersionsPanel bookId={bookId} canFreeze={canFreeze} />
               {status === 'failed' && job.error_message && (
                 <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-4">
                   <p className="text-sm font-medium text-red-800 dark:text-red-300 mb-1">Error</p>

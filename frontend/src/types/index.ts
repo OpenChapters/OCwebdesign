@@ -1,3 +1,6 @@
+// EPUB and "all" are kept in the backend pipeline but not surfaced in
+// the 1.2 UI — tex4ebook is incompatible with the OpenChapters preamble.
+// Re-add 'epub' | 'all' here when the EPUB path is re-enabled.
 export type BuildFormat = 'pdf' | 'html' | 'both';
 
 export interface Discipline {
@@ -83,8 +86,10 @@ export interface Book {
   build_job: BuildJob | null;
   has_cover_image: boolean;
   html_built_at: string | null;
+  epub_built_at: string | null;
   has_pdf: boolean;
   has_html: boolean;
+  has_epub: boolean;
   last_build_format: BuildFormat;
   include_examples: boolean;
   include_solutions: boolean;
@@ -100,8 +105,43 @@ export interface BookListItem {
   created_at: string;
   updated_at: string;
   html_built_at: string | null;
+  epub_built_at: string | null;
   has_pdf: boolean;
   has_html: boolean;
+  has_epub: boolean;
+}
+
+export interface FrozenBookChapter {
+  chabbr: string;
+  title: string;
+  repo: string;
+  subdir: string;
+  commit_sha: string;
+  last_updated: string | null;
+}
+
+export interface FrozenBook {
+  id: number;
+  label: string;
+  share_token: string;
+  title_snapshot: string;
+  author_snapshot: string;
+  chapter_snapshot: FrozenBookChapter[];
+  has_pdf: boolean;
+  has_html: boolean;
+  has_epub: boolean;
+  frozen_at: string;
+}
+
+export interface FrozenBookPublic {
+  label: string;
+  title_snapshot: string;
+  author_snapshot: string;
+  chapter_snapshot: FrozenBookChapter[];
+  has_pdf: boolean;
+  has_html: boolean;
+  has_epub: boolean;
+  frozen_at: string;
 }
 
 

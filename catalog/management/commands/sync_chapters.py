@@ -80,6 +80,11 @@ class Command(BaseCommand):
         subdirs = [d for d in subdirs if d not in _SKIP_DIRS]
         self.stdout.write(f"Found {len(subdirs)} chapter director(ies). Syncing chapter.json …\n")
 
+        # Authoritative set of chapter directories that currently exist in the
+        # repo, by full subdir path. Used after the upsert loop to detect DB
+        # chapters whose source directory has been removed (see pruning below).
+        present_subdirs = {f"{src_path}/{d}" for d in subdirs}
+
         # Determine the default branch once from the first repo response;
         # fall back to "master" which is what OpenChapters/OpenChapters uses.
         default_branch = "master"
@@ -180,10 +185,41 @@ class Command(BaseCommand):
                 updated += 1
                 self.stdout.write(f"  updated  {chapter_subdir}")
 
+        # --- Prune orphans: chapters in the DB whose source directory no
+        # longer exists in the repo. We unpublish (never delete) them so the
+        # row and all its associations survive, but it drops out of the public
+        # browser and its count. The stdout report below is what the admin sees
+        # on a manual sync; the nightly task discards stdout to the logs, so no
+        # admin message there — but the unpublish still happens either way.
+        #
+        # Guard against a transient empty/partial listing wiping the catalog:
+        # only prune when we actually discovered chapter directories.
+        unpublished = 0
+        if present_subdirs:
+            orphans = (
+                Chapter.objects.filter(
+                    github_repo=repo,
+                    published=True,
+                    chapter_subdir__startswith=f"{src_path}/",
+                )
+                .exclude(chapter_subdir__in=present_subdirs)
+            )
+            for ch in orphans:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  orphan   {ch.chapter_subdir} "
+                        f"(\"{ch.title}\") — no longer in repo, unpublishing"
+                    )
+                )
+                if not dry_run:
+                    ch.published = False
+                    ch.save(update_fields=["published"])
+                unpublished += 1
+
         label = "dry-run" if dry_run else "done"
         self.stdout.write(
             self.style.SUCCESS(
                 f"\n{label}: created={created} updated={updated} "
-                f"skipped={skipped} errors={errors}"
+                f"skipped={skipped} unpublished={unpublished} errors={errors}"
             )
         )

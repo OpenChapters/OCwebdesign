@@ -65,6 +65,13 @@ export interface BuildStep {
   log_tail: string;
 }
 
+export interface OmittedChapter {
+  title: string;
+  repo: string;
+  subdir: string;
+  reason: string;
+}
+
 export interface BuildJob {
   celery_task_id: string;
   started_at: string | null;
@@ -72,6 +79,7 @@ export interface BuildJob {
   pdf_path: string;
   error_message: string;
   preview_structure: boolean;
+  omitted_chapters: OmittedChapter[];
   steps: BuildStep[];
 }
 

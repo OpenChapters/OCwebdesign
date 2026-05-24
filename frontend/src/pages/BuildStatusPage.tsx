@@ -87,6 +87,25 @@ export default function BuildStatusPage() {
                   <BuildStepsList steps={job.steps} />
                 </div>
               )}
+              {job.omitted_chapters && job.omitted_chapters.length > 0 && (
+                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                    {job.omitted_chapters.length === 1
+                      ? '1 chapter was omitted'
+                      : `${job.omitted_chapters.length} chapters were omitted`}
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+                    These chapters could not be included because their source is no longer
+                    available in the repository. The rest of your book was built as usual —
+                    you may want to look for a replacement chapter on similar topics.
+                  </p>
+                  <ul className="list-disc list-inside text-xs text-amber-800 dark:text-amber-200 space-y-0.5">
+                    {job.omitted_chapters.map((c, i) => (
+                      <li key={i}>{c.title}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {status === 'complete' && (hasPdf || hasHtml) && (
                 <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 rounded-lg p-4 flex items-center gap-3 flex-wrap">
                   <p className="text-sm font-medium text-green-800 dark:text-green-200 flex-1">

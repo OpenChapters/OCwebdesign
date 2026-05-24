@@ -54,6 +54,7 @@ class BuildJobSerializer(serializers.ModelSerializer):
             "finished_at",
             "error_message",
             "preview_structure",
+            "omitted_chapters",
             "steps",
         ]
         read_only_fields = fields

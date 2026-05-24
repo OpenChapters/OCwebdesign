@@ -450,6 +450,82 @@ def _materialize_via_cache(clone_url: str, repo: str, target_dir: Path, log_fn) 
         # archive.
 
 
+def _prune_unavailable_chapters(workdir: Path, request_data: dict, log_fn) -> list[dict]:
+    """Drop chapters whose LaTeX source isn't present in the freshly-cloned
+    repos and return a record of what was dropped.
+
+    A chapter can be selected for a book and then have its source removed
+    from the OpenChapters repo before the next build. The catalog row
+    survives (and sync unpublishes it), but the .tex is gone — so a rebuild
+    would otherwise die deep inside LaTeX with "can't find file". Instead we
+    skip the chapter and let the rest of the book build, recording each
+    omission so the user can be told (and prompted to find a replacement).
+
+    A chapter's entry file lives at ``<workdir>/<repo-last-segment>/<entry_file>``
+    — the same path build_main_tex.py turns into the ``\\include{}`` target.
+    Mutates *request_data* in place: removes omitted chapters and then any
+    part left with no chapters (including an emptied auto-added Foundations).
+    """
+    omitted: list[dict] = []
+    for part in request_data.get("parts", []):
+        kept = []
+        for ch in part.get("chapters", []):
+            entry = ch.get("entry_file", "")
+            repo = ch.get("repo", "")
+            entry_path = workdir / repo.split("/")[-1] / entry if entry else None
+            if entry_path is not None and entry_path.is_file():
+                kept.append(ch)
+                continue
+            info = {
+                "title": ch.get("title") or ch.get("chapter_subdir") or entry or repo,
+                "repo": repo,
+                "subdir": ch.get("chapter_subdir", ""),
+                "reason": "source not found in repository",
+            }
+            omitted.append(info)
+            log_fn(
+                f'  ! omitting chapter "{info["title"]}" — '
+                f'{entry or "(no entry file)"} not found in {repo}'
+            )
+        part["chapters"] = kept
+    request_data["parts"] = [p for p in request_data.get("parts", []) if p["chapters"]]
+    return omitted
+
+
+def _omitted_email_sections(omitted: list[dict]) -> tuple[str, str]:
+    """Return (plain-text, html) snippets noting chapters left out of a build.
+
+    Empty strings when nothing was omitted, so callers can unconditionally
+    interpolate the result into the email body.
+    """
+    if not omitted:
+        return "", ""
+    from html import escape
+
+    titles = [o.get("title") or o.get("subdir") or o.get("repo") or "?" for o in omitted]
+    text = (
+        "Note: the following chapter(s) could not be included because their "
+        "source is no longer available in the repository:\n"
+        + "".join(f"  - {t}\n" for t in titles)
+        + "The rest of your book was built as usual. You may want to look for a "
+        "replacement chapter on similar topics.\n\n"
+    )
+    items = "".join(f"<li>{escape(str(t))}</li>" for t in titles)
+    html_section = (
+        '<div style="margin-top:16px;padding:12px 16px;background-color:#fffbeb;'
+        'border:1px solid #fde68a;border-radius:6px;">'
+        "<p style=\"margin:0 0 6px;font-size:14px;color:#92400e;\"><strong>Some chapters "
+        "were omitted</strong></p>"
+        '<p style="margin:0 0 6px;font-size:13px;color:#92400e;">These chapters could '
+        "not be included because their source is no longer available in the repository:</p>"
+        f'<ul style="margin:0 0 6px 18px;font-size:13px;color:#92400e;">{items}</ul>'
+        '<p style="margin:0;font-size:13px;color:#92400e;">The rest of your book was '
+        "built as usual — you may want to look for a replacement chapter on similar topics.</p>"
+        "</div>"
+    )
+    return text, html_section
+
+
 # ---------------------------------------------------------------------------
 # Tasks
 # ---------------------------------------------------------------------------
@@ -505,6 +581,7 @@ def build_book(self, book_id: int, preview_structure: bool = False) -> None:
     job.pdf_path = ""
     job.log_output = ""
     job.error_message = ""
+    job.omitted_chapters = []
     job.preview_structure = preview_structure
     job.save()
     _reset_steps(job)
@@ -574,6 +651,23 @@ def build_book(self, book_id: int, preview_structure: bool = False) -> None:
             job.chapter_shas = chapter_shas
             job.save(update_fields=["chapter_shas"])
             _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
+
+        # ── Step 1b: drop chapters whose source is no longer in the repo ─────
+        # Skip-and-warn: keep building the rest of the book, but record any
+        # omission so the user is told (and can hunt for a replacement).
+        omitted = _prune_unavailable_chapters(workdir, request_data, log)
+        if omitted:
+            job.omitted_chapters = omitted
+            job.save(update_fields=["omitted_chapters"])
+            (workdir / "build_request.json").write_text(
+                json.dumps(request_data, indent=2), encoding="utf-8"
+            )
+            log(f"Omitted {len(omitted)} unavailable chapter(s); rewrote build_request.json")
+            if not request_data["parts"]:
+                raise RuntimeError(
+                    "All selected chapters are unavailable — their source has been "
+                    "removed from the repository, so there is nothing to typeset."
+                )
 
         # ── Step 2: assemble matter/, frontmatter, cover, bibs, figures ──────
         with _build_step(job, name="assemble", label="Assembling chapters and figures",
@@ -789,6 +883,9 @@ def deliver_pdf(self, book_id: int) -> None:
 
     from django.core.mail import EmailMultiAlternatives
 
+    omitted = getattr(getattr(book, "build_job", None), "omitted_chapters", None) or []
+    omitted_text, omitted_html = _omitted_email_sections(omitted)
+
     from_email = getattr(settings, "FROM_EMAIL", "noreply@openchapters.org")
     subject = f"Your book is ready: {book.title}"
     text_body = (
@@ -796,6 +893,7 @@ def deliver_pdf(self, book_id: int) -> None:
         f'Your book "{book.title}" has been typeset and is ready for download.\n\n'
         f"Download your PDF:\n{download_url}\n\n"
         f"This link expires in {expiry_days} days.\n\n"
+        f"{omitted_text}"
         f"— OpenChapters"
     )
     html_body = (
@@ -806,6 +904,7 @@ def deliver_pdf(self, book_id: int) -> None:
         f'font-weight:600;">Download PDF</a></p>'
         f"<p><small>This link expires in {expiry_days} days. "
         f"You can also download from your <a href=\"{site_url}/library\">Library</a>.</small></p>"
+        f"{omitted_html}"
         f"<p>— OpenChapters</p>"
     )
 
@@ -998,6 +1097,7 @@ def build_book_html(self, book_id: int, send_email: bool = True) -> None:
     job.finished_at = None
     job.log_output = ""
     job.error_message = ""
+    job.omitted_chapters = []
     job.save()
     _reset_steps(job)
 
@@ -1073,6 +1173,21 @@ def build_book_html(self, book_id: int, send_email: bool = True) -> None:
             job.chapter_shas = chapter_shas
             job.save(update_fields=["chapter_shas"])
             _set_step_detail(step, f"{len(repos)} repositor{'y' if len(repos)==1 else 'ies'}")
+
+        # ── Step 1b: drop chapters whose source is no longer in the repo ─────
+        omitted = _prune_unavailable_chapters(workdir, request_data, log)
+        if omitted:
+            job.omitted_chapters = omitted
+            job.save(update_fields=["omitted_chapters"])
+            (workdir / "build_request.json").write_text(
+                json.dumps(request_data, indent=2), encoding="utf-8"
+            )
+            log(f"Omitted {len(omitted)} unavailable chapter(s); rewrote build_request.json")
+            if not request_data["parts"]:
+                raise RuntimeError(
+                    "All selected chapters are unavailable — their source has been "
+                    "removed from the repository, so there is nothing to typeset."
+                )
 
         # ── Step 2: assemble images, bibs, figures, SVG conversion ───────
         with _build_step(job, name="assemble", label="Assembling figures and bibliography",
@@ -1309,6 +1424,7 @@ def build_book_epub(self, book_id: int, send_email: bool = True) -> None:
     job.finished_at = None
     job.log_output = ""
     job.error_message = ""
+    job.omitted_chapters = []
     job.save()
     _reset_steps(job)
 
@@ -1625,6 +1741,9 @@ def deliver_book_html(self, book_id: int) -> None:
 
     from django.core.mail import EmailMultiAlternatives
 
+    omitted = getattr(getattr(book, "build_job", None), "omitted_chapters", None) or []
+    omitted_text, omitted_html = _omitted_email_sections(omitted)
+
     from_email = getattr(settings, "FROM_EMAIL", "noreply@openchapters.org")
     subject = f"Your book HTML is ready: {book.title}"
     text_body = (
@@ -1632,6 +1751,7 @@ def deliver_book_html(self, book_id: int) -> None:
         f'Your book "{book.title}" has been typeset as HTML and is ready to read online.\n\n'
         f"View online: {view_url}\n"
         f"Download zip: {download_url}\n\n"
+        f"{omitted_text}"
         f"— OpenChapters"
     )
     html_body = (
@@ -1645,6 +1765,7 @@ def deliver_book_html(self, book_id: int) -> None:
         f'font-weight:600;">Download HTML (zip)</a></p>'
         f'<p><small>You can also access these from your '
         f'<a href="{site_url}/library">Library</a>.</small></p>'
+        f"{omitted_html}"
         f"<p>— OpenChapters</p>"
     )
 

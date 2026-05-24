@@ -167,6 +167,14 @@ class BuildJob(models.Model):
     # re-cloning. Empty {} for legacy jobs that pre-date this field.
     chapter_shas = models.JSONField(default=dict, blank=True)
 
+    # Chapters dropped from the build because their LaTeX source was no
+    # longer present in the cloned repo (e.g. removed from the repo after
+    # the user added them to their book). The build still completes with
+    # the remaining chapters; this records what was skipped so the user
+    # can be told. Each entry: {"title", "repo", "subdir", "reason"}.
+    # Empty [] on a clean build.
+    omitted_chapters = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         return f"BuildJob({self.book.title})"
 

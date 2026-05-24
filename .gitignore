@@ -19,6 +19,9 @@ staticfiles/
 # Generated PDFs, cached images, HTML build output, example figures, etc.
 media/
 
+# Warm git clone cache (GIT_CACHE_DIR) used by the build pipeline
+git-cache/
+
 # Test coverage
 .coverage
 htmlcov/

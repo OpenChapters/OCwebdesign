@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../api';
-import type { AdminChapter } from '../api';
+import type { AdminChapterUpdatePayload } from '../api';
 
 export default function ChapterDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,16 +15,12 @@ export default function ChapterDetailPage() {
   });
 
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<Partial<AdminChapter>>({});
+  const [form, setForm] = useState<AdminChapterUpdatePayload>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (chapter) {
       setForm({
-        title: chapter.title,
-        description: chapter.description,
-        chapter_type: chapter.chapter_type,
-        keywords: chapter.keywords,
         published: chapter.published,
         reviewer_name: chapter.reviewer_name,
         reviewed_at: chapter.reviewed_at,
@@ -105,49 +101,28 @@ export default function ChapterDetailPage() {
           >
             {editing ? 'Cancel editing' : 'Edit metadata'}
           </button>
+          <a
+            href={chapter.github_edit_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open chapter.json in the GitHub web editor. Submit your change as a PR; the next sync will pick it up."
+            className="text-xs px-3 py-1.5 rounded font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+          >
+            ✏ Edit chapter.json on GitHub
+          </a>
         </div>
 
-        {/* Edit form */}
+        {/* Edit form — admin-curation fields only. Title, description,
+            keywords, type, authors, TOC, dependencies and cover live in
+            chapter.json on GitHub; edit them there via PR. */}
         {editing && (
           <div className="mt-6 space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Title</label>
-              <input
-                value={form.title ?? ''}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Description</label>
-              <textarea
-                value={form.description ?? ''}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={4}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Type</label>
-              <select
-                value={form.chapter_type ?? 'topical'}
-                onChange={(e) => setForm({ ...form, chapter_type: e.target.value as any })}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="topical">Topical</option>
-                <option value="foundational">Foundational</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                Keywords <span className="text-gray-400 dark:text-gray-500 font-normal">(comma-separated)</span>
-              </label>
-              <input
-                value={(form.keywords ?? []).join(', ')}
-                onChange={(e) => setForm({ ...form, keywords: e.target.value.split(',').map((k) => k.trim()).filter(Boolean) })}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Title, authors, description, keywords, TOC and other content
+              metadata are owned by the author and live in <code className="font-mono">chapter.json</code>.
+              Edit them on GitHub (links in the Details panel below) and merge
+              the PR; the next sync will pick them up.
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Reviewer Name</label>

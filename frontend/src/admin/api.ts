@@ -183,7 +183,14 @@ export interface AdminChapter {
   html_built_at: string | null;
   cached_at: string;
   examples_count: number;
+  github_edit_url: string;
 }
+
+// Only these three fields are writable via PATCH /admin/chapters/{id}/.
+// Everything else lives in chapter.json on GitHub and is edited via PR.
+export type AdminChapterUpdatePayload = Partial<
+  Pick<AdminChapter, 'published' | 'reviewer_name' | 'reviewed_at'>
+>;
 
 // ── API ──────────────────────────────────────────────────────────────────────
 
@@ -305,7 +312,7 @@ export const adminApi = {
     client.get<PaginatedResponse<AdminChapter>>('/admin/chapters/', { params }).then((r) => r.data),
   chapterDetail: (id: number) =>
     client.get<AdminChapter>(`/admin/chapters/${id}/`).then((r) => r.data),
-  chapterUpdate: (id: number, data: Partial<AdminChapter>) =>
+  chapterUpdate: (id: number, data: AdminChapterUpdatePayload) =>
     client.patch<AdminChapter>(`/admin/chapters/${id}/`, data).then((r) => r.data),
   chapterSync: () =>
     client.post<{ detail: string; output: string }>('/admin/chapters/sync/').then((r) => r.data),

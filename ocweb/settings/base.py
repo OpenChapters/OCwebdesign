@@ -301,6 +301,10 @@ BUILD_TEMPLATE_HTML_DIR = BASE_DIR / "Build" / "template_html"
 # When set, "Update Thumbnails" also writes cover.png to the monorepo.
 OPENCHAPTERS_MONOREPO_PATH = env("OPENCHAPTERS_MONOREPO_PATH", default="")
 
+# Default branch on the OpenChapters monorepo, used to build the
+# "Edit on GitHub" links on the admin chapter detail page.
+OPENCHAPTERS_DEFAULT_BRANCH = env("OPENCHAPTERS_DEFAULT_BRANCH", default="master")
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 # Django's default LOGGING filters the console handler to DEBUG=True only,
 # so unhandled 500s in production are silently routed to mail_admins (which

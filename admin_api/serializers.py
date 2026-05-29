@@ -60,6 +60,7 @@ class AdminDisciplineSerializer(serializers.ModelSerializer):
 class AdminChapterSerializer(serializers.ModelSerializer):
     discipline_name = serializers.CharField(source="discipline.name", read_only=True, default="")
     examples_count = serializers.SerializerMethodField()
+    github_edit_url = serializers.SerializerMethodField()
 
     def get_examples_count(self, obj):
         # Falls back to a per-row query if the queryset wasn't annotated
@@ -77,17 +78,29 @@ class AdminChapterSerializer(serializers.ModelSerializer):
             .count()
         )
 
+    def get_github_edit_url(self, obj) -> str:
+        from django.conf import settings
+        branch = getattr(settings, "OPENCHAPTERS_DEFAULT_BRANCH", "master")
+        return f"https://github.com/{obj.github_repo}/edit/{branch}/{obj.chapter_subdir}/chapter.json"
+
     class Meta:
         model = Chapter
+        # Everything that lives in chapter.json (title, authors, description,
+        # keywords, toc, depends_on, chabbr, chapter_type, cover_image_url,
+        # discipline) is read-only here — those edits belong on GitHub via a
+        # PR against the monorepo. Only the admin-curation trio is writable.
         fields = [
             "id", "title", "authors", "description", "toc",
             "cover_image_url", "keywords", "chapter_type", "chabbr",
             "depends_on", "published", "discipline", "discipline_name",
             "github_repo", "chapter_subdir", "latex_entry_file",
             "reviewer_name", "reviewed_at", "html_built_at", "cached_at",
-            "examples_count",
+            "examples_count", "github_edit_url",
         ]
         read_only_fields = [
-            "id", "github_repo", "chapter_subdir", "latex_entry_file",
-            "cached_at", "discipline_name", "examples_count",
+            "id", "title", "authors", "description", "toc",
+            "cover_image_url", "keywords", "chapter_type", "chabbr",
+            "depends_on", "discipline", "discipline_name",
+            "github_repo", "chapter_subdir", "latex_entry_file",
+            "html_built_at", "cached_at", "examples_count", "github_edit_url",
         ]

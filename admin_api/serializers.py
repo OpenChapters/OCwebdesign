@@ -86,13 +86,14 @@ class AdminChapterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chapter
         # Everything that lives in chapter.json (title, authors, description,
-        # keywords, toc, depends_on, chabbr, chapter_type, cover_image_url,
-        # discipline) is read-only here — those edits belong on GitHub via a
-        # PR against the monorepo. Only the admin-curation trio is writable.
+        # keywords, toc, depends_on, related_to, chabbr, chapter_type,
+        # cover_image_url, discipline) is read-only here — those edits belong on
+        # GitHub via a PR against the monorepo. Only the admin-curation trio is
+        # writable.
         fields = [
             "id", "title", "authors", "description", "toc",
             "cover_image_url", "keywords", "chapter_type", "chabbr",
-            "depends_on", "published", "discipline", "discipline_name",
+            "depends_on", "related_to", "published", "discipline", "discipline_name",
             "github_repo", "chapter_subdir", "latex_entry_file",
             "reviewer_name", "reviewed_at", "html_built_at", "cached_at",
             "examples_count", "github_edit_url",
@@ -100,7 +101,7 @@ class AdminChapterSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "title", "authors", "description", "toc",
             "cover_image_url", "keywords", "chapter_type", "chabbr",
-            "depends_on", "discipline", "discipline_name",
+            "depends_on", "related_to", "discipline", "discipline_name",
             "github_repo", "chapter_subdir", "latex_entry_file",
             "html_built_at", "cached_at", "examples_count", "github_edit_url",
         ]

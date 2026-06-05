@@ -234,6 +234,7 @@ Each chapter in the [OpenChapters monorepo](https://github.com/OpenChapters/Open
   "chapter_type": "foundational",
   "chabbr": "LINALG",
   "depends_on": [],
+  "related_to": [],
   "discipline": "mse",
   "published": true
 }
@@ -241,7 +242,8 @@ Each chapter in the [OpenChapters monorepo](https://github.com/OpenChapters/Open
 
 - **chapter_type**: `"foundational"` or `"topical"` — controls grouping in the browser
 - **chabbr**: unique abbreviation used in LaTeX `\label`/`\ref` cross-references
-- **depends_on**: list of `chabbr` values for foundational chapters this chapter references; the Book Editor suggests including these, and the build pipeline auto-includes any that are missing
+- **depends_on**: list of `chabbr` values for **foundational** prerequisite chapters this chapter requires. Hard requirement: the Book Editor suggests them and the build pipeline auto-includes any that are missing — resolved to the full transitive closure (a prerequisite's prerequisites too) and placed, in dependency order, in a prepended "Foundations" part.
+- **related_to**: list of `chabbr` values for **topical** chapters this chapter cross-references. Soft suggestion only: the Book Editor offers them as optional "related chapters," but they are *never* auto-included in a build. If you `\ref` a chapter listed here and the reader doesn't add it, that reference will be undefined — so use `depends_on` for anything you actually cross-reference.
 - **discipline**: slug of the discipline this chapter belongs to (e.g., `"mse"` for Materials Science and Engineering). Maps to the `Discipline` model. If omitted during sync, the existing assignment is preserved.
 - **published**: set to `false` to hide incomplete/template chapters from the catalog
 

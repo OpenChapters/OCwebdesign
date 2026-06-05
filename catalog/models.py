@@ -92,9 +92,14 @@ class Chapter(models.Model):
     # Unique chapter abbreviation used in \label and \ref, e.g. "LINALG"
     chabbr = models.CharField(max_length=20, blank=True)
 
-    # List of chabbr values for foundational chapters this chapter cross-references.
-    # Used by the frontend to auto-include required foundational chapters.
+    # List of chabbr values for FOUNDATIONAL prerequisite chapters this chapter
+    # requires. Hard: auto-included in builds, resolved to full transitive
+    # closure and placed (topologically ordered) in the "Foundations" part.
     depends_on = models.JSONField(default=list, validators=[_validate_string_list])
+
+    # List of chabbr values for TOPICAL chapters this chapter cross-references.
+    # Soft: surfaced as a frontend suggestion only; never auto-included in builds.
+    related_to = models.JSONField(default=list, validators=[_validate_string_list])
 
     # False for template/placeholder chapters not ready for inclusion in builds.
     published = models.BooleanField(default=True)

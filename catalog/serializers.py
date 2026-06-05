@@ -62,6 +62,7 @@ class ChapterSerializer(serializers.ModelSerializer):
             "chapter_type",
             "chabbr",
             "depends_on",
+            "related_to",
             "discipline",
             "github_repo",
             "chapter_subdir",

@@ -15,6 +15,7 @@ from tests.factories import (
     BookFactory,
     BookPartFactory,
     ChapterFactory,
+    FoundationalChapterFactory,
     PublishedExampleFactory,
     UserFactory,
 )
@@ -131,6 +132,23 @@ class TestExamplesAvailableEndpoint:
         # group entries.
         all_ids = {e["id"] for g in resp.data["groups"] for e in g["examples"]}
         assert ex_a.id in all_ids
+
+    def test_endpoint_resolves_transitive_foundational_deps(self, auth_client, user):
+        """A transitively-required foundational chapter's examples surface even
+        though it is not directly in the book (matches the build pipeline)."""
+        fc2 = FoundationalChapterFactory(chabbr="FC2")
+        FoundationalChapterFactory(chabbr="FC1", depends_on=["FC2"])
+        tc = ChapterFactory(chabbr="TC", depends_on=["FC1"])
+        book = BookFactory(user=user)
+        part = BookPartFactory(book=book, order=0)
+        BookChapterFactory(part=part, chapter=tc, order=0)
+        ex = PublishedExampleFactory(primary_chapter=fc2, chapters=[fc2])
+
+        resp = auth_client.get(f"/api/books/{book.id}/examples-available/")
+        assert resp.status_code == 200
+        groups = {g["chapter"]["chabbr"]: g for g in resp.data["groups"]}
+        assert "FC2" in groups
+        assert ex.id in {e["id"] for e in groups["FC2"]["examples"]}
 
     def test_endpoint_omits_chapters_with_no_examples(self, auth_client, user):
         ch = ChapterFactory(chabbr="EMPTY")

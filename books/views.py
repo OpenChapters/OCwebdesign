@@ -392,6 +392,7 @@ class BookExamplesAvailableView(APIView):
 
     def get(self, request, book_pk):
         from catalog.models import Chapter, Example
+        from catalog.services.dependencies import resolve_foundational_dependencies
 
         book = get_object_or_404(
             Book.objects.prefetch_related("parts__book_chapters__chapter"),
@@ -399,33 +400,23 @@ class BookExamplesAvailableView(APIView):
             user=request.user,
         )
 
-        # Replicate _assemble_request_data's chapter-order construction,
+        # Replicate _build_request_data's chapter-order construction,
         # including auto-included foundational dependencies.
         book_chapter_order: list[int] = []
         included_chabbrs: set[str] = set()
+        seed_depends_on: list[str] = []
         for part in book.parts.all():
             for bc in part.book_chapters.all():
                 book_chapter_order.append(bc.chapter_id)
+                seed_depends_on.extend(bc.chapter.depends_on or [])
                 if bc.chapter.chabbr:
                     included_chabbrs.add(bc.chapter.chabbr)
 
-        # Foundational deps prepended (matches build pipeline ordering)
-        needed_chabbrs: set[str] = set()
-        for cid in list(book_chapter_order):
-            ch = Chapter.objects.filter(pk=cid).first()
-            if not ch:
-                continue
-            for dep in ch.depends_on or []:
-                if dep not in included_chabbrs:
-                    needed_chabbrs.add(dep)
-        if needed_chabbrs:
-            dep_ids = list(
-                Chapter.objects
-                .filter(chabbr__in=needed_chabbrs, published=True)
-                .order_by("title")
-                .values_list("id", flat=True)
-            )
-            book_chapter_order = dep_ids + book_chapter_order
+        # Foundational deps prepended (matches build pipeline ordering — both
+        # call sites consume the same resolver, so the order is identical).
+        dep_chapters = resolve_foundational_dependencies(included_chabbrs, seed_depends_on)
+        if dep_chapters:
+            book_chapter_order = [ch.id for ch in dep_chapters] + book_chapter_order
 
         if not book_chapter_order:
             return Response({"groups": [], "excluded_example_ids": list(book.excluded_example_ids or [])})

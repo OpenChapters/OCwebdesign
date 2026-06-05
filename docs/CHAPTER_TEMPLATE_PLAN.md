@@ -108,6 +108,7 @@ Pre-filled with the discipline field and clear placeholder values:
   "chapter_type": "topical",
   "chabbr": "MYCHAP",
   "depends_on": [],
+  "related_to": [],
   "discipline": "mse",
   "published": false
 }

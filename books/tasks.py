@@ -135,12 +135,15 @@ def _build_request_data(book, *, preview_structure: bool = False) -> dict:
     chapter titles, no body). Chapter titles are included so the stub
     main.tex can emit \\chapter{Title} for each entry.
     """
-    from catalog.models import Chapter, Example
+    from catalog.models import Example
+    from catalog.services.dependencies import resolve_foundational_dependencies
 
     parts = []
     included_chabbrs: set[str] = set()
     # ordered list of chapter_id by book position; index gives "earliest" rank
     book_chapter_order: list[int] = []
+    # chabbr values referenced by depends_on across the whole book
+    seed_depends_on: list[str] = []
 
     for part in book.parts.order_by("order"):
         chapters = []
@@ -154,46 +157,26 @@ def _build_request_data(book, *, preview_structure: bool = False) -> dict:
                 "_chapter_id": ch.id,
             })
             book_chapter_order.append(ch.id)
+            seed_depends_on.extend(ch.depends_on)
             if ch.chabbr:
                 included_chabbrs.add(ch.chabbr)
         parts.append({"title": part.title, "chapters": chapters})
 
-    # Resolve foundational-chapter dependencies --------------------------
-    # Collect all chabbr values referenced by depends_on across the book.
-    all_chapters = Chapter.objects.filter(
-        id__in=book.parts.values_list(
-            "book_chapters__chapter_id", flat=True,
-        )
-    )
-    needed_chabbrs: set[str] = set()
-    for ch in all_chapters:
-        for dep in ch.depends_on:
-            if dep not in included_chabbrs:
-                needed_chabbrs.add(dep)
-
-    if needed_chabbrs:
-        dep_chapters = (
-            Chapter.objects.filter(chabbr__in=needed_chabbrs, published=True)
-            .order_by("title")
-        )
-        dep_entries = []
-        for ch in dep_chapters:
-            dep_entries.append({
-                "repo": ch.github_repo,
-                "chapter_subdir": ch.chapter_subdir,
-                "entry_file": ch.latex_entry_file,
-                "title": ch.title,
-                "_chapter_id": ch.id,
-            })
-            book_chapter_order.insert(0, ch.id)
-        if dep_entries:
-            # Prepend a Foundations part so labels are defined before
-            # they are referenced by topical chapters.
-            parts.insert(0, {"title": "Foundations", "chapters": dep_entries})
-            # Foundations chapters precede everything else in book order.
-            book_chapter_order = [
-                e["_chapter_id"] for e in dep_entries
-            ] + book_chapter_order[len(dep_entries):]
+    # Resolve foundational-chapter dependencies to full transitive closure,
+    # topologically ordered (a prerequisite's prerequisite precedes it).
+    dep_chapters = resolve_foundational_dependencies(included_chabbrs, seed_depends_on)
+    if dep_chapters:
+        dep_entries = [{
+            "repo": ch.github_repo,
+            "chapter_subdir": ch.chapter_subdir,
+            "entry_file": ch.latex_entry_file,
+            "title": ch.title,
+            "_chapter_id": ch.id,
+        } for ch in dep_chapters]
+        # Prepend a Foundations part so labels are defined before they are
+        # referenced by topical chapters.
+        parts.insert(0, {"title": "Foundations", "chapters": dep_entries})
+        book_chapter_order = [ch.id for ch in dep_chapters] + book_chapter_order
 
     # ── Worked-examples integration ─────────────────────────────────────
     # Build a chapter_id -> [example dict] map honoring the

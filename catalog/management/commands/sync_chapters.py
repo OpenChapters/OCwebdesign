@@ -155,6 +155,7 @@ class Command(BaseCommand):
                 "chabbr": chapter_data.get("chabbr", ""),
                 "author_urls": chapter_data.get("author_urls", {}),
                 "depends_on": chapter_data.get("depends_on", []),
+                "related_to": chapter_data.get("related_to", []),
                 "published": chapter_data.get("published", True),
                 "reviewer_name": chapter_data.get("reviewer_name", ""),
                 "reviewed_at": chapter_data.get("reviewed_at") or None,

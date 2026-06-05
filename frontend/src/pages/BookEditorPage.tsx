@@ -34,6 +34,7 @@ export default function BookEditorPage() {
   const [activePart, setActivePart] = useState<number | null>(null);
   const [chapterSearch, setChapterSearch] = useState('');
   const [suggestions, setSuggestions] = useState<Chapter[]>([]);
+  const [relatedSuggestions, setRelatedSuggestions] = useState<Chapter[]>([]);
   const [building, setBuilding] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [buildFormat, setBuildFormat] = useState<BuildFormat>('pdf');
@@ -203,23 +204,44 @@ export default function BookEditorPage() {
 
   // ── Adding chapters ─────────────────────────────────────────────────────
 
-  function computeMissingSuggestions(addedIds: Set<number>) {
+  // Walk an edge type (depends_on or related_to) to its full transitive
+  // closure starting from the chapters currently in the book. Returns the
+  // referenced chapters that are not already added. Cycle-safe via `visited`.
+  function walkClosure(addedIds: Set<number>, edge: 'depends_on' | 'related_to') {
     const catalog = chaptersData?.results ?? [];
     const abbrToChapter = new Map(catalog.map((c) => [c.chabbr, c]));
-    const neededAbbrs = new Set<string>();
+    const stack: string[] = [];
     for (const ch of catalog) {
-      if (addedIds.has(ch.id) && ch.depends_on.length > 0) {
-        for (const abbr of ch.depends_on) neededAbbrs.add(abbr);
-      }
+      if (addedIds.has(ch.id)) stack.push(...ch[edge]);
     }
-    const missing: Chapter[] = [];
-    for (const abbr of neededAbbrs) {
+    const visited = new Set<string>();
+    const found: Chapter[] = [];
+    while (stack.length > 0) {
+      const abbr = stack.pop()!;
+      if (visited.has(abbr)) continue;
+      visited.add(abbr);
       const dep = abbrToChapter.get(abbr);
-      if (dep && dep.chapter_type === 'foundational' && !addedIds.has(dep.id)) {
-        missing.push(dep);
+      if (!dep) continue;
+      for (const next of dep[edge]) {
+        if (!visited.has(next)) stack.push(next);
       }
+      if (!addedIds.has(dep.id)) found.push(dep);
     }
-    return missing;
+    return found;
+  }
+
+  // Foundational prerequisites (hard) — transitive closure of depends_on,
+  // restricted to foundational chapters, matching the backend auto-include.
+  function computeMissingSuggestions(addedIds: Set<number>) {
+    return walkClosure(addedIds, 'depends_on').filter(
+      (ch) => ch.chapter_type === 'foundational',
+    );
+  }
+
+  // Topical cross-references (soft) — transitive closure of related_to.
+  // Suggestion-only; never auto-included by the backend.
+  function computeRelatedSuggestions(addedIds: Set<number>) {
+    return walkClosure(addedIds, 'related_to');
   }
 
   async function addChapter(chapterId: number) {
@@ -282,6 +304,33 @@ export default function BookEditorPage() {
     } catch { /* skip */ }
   }
 
+  // Related chapters (soft) are added to the active part as ordinary
+  // chapters — not the auto-managed Foundational Material part.
+  async function addRelatedSuggestion(chapterId: number) {
+    // addChapter handles the active-part check, toast, and refresh; the
+    // suggestion drops out on the next recompute once the book updates.
+    await addChapter(chapterId);
+  }
+
+  async function addAllRelated() {
+    if (!activePart) {
+      toast('Please select a part first (click a part name on the right).', 'info');
+      return;
+    }
+    try {
+      const freshBook = await booksApi.detail(bookId);
+      const part = freshBook.parts.find((p) => p.id === activePart);
+      let order = part ? part.chapters.reduce((m, c) => Math.max(m, c.order), -1) + 1 : 0;
+      for (const ch of relatedSuggestions) {
+        try {
+          await booksApi.addChapter(bookId, activePart, { chapter_id: ch.id, order: order++ });
+        } catch { /* skip duplicates */ }
+      }
+      setRelatedSuggestions([]);
+      refresh();
+    } catch { /* skip */ }
+  }
+
   // ── Build ───────────────────────────────────────────────────────────────
 
   const [buildStatus, setBuildStatus] = useState<string | null>(null);
@@ -315,6 +364,16 @@ export default function BookEditorPage() {
       setBuildStatus(book.status);
     }
   }, [book?.status]);
+
+  // Recompute dependency suggestions whenever the book or catalog changes.
+  // Foundational (depends_on) are required; related (related_to) are optional.
+  useEffect(() => {
+    const addedIds = new Set(
+      book?.parts.flatMap((p) => p.chapters.map((bc) => bc.chapter_detail.id)) ?? [],
+    );
+    setSuggestions(computeMissingSuggestions(addedIds));
+    setRelatedSuggestions(computeRelatedSuggestions(addedIds));
+  }, [book, chaptersData]);
 
   async function toggleExamplesFlag(field: 'include_examples' | 'include_solutions', value: boolean) {
     try {
@@ -741,6 +800,32 @@ export default function BookEditorPage() {
                 <div className="flex flex-col gap-1 shrink-0">
                   <button onClick={addAllSuggestions} className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded hover:bg-amber-700">Add all</button>
                   <button onClick={() => setSuggestions([])} className="text-xs text-amber-600 dark:text-amber-400 hover:underline">Dismiss</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Optional related-chapter suggestions (soft cross-references) */}
+          {relatedSuggestions.length > 0 && (
+            <div className="mx-5 mt-4 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 rounded-lg p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-sky-800 dark:text-sky-200">Related chapters you might want to include</p>
+                  <p className="text-xs text-sky-700 dark:text-sky-300 mt-0.5">
+                    Chapters you selected cross-reference these. Optional — they're added to the active part if you include them.
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {relatedSuggestions.map((ch) => (
+                      <li key={ch.id} className="flex items-center gap-2 text-sm text-sky-900 dark:text-sky-100">
+                        <span className="flex-1">{ch.title}</span>
+                        <button onClick={() => addRelatedSuggestion(ch.id)} className="text-xs bg-sky-600 text-white px-2 py-0.5 rounded hover:bg-sky-700">+ Add</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button onClick={addAllRelated} className="text-xs bg-sky-600 text-white px-3 py-1.5 rounded hover:bg-sky-700">Add all</button>
+                  <button onClick={() => setRelatedSuggestions([])} className="text-xs text-sky-600 dark:text-sky-400 hover:underline">Dismiss</button>
                 </div>
               </div>
             </div>

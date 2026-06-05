@@ -90,13 +90,12 @@ class TestBuildRequestData:
         assert data["parts"][0]["title"] == "Foundations"
         assert data["parts"][1]["title"] == "Topics"
 
-    def test_transitive_dependencies_not_resolved(self):
-        """Only direct depends_on entries are auto-included (not transitive)."""
-        fc1 = FoundationalChapterFactory(
-            chabbr="CALC",
-            depends_on=["LINALG"],
-        )
-        fc2 = FoundationalChapterFactory(chabbr="LINALG")
+    def test_transitive_dependencies_resolved_in_topological_order(self):
+        """depends_on is resolved to full transitive closure, with each
+        prerequisite ordered before the chapter that requires it."""
+        # CALC depends on LINALG; the topical chapter depends only on CALC.
+        FoundationalChapterFactory(chabbr="LINALG", title="Linear Algebra")
+        FoundationalChapterFactory(chabbr="CALC", title="Calculus", depends_on=["LINALG"])
         tc = ChapterFactory(depends_on=["CALC"])
 
         book = BookFactory()
@@ -105,11 +104,72 @@ class TestBuildRequestData:
 
         data = _build_request_data(book)
 
-        # Should auto-include CALC but not LINALG (transitive)
         assert len(data["parts"]) == 2
-        foundation_entries = data["parts"][0]["chapters"]
-        assert len(foundation_entries) == 1
-        assert foundation_entries[0]["entry_file"] == fc1.latex_entry_file
+        foundation = data["parts"][0]
+        assert foundation["title"] == "Foundations"
+        # Both the direct (CALC) and transitive (LINALG) deps are present,
+        # with LINALG before CALC since CALC depends on it.
+        titles = [c["title"] for c in foundation["chapters"]]
+        assert titles == ["Linear Algebra", "Calculus"]
+
+    def test_diamond_dependency_included_once(self):
+        """A dependency reachable by two paths appears exactly once."""
+        FoundationalChapterFactory(chabbr="BASE", title="Base")
+        FoundationalChapterFactory(chabbr="A", title="A", depends_on=["BASE"])
+        FoundationalChapterFactory(chabbr="B", title="B", depends_on=["BASE"])
+        tc = ChapterFactory(depends_on=["A", "B"])
+
+        book = BookFactory()
+        part = BookPartFactory(book=book, title="Topics", order=0)
+        BookChapterFactory(part=part, chapter=tc, order=0)
+
+        data = _build_request_data(book)
+        titles = [c["title"] for c in data["parts"][0]["chapters"]]
+        assert titles.count("Base") == 1
+        # BASE precedes both A and B.
+        assert titles.index("Base") < titles.index("A")
+        assert titles.index("Base") < titles.index("B")
+
+    def test_dependency_cycle_terminates(self):
+        """A depends_on cycle resolves without infinite recursion; each
+        chapter in the cycle is included exactly once."""
+        FoundationalChapterFactory(chabbr="X", title="X", depends_on=["Y"])
+        FoundationalChapterFactory(chabbr="Y", title="Y", depends_on=["X"])
+        tc = ChapterFactory(depends_on=["X"])
+
+        book = BookFactory()
+        part = BookPartFactory(book=book, title="Topics", order=0)
+        BookChapterFactory(part=part, chapter=tc, order=0)
+
+        data = _build_request_data(book)
+        titles = [c["title"] for c in data["parts"][0]["chapters"]]
+        assert sorted(titles) == ["X", "Y"]
+
+    def test_unpublished_dependency_dropped(self):
+        """A depends_on target that is unpublished is silently skipped."""
+        FoundationalChapterFactory(chabbr="GONE", title="Gone", published=False)
+        tc = ChapterFactory(depends_on=["GONE"])
+
+        book = BookFactory()
+        part = BookPartFactory(book=book, title="Topics", order=0)
+        BookChapterFactory(part=part, chapter=tc, order=0)
+
+        data = _build_request_data(book)
+        # No Foundations part — the only dependency was unpublished.
+        assert [p["title"] for p in data["parts"]] == ["Topics"]
+
+    def test_related_to_not_auto_included(self):
+        """related_to is a soft cross-reference: never auto-included in builds."""
+        FoundationalChapterFactory(chabbr="OTHER", title="Other Topic")
+        tc = ChapterFactory(related_to=["OTHER"])
+
+        book = BookFactory()
+        part = BookPartFactory(book=book, title="Topics", order=0)
+        BookChapterFactory(part=part, chapter=tc, order=0)
+
+        data = _build_request_data(book)
+        # related_to has no build-time effect — only the Topics part exists.
+        assert [p["title"] for p in data["parts"]] == ["Topics"]
 
 
 class TestBuildDataValidation:

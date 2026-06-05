@@ -381,6 +381,7 @@ Returns all published chapters. No authentication required.
       "chapter_type": "foundational",
       "chabbr": "LINALG",
       "depends_on": [],
+      "related_to": [],
       "github_repo": "OpenChapters/OpenChapters",
       "chapter_subdir": "src/LinearAlgebra",
       "cached_at": "2026-03-25T15:49:09.621132Z"
@@ -402,7 +403,8 @@ Returns all published chapters. No authentication required.
 | `keywords` | string[] | Search keywords |
 | `chapter_type` | string | `"foundational"` or `"topical"` |
 | `chabbr` | string | Unique LaTeX abbreviation (e.g. `"LINALG"`) |
-| `depends_on` | string[] | List of `chabbr` values this chapter cross-references |
+| `depends_on` | string[] | `chabbr` values of **foundational** prerequisites (hard). Auto-included in builds, transitively, in a prepended "Foundations" part |
+| `related_to` | string[] | `chabbr` values of **topical** chapters cross-referenced (soft). Offered as optional suggestions in the Book Editor; never auto-included in builds |
 | `discipline` | object/null | `{id, name, slug, color_primary}` or `null` if unassigned |
 | `author_urls` | object | Map of author name → homepage URL (may be empty `{}`) |
 | `github_repo` | string | GitHub repository (e.g. `"OpenChapters/OpenChapters"`) |

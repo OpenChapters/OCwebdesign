@@ -22,6 +22,7 @@ export interface Chapter {
   chapter_type: 'foundational' | 'topical';
   chabbr: string;
   depends_on: string[];
+  related_to: string[];
   discipline: Discipline | null;
   github_repo: string;
   chapter_subdir: string;

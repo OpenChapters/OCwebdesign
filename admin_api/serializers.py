@@ -61,6 +61,13 @@ class AdminChapterSerializer(serializers.ModelSerializer):
     discipline_name = serializers.CharField(source="discipline.name", read_only=True, default="")
     examples_count = serializers.SerializerMethodField()
     github_edit_url = serializers.SerializerMethodField()
+    current_version_doi = serializers.SerializerMethodField()
+
+    def get_current_version_doi(self, obj) -> str:
+        current = next(
+            (v for v in obj.doi_versions.all() if v.is_current), None
+        )
+        return current.doi if current else ""
 
     def get_examples_count(self, obj):
         # Falls back to a per-row query if the queryset wasn't annotated
@@ -86,14 +93,17 @@ class AdminChapterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chapter
         # Everything that lives in chapter.json (title, authors, description,
-        # keywords, toc, depends_on, related_to, chabbr, chapter_type,
+        # keywords, toc, depends_on, related_to, version, chabbr, chapter_type,
         # cover_image_url, discipline) is read-only here — those edits belong on
-        # GitHub via a PR against the monorepo. Only the admin-curation trio is
-        # writable.
+        # GitHub via a PR against the monorepo. The DOI fields (concept_doi,
+        # current_version_doi) are system-minted and likewise read-only. Only
+        # the admin-curation trio is writable.
         fields = [
             "id", "title", "authors", "description", "toc",
             "cover_image_url", "keywords", "chapter_type", "chabbr",
-            "depends_on", "related_to", "published", "discipline", "discipline_name",
+            "depends_on", "related_to", "version",
+            "concept_doi", "current_version_doi",
+            "published", "discipline", "discipline_name",
             "github_repo", "chapter_subdir", "latex_entry_file",
             "reviewer_name", "reviewed_at", "html_built_at", "cached_at",
             "examples_count", "github_edit_url",
@@ -101,7 +111,9 @@ class AdminChapterSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "title", "authors", "description", "toc",
             "cover_image_url", "keywords", "chapter_type", "chabbr",
-            "depends_on", "related_to", "discipline", "discipline_name",
+            "depends_on", "related_to", "version",
+            "concept_doi", "current_version_doi",
+            "discipline", "discipline_name",
             "github_repo", "chapter_subdir", "latex_entry_file",
             "html_built_at", "cached_at", "examples_count", "github_edit_url",
         ]

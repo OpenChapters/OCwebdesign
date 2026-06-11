@@ -214,6 +214,26 @@ GIT_BASE_URL = env("GIT_BASE_URL", default="https://gitlab.com")
 # GitLab only: default branch for raw file access
 GIT_DEFAULT_BRANCH = env("GIT_DEFAULT_BRANCH", default="main")
 
+# ── DataCite DOI minting ──────────────────────────────────────────────────────
+# When DATACITE_ENABLED is False (the default), the DataCite client returns
+# deterministic placeholder DOIs and never makes a network call. Flip to True
+# and supply credentials once the real DataCite integration is wired up.
+DATACITE_ENABLED = env.bool("DATACITE_ENABLED", default=False)
+# DOI prefix assigned by DataCite. 10.5072 is DataCite's shared TEST prefix and
+# is used for the placeholders so they are recognizable as not-yet-real.
+DATACITE_PREFIX = env("DATACITE_PREFIX", default="10.5072")
+# DataCite repository (client) account credentials for Basic auth.
+DATACITE_REPO_ID = env("DATACITE_REPO_ID", default="")
+DATACITE_PASSWORD = env("DATACITE_PASSWORD", default="")
+# DataCite REST API base; api.test.datacite.org is the sandbox, api.datacite.org
+# is production.
+DATACITE_API_URL = env("DATACITE_API_URL", default="https://api.test.datacite.org")
+# Landing-page URL template for a minted DOI; "{doi}" is substituted. This is
+# the URL DataCite resolves the DOI to.
+DATACITE_LANDING_URL = env(
+    "DATACITE_LANDING_URL", default="https://openchapters.org/doi/{doi}"
+)
+
 # ── Email delivery (SMTP) ─────────────────────────────────────────────────────
 # Works with any SMTP provider: Brevo, Mailgun, SendGrid, AWS SES, Gmail, etc.
 # Leave EMAIL_HOST empty to disable sending (messages are logged instead).

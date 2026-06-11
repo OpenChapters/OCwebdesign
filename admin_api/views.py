@@ -279,7 +279,9 @@ class AdminChapterListView(generics.ListAPIView):
     serializer_class = AdminChapterSerializer
 
     def get_queryset(self):
-        qs = Chapter.objects.all().order_by("title").annotate(
+        qs = Chapter.objects.all().order_by("title").prefetch_related(
+            "doi_versions"
+        ).annotate(
             examples_count_annotated=Count(
                 "examples",
                 filter=Q(examples__status="published"),
@@ -301,7 +303,7 @@ class AdminChapterDetailView(generics.RetrieveUpdateAPIView):
 
     permission_classes = [IsStaffUser]
     serializer_class = AdminChapterSerializer
-    queryset = Chapter.objects.all()
+    queryset = Chapter.objects.all().prefetch_related("doi_versions")
 
     def perform_update(self, serializer):
         ch = self.get_object()

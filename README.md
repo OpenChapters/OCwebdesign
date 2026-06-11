@@ -235,6 +235,7 @@ Each chapter in the [OpenChapters monorepo](https://github.com/OpenChapters/Open
   "chabbr": "LINALG",
   "depends_on": [],
   "related_to": [],
+  "version": "1.0",
   "discipline": "mse",
   "published": true
 }
@@ -244,6 +245,7 @@ Each chapter in the [OpenChapters monorepo](https://github.com/OpenChapters/Open
 - **chabbr**: unique abbreviation used in LaTeX `\label`/`\ref` cross-references
 - **depends_on**: list of `chabbr` values for **foundational** prerequisite chapters this chapter requires. Hard requirement: the Book Editor suggests them and the build pipeline auto-includes any that are missing — resolved to the full transitive closure (a prerequisite's prerequisites too) and placed, in dependency order, in a prepended "Foundations" part.
 - **related_to**: list of `chabbr` values for **topical** chapters this chapter cross-references. Soft suggestion only: the Book Editor offers them as optional "related chapters," but they are *never* auto-included in a build. If you `\ref` a chapter listed here and the reader doesn't add it, that reference will be undefined — so use `depends_on` for anything you actually cross-reference.
+- **version** (optional): free-form version string (e.g. `"1.0"`). The explicit signal that a new DOI should be minted: when sync sees a `version` for which no DOI exists yet, it mints a *version DOI* (under the chapter's persistent *concept DOI*) pinned to the current source commit. Bump it only for **substantive** changes (new/removed sections, changed results, new figures, meaning-changing corrections); leave it for typos/formatting/build fixes. Omit it entirely to leave the chapter unversioned (no DOI).
 - **discipline**: slug of the discipline this chapter belongs to (e.g., `"mse"` for Materials Science and Engineering). Maps to the `Discipline` model. If omitted during sync, the existing assignment is preserved.
 - **published**: set to `false` to hide incomplete/template chapters from the catalog
 

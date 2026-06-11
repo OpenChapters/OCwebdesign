@@ -382,6 +382,18 @@ Returns all published chapters. No authentication required.
       "chabbr": "LINALG",
       "depends_on": [],
       "related_to": [],
+      "version": "1.0",
+      "concept_doi": "10.5072/openchapters.linalg.concept",
+      "current_version_doi": "10.5072/openchapters.linalg.1-0",
+      "doi_versions": [
+        {
+          "version": "1.0",
+          "doi": "10.5072/openchapters.linalg.1-0",
+          "commit_sha": "a1b2c3d",
+          "is_current": true,
+          "registered_at": "2026-03-25T15:49:09.621132Z"
+        }
+      ],
       "github_repo": "OpenChapters/OpenChapters",
       "chapter_subdir": "src/LinearAlgebra",
       "cached_at": "2026-03-25T15:49:09.621132Z"
@@ -405,6 +417,10 @@ Returns all published chapters. No authentication required.
 | `chabbr` | string | Unique LaTeX abbreviation (e.g. `"LINALG"`) |
 | `depends_on` | string[] | `chabbr` values of **foundational** prerequisites (hard). Auto-included in builds, transitively, in a prepended "Foundations" part |
 | `related_to` | string[] | `chabbr` values of **topical** chapters cross-referenced (soft). Offered as optional suggestions in the Book Editor; never auto-included in builds |
+| `version` | string | Author-declared version string from `chapter.json` (may be empty if unversioned) |
+| `concept_doi` | string | Persistent DOI for the chapter; always resolves to the latest version (empty until first registration) |
+| `current_version_doi` | string | DOI of the current (latest) registered version (empty if none) |
+| `doi_versions` | object[] | Full version-DOI history, newest first. Each is `{version, doi, commit_sha, is_current, registered_at}` |
 | `discipline` | object/null | `{id, name, slug, color_primary}` or `null` if unassigned |
 | `author_urls` | object | Map of author name → homepage URL (may be empty `{}`) |
 | `github_repo` | string | GitHub repository (e.g. `"OpenChapters/OpenChapters"`) |

@@ -98,6 +98,7 @@ class ChapterListView(generics.ListAPIView):
         qs = (
             Chapter.objects.filter(published=True)
             .select_related("discipline")
+            .prefetch_related("doi_versions")
         )
         qs = _annotate_examples_count(qs)
         discipline = self.request.query_params.get("discipline", "").strip()
@@ -112,7 +113,7 @@ class ChapterDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return _annotate_examples_count(
-            Chapter.objects.filter(published=True)
+            Chapter.objects.filter(published=True).prefetch_related("doi_versions")
         )
 
 

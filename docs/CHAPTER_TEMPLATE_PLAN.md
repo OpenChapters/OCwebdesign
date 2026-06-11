@@ -109,10 +109,23 @@ Pre-filled with the discipline field and clear placeholder values:
   "chabbr": "MYCHAP",
   "depends_on": [],
   "related_to": [],
+  "version": "1.0",
   "discipline": "mse",
   "published": false
 }
 ```
+
+**`version`** (optional) — a free-form version string for the chapter (e.g.
+`"1.0"`, `"1.2"`). It is the **explicit signal that a new DOI should be
+minted**: when the sync pipeline sees a `version` value for which no DOI has
+yet been registered, it mints a new *version DOI* (under the chapter's
+persistent *concept DOI*) pinned to the current source commit. Bump it only for
+**substantive** changes that warrant a separately citable version — new or
+removed sections, changed derivations/results, new figures, or corrections that
+change meaning. Leave it unchanged for typos, formatting, build fixes, or figure
+re-exports with no content change (these update the chapter in place without a
+new DOI). Omitting the key entirely leaves the chapter unversioned and mints no
+DOI.
 
 ### `matter/Frontmatter.tex` — Simplified Front Matter
 

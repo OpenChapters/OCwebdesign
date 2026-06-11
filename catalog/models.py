@@ -101,6 +101,15 @@ class Chapter(models.Model):
     # Soft: surfaced as a frontend suggestion only; never auto-included in builds.
     related_to = models.JSONField(default=list, validators=[_validate_string_list])
 
+    # Version string from chapter.json (e.g. "1.0", "1.2"). A change in this
+    # value is the explicit signal that a new version DOI should be minted on
+    # the next sync. Empty means the chapter is unversioned (no DOI minting).
+    version = models.CharField(max_length=40, blank=True)
+
+    # Persistent DataCite "concept" DOI for the chapter; minted once and always
+    # resolves to the latest version. Empty until the first DOI registration.
+    concept_doi = models.CharField(max_length=255, blank=True)
+
     # False for template/placeholder chapters not ready for inclusion in builds.
     published = models.BooleanField(default=True)
 
@@ -142,6 +151,48 @@ class Chapter(models.Model):
     def repo_dirname(self):
         """Local directory name when the repo is cloned, e.g. 'OpenChapters'."""
         return self.github_repo.split("/")[-1]
+
+
+class ChapterDOIVersion(models.Model):
+    """A single registered version DOI for a chapter.
+
+    One row per released chapter version. The chapter's persistent concept DOI
+    (Chapter.concept_doi) resolves to the latest version; each row here is a
+    citable snapshot pinned to the source commit it was minted from. Old rows
+    are retained (and kept citable) when a newer version supersedes them.
+    """
+
+    chapter = models.ForeignKey(
+        Chapter, on_delete=models.CASCADE, related_name="doi_versions"
+    )
+
+    # The chapter.json version string this DOI was minted for.
+    version = models.CharField(max_length=40)
+
+    # Version DOI returned by DataCite. May be a placeholder until the real
+    # DataCite client is wired up; never blank once minting succeeds.
+    doi = models.CharField(max_length=255, blank=True)
+
+    # Source commit this version DOI pins, captured at sync time.
+    commit_sha = models.CharField(max_length=64, blank=True)
+
+    # Exactly one row per chapter should have is_current=True (the version the
+    # concept DOI currently points at).
+    is_current = models.BooleanField(default=True)
+
+    registered_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-registered_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["chapter", "version"],
+                name="unique_chapter_version_doi",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.chapter.chabbr} v{self.version} ({self.doi or 'unminted'})"
 
 
 class ChapterSearchIndex(models.Model):

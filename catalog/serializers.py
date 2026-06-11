@@ -3,7 +3,14 @@ from pathlib import Path
 from django.conf import settings
 from rest_framework import serializers
 
-from .models import Chapter, Discipline, Example, ExampleFigure, ExampleVersion
+from .models import (
+    Chapter,
+    ChapterDOIVersion,
+    Discipline,
+    Example,
+    ExampleFigure,
+    ExampleVersion,
+)
 
 
 class DisciplineSerializer(serializers.ModelSerializer):
@@ -13,10 +20,25 @@ class DisciplineSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ChapterDOIVersionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChapterDOIVersion
+        fields = ["version", "doi", "commit_sha", "is_current", "registered_at"]
+        read_only_fields = fields
+
+
 class ChapterSerializer(serializers.ModelSerializer):
     discipline = DisciplineSerializer(read_only=True)
     has_pdf_labels = serializers.SerializerMethodField()
     examples_count = serializers.SerializerMethodField()
+    doi_versions = ChapterDOIVersionSerializer(many=True, read_only=True)
+    current_version_doi = serializers.SerializerMethodField()
+
+    def get_current_version_doi(self, obj):
+        current = next(
+            (v for v in obj.doi_versions.all() if v.is_current), None
+        )
+        return current.doi if current else ""
 
     def get_has_pdf_labels(self, obj):
         # Foundational-only artifact; the labels-PDF is built nightly
@@ -63,6 +85,10 @@ class ChapterSerializer(serializers.ModelSerializer):
             "chabbr",
             "depends_on",
             "related_to",
+            "version",
+            "concept_doi",
+            "current_version_doi",
+            "doi_versions",
             "discipline",
             "github_repo",
             "chapter_subdir",

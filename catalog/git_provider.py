@@ -87,8 +87,19 @@ class GitProvider(abc.ABC):
         """Return the HTTPS clone URL for *repo*."""
 
     @abc.abstractmethod
+    def last_commit(self, repo: str, path: str) -> dict | None:
+        """Return the most recent commit touching *path* as ``{"date": iso8601,
+        "sha": str}``, or None if there is none."""
+
     def last_commit_date(self, repo: str, path: str) -> str | None:
         """Return the ISO-8601 date of the most recent commit touching *path*, or None."""
+        commit = self.last_commit(repo, path)
+        return commit["date"] if commit else None
+
+    def last_commit_sha(self, repo: str, path: str) -> str | None:
+        """Return the SHA of the most recent commit touching *path*, or None."""
+        commit = self.last_commit(repo, path)
+        return commit["sha"] if commit else None
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +147,7 @@ class GitHubProvider(GitProvider):
     def clone_url(self, repo: str) -> str:
         return f"https://github.com/{repo}.git"
 
-    def last_commit_date(self, repo: str, path: str) -> str | None:
+    def last_commit(self, repo: str, path: str) -> dict | None:
         url = f"{self.BASE_URL}/repos/{repo}/commits"
         resp = _request_with_retry(
             "get", url, headers=self._headers(),
@@ -147,7 +158,11 @@ class GitHubProvider(GitProvider):
         commits = resp.json()
         if not commits:
             return None
-        return commits[0]["commit"]["committer"]["date"]
+        commit = commits[0]
+        return {
+            "date": commit["commit"]["committer"]["date"],
+            "sha": commit.get("sha", ""),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -212,7 +227,7 @@ class GitLabProvider(GitProvider):
     def clone_url(self, repo: str) -> str:
         return f"{self.base_url}/{repo}.git"
 
-    def last_commit_date(self, repo: str, path: str) -> str | None:
+    def last_commit(self, repo: str, path: str) -> dict | None:
         pid = self._project_id(repo)
         url = f"{self.base_url}/api/v4/projects/{pid}/repository/commits"
         resp = _request_with_retry(
@@ -224,7 +239,11 @@ class GitLabProvider(GitProvider):
         commits = resp.json()
         if not commits:
             return None
-        return commits[0]["committed_date"]
+        commit = commits[0]
+        return {
+            "date": commit["committed_date"],
+            "sha": commit.get("id", ""),
+        }
 
 
 # ---------------------------------------------------------------------------

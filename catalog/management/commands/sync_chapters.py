@@ -33,6 +33,7 @@ from catalog.github_client import (
     raw_file_url,
 )
 from catalog.models import Chapter, Discipline
+from catalog.services.doi import ensure_chapter_dois
 
 logger = logging.getLogger(__name__)
 
@@ -136,12 +137,15 @@ class Command(BaseCommand):
             # If not specified, don't overwrite an existing discipline assignment.
             discipline_slug = chapter_data.get("discipline", "")
 
-            # Fetch last commit date for the chapter subdirectory
+            # Fetch the last commit (date + SHA) for the chapter subdirectory.
+            # The SHA is used to pin any version DOI minted below.
             try:
-                last_commit_iso = provider.last_commit_date(repo, chapter_subdir)
+                last_commit = provider.last_commit(repo, chapter_subdir)
             except Exception as exc:
-                logger.warning("Could not fetch last commit date for %s: %s", chapter_subdir, exc)
-                last_commit_iso = None
+                logger.warning("Could not fetch last commit for %s: %s", chapter_subdir, exc)
+                last_commit = None
+            last_commit_iso = last_commit["date"] if last_commit else None
+            last_commit_sha = last_commit["sha"] if last_commit else ""
 
             defaults = {
                 "title": chapter_data.get("title", ""),
@@ -156,6 +160,7 @@ class Command(BaseCommand):
                 "author_urls": chapter_data.get("author_urls", {}),
                 "depends_on": chapter_data.get("depends_on", []),
                 "related_to": chapter_data.get("related_to", []),
+                "version": chapter_data.get("version", ""),
                 "published": chapter_data.get("published", True),
                 "reviewer_name": chapter_data.get("reviewer_name", ""),
                 "reviewed_at": chapter_data.get("reviewed_at") or None,
@@ -168,17 +173,28 @@ class Command(BaseCommand):
                     defaults["discipline"] = discipline_obj
 
             if dry_run:
+                version = defaults["version"]
+                doi_note = ""
+                if version:
+                    existing = Chapter.objects.filter(
+                        github_repo=repo, chapter_subdir=chapter_subdir
+                    ).first()
+                    if existing is None or not existing.doi_versions.filter(version=version).exists():
+                        doi_note = f" [would mint DOI for v{version}]"
                 self.stdout.write(
-                    f"  [dry-run] {chapter_subdir}: \"{chapter_data.get('title', '?')}\""
+                    f"  [dry-run] {chapter_subdir}: \"{chapter_data.get('title', '?')}\"{doi_note}"
                 )
                 updated += 1
                 continue
 
-            _, was_created = Chapter.objects.update_or_create(
+            chapter_obj, was_created = Chapter.objects.update_or_create(
                 github_repo=repo,
                 chapter_subdir=chapter_subdir,
                 defaults=defaults,
             )
+            # Mint concept/version DOIs if due (idempotent; warns and continues
+            # on failure, so DOI problems never block the sync).
+            ensure_chapter_dois(chapter_obj, commit_sha=last_commit_sha)
             if was_created:
                 created += 1
                 self.stdout.write(f"  created  {chapter_subdir}")

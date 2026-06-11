@@ -113,14 +113,18 @@ class TestAdminChapters:
         resp = staff_client.get("/api/admin/chapters/")
         assert resp.data["count"] == 2  # includes unpublished
 
-    def test_update_chapter_metadata(self, staff_client):
+    def test_chapter_json_fields_are_read_only(self, staff_client):
+        # chapter.json-sourced fields (title, description, toc, ...) are
+        # read-only in the admin panel — the GitHub monorepo is their source of
+        # truth and sync_chapters overwrites them, so a PATCH is silently
+        # ignored (200, but no change). See commit fe51955.
         ch = ChapterFactory(description="old")
         resp = staff_client.patch(f"/api/admin/chapters/{ch.id}/", {
             "description": "new description",
         })
         assert resp.status_code == 200
         ch.refresh_from_db()
-        assert ch.description == "new description"
+        assert ch.description == "old"
 
     def test_toggle_published(self, staff_client):
         ch = ChapterFactory(published=True)

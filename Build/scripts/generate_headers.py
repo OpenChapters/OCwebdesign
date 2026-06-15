@@ -8,6 +8,7 @@ with up to 4 actual chapter figures embedded (blurred, rotated, semi-transparent
 
 import random
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -295,6 +296,54 @@ CHAPTERS = {
         ],
         "big_symbols": [r"$\kappa$", r"$\mu$", r"$\bar{\theta}$", r"$q_m$"],
     },
+    "NUMSYS": {
+        "title": "Number Systems",
+        "bg": ("#e1f5fe", "#f3e5f5"),
+        "accents": ["#01579b", "#6a1b9a", "#0277bd", "#7b1fa2", "#283593"],
+        "formulas": [
+            r"$z = a + \mathrm{i}b$",
+            r"$|z| = \sqrt{a^2 + b^2}$",
+            r"$z\,z^{*} = a^2 + b^2$",
+            r"$\mathrm{e}^{\mathrm{i}\theta} = \cos\theta + \mathrm{i}\sin\theta$",
+            r"$z = r\,\mathrm{e}^{\mathrm{i}\theta}$",
+            r"$r_1\mathrm{e}^{\mathrm{i}\theta_1} r_2\mathrm{e}^{\mathrm{i}\theta_2} = r_1 r_2\,\mathrm{e}^{\mathrm{i}(\theta_1+\theta_2)}$",
+            r"$\mathbf{q} = q_0 + q_1\mathbf{i} + q_2\mathbf{j} + q_3\mathbf{k}$",
+            r"$\mathbf{i}^2 = \mathbf{j}^2 = \mathbf{k}^2 = -1$",
+        ],
+        "big_symbols": [r"$z$", r"$\mathrm{i}$", r"$\mathrm{e}^{\mathrm{i}\theta}$", r"$\mathbf{q}$"],
+    },
+    "ORISYM": {
+        "title": "Orientations and Symmetry",
+        "bg": ("#ede7f6", "#e0f7fa"),
+        "accents": ["#4527a0", "#00695c", "#5e35b1", "#00838f", "#283593"],
+        "formulas": [
+            r"$(\varphi_1, \Phi, \varphi_2)$",
+            r"$g' = s_i\, g$",
+            r"$\boldsymbol{\rho} = \hat{n}\tan(\omega/2)$",
+            r"$\varphi_1 = \mathrm{atan2}(-\rho_x - \rho_y\rho_z,\, -\rho_y + \rho_x\rho_z)$",
+            r"$\mathrm{RFZ}$",
+            r"$\Phi = \mathrm{arccot}(|\cos\varphi_2|)$",
+            r"$\mathcal{G} = \{s_1, s_2, \dots, s_N\}$",
+            r"$\mathrm{FZ}$",
+        ],
+        "big_symbols": [r"$\Phi$", r"$\boldsymbol{\rho}$", r"$\mathrm{FZ}$", r"$g$"],
+    },
+    "CRYSYM": {
+        "title": "Crystallographic Symmetry",
+        "bg": ("#e8f5e9", "#e8eaf6"),
+        "accents": ["#2e7d32", "#283593", "#00695c", "#1a237e", "#558b2f"],
+        "formulas": [
+            r"$\tilde{\mathbf{r}}' = \mathcal{W}\,\tilde{\mathbf{r}}$",
+            r"$(\mathbf{R}\,|\,\mathbf{t})$",
+            r"$\mathbf{r}' = \mathbf{R}\,\mathbf{r} + \mathbf{t}$",
+            r"$230\ \mathrm{space\ groups}$",
+            r"$32\ \mathrm{point\ groups}$",
+            r"$(hki\ell)$",
+            r"$\det\mathbf{R} = \pm 1$",
+            r"$\mathbf{A} = (0, \frac{1}{2}, \frac{1}{2})$",
+        ],
+        "big_symbols": [r"$\mathcal{W}$", r"$\mathbf{R}$", r"$(hki\ell)$", r"$\mathbf{t}$"],
+    },
 }
 
 
@@ -414,10 +463,48 @@ def generate_header(abbr: str, config: dict, output_path: Path, figure_dir: Path
 
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 
+    # Save at the fixed figure size (8.267 x 4.133 in = 595.2 x 297.6 pt =
+    # 2480 x 1240 px @ 300 DPI). Do NOT use bbox_inches="tight": the axes
+    # already fills the whole figure, and a tight bbox would expand the page to
+    # enclose any content that overflows [0,1] (rotated figures, big symbols),
+    # producing the wrong page size. With the fixed size, overflow is simply
+    # clipped at the page edge.
     with PdfPages(str(output_path)) as pdf:
-        pdf.savefig(fig, dpi=DPI, bbox_inches="tight", pad_inches=0)
+        pdf.savefig(fig, dpi=DPI)
     plt.close(fig)
     print(f"  Generated: {output_path.name}")
+
+
+# Target page size in PDF points: 2480 x 1240 px / 300 DPI * 72 pt/in.
+TARGET_W_PT = 2480 / DPI * 72  # 595.2
+TARGET_H_PT = 1240 / DPI * 72  # 297.6
+SIZE_TOL_PT = 0.5
+
+
+def _page_size_pt(pdf_path: Path) -> "tuple[float, float] | None":
+    """Return (width, height) in points for an existing PDF, or None."""
+    try:
+        out = subprocess.run(
+            ["pdfinfo", str(pdf_path)], capture_output=True, text=True, timeout=10
+        ).stdout
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return None
+    for line in out.splitlines():
+        if line.startswith("Page size:"):
+            parts = line.split(":", 1)[1].split()
+            try:
+                return float(parts[0]), float(parts[2])
+            except (IndexError, ValueError):
+                return None
+    return None
+
+
+def _is_correct_size(pdf_path: Path) -> bool:
+    size = _page_size_pt(pdf_path)
+    if size is None:
+        return False
+    w, h = size
+    return abs(w - TARGET_W_PT) <= SIZE_TOL_PT and abs(h - TARGET_H_PT) <= SIZE_TOL_PT
 
 
 def main():
@@ -425,6 +512,7 @@ def main():
     monorepo = Path("/Volumes/Drive2/Files/Books/OC/OpenChapters/src")
     chabbr_re = re.compile(r'\\renewcommand\{\\chabbr\}\{([^}]+)\}')
     skip = {"ChapterTemplate"}
+    force = "--force" in sys.argv
 
     for cdir in sorted(monorepo.iterdir()):
         if not cdir.is_dir() or cdir.name in skip:
@@ -442,6 +530,12 @@ def main():
         pdf_dir = cdir / "pdf"
         pdf_dir.mkdir(exist_ok=True)
         output = pdf_dir / f"{abbr}header.pdf"
+
+        # Only redo headers that don't already satisfy the size rule.
+        if not force and output.exists() and _is_correct_size(output):
+            print(f"  OK (kept):  {output.name}")
+            continue
+
         fig_dir = pdf_dir if any(f for f in pdf_dir.glob("*.pdf") if "header" not in f.name.lower()) else None
         generate_header(abbr, CHAPTERS[abbr], output, figure_dir=fig_dir)
 

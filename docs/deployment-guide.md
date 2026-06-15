@@ -298,6 +298,47 @@ You can also run the sync manually at any time:
 docker compose -f docker-compose.prod.yml exec web python manage.py sync_chapters
 ```
 
+## Updating an Existing Deployment
+
+When redeploying after pulling new code, **always rebuild the images and run
+migrations**. A code update that adds or changes a model fails at runtime with
+`column ... does not exist` if the database schema is behind — and the migrate
+step is easy to forget when you only rebuild a subset of services (e.g. just the
+workers).
+
+```bash
+# on the production host, in the deployment directory
+git pull
+
+# rebuild and recreate all services with the new code
+docker compose -f docker-compose.prod.yml up --build -d
+
+# apply any new migrations (idempotent — a no-op when nothing is pending)
+docker compose -f docker-compose.prod.yml exec web python manage.py migrate
+```
+
+- Run `migrate` on **every** deploy, even if you think nothing changed — it does
+  nothing when there are no pending migrations, and skipping it is the usual
+  cause of a `column ... does not exist` error after a deploy.
+- The migration files ship inside both the `web` and `worker` images, so if you
+  rebuilt only the workers you can apply them from a rebuilt worker instead:
+  `docker compose -f docker-compose.prod.yml exec worker-builds python manage.py migrate`.
+  But `web` must also be rebuilt before its API will expose any new model fields.
+- To avoid the brief window where new code runs against an un-migrated DB,
+  migrate first via a one-off container off the freshly-built image, then
+  recreate the services:
+
+  ```bash
+  docker compose -f docker-compose.prod.yml build
+  docker compose -f docker-compose.prod.yml run --rm web python manage.py migrate
+  docker compose -f docker-compose.prod.yml up -d
+  ```
+- Build-pipeline template files (`Build/template/`) are baked into the worker
+  image, so changes to them require a worker image **rebuild** (`--build`), not
+  just a `restart`. Chapter sources and header images are `git clone`d from the
+  OpenChapters repo at build time, so those refresh automatically on the next
+  build with no redeploy.
+
 ## Chapter HTML Builds
 
 In addition to the PDF build pipeline, OpenChapters produces per-chapter HTML output (via [lwarp](https://ctan.org/pkg/lwarp)) so users can read chapters online and search their content. Each chapter is compiled into a self-contained set of HTML files + SVG figures stored under `media/html/<chabbr>/`.

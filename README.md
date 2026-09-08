@@ -1,6 +1,6 @@
 # OpenChapters Web Platform
 
-A web application for building on-demand, open-source PDF textbooks from LaTeX source chapters. Authors contribute chapters under the [Creative Commons CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) license; users browse the catalog, assemble custom books, and receive professionally typeset PDFs.
+A web application for building on-demand, open-source PDF textbooks from LaTeX source chapters. Authors contribute chapters under the [Creative Commons CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) license; users browse the catalog, assemble custom books, and receive professionally typeset PDFs. This project is funded by the National Science Foundation, grant DMR-2203378.
 
 ## How It Works
 
